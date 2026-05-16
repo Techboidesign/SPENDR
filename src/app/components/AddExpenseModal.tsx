@@ -1,0 +1,415 @@
+import { useState, useEffect } from 'react';
+import { X, ChevronDown, Trash2 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { Expense, ExpenseType } from '../data/types';
+import { CATEGORIES } from '../data/categories';
+import { CategoryIcon } from './CategoryIcon';
+
+function genId() {
+  return 'exp_' + Math.random().toString(36).slice(2, 10);
+}
+
+export function AddExpenseModal() {
+  const { showAddModal, editingExpense, closeAddModal, dispatch, formatCurrency } = useApp();
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [amount, setAmount]       = useState('');
+  const [name, setName]           = useState('');
+  const [categoryId, setCategoryId] = useState('other');
+  const [date, setDate]           = useState(today);
+  const [type, setType]           = useState<ExpenseType>('one-time');
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate]     = useState('');
+  const [notes, setNotes]         = useState('');
+  const [showCatPicker, setShowCatPicker] = useState(false);
+
+  useEffect(() => {
+    if (editingExpense) {
+      setAmount(editingExpense.amount.toString());
+      setName(editingExpense.name);
+      setCategoryId(editingExpense.categoryId);
+      setDate(editingExpense.date);
+      setType(editingExpense.type);
+      setStartDate(editingExpense.startDate ?? editingExpense.date);
+      setEndDate(editingExpense.endDate ?? '');
+      setNotes(editingExpense.notes ?? '');
+    } else {
+      setAmount('');
+      setName('');
+      setCategoryId('other');
+      setDate(today);
+      setType('one-time');
+      setStartDate(today);
+      setEndDate('');
+      setNotes('');
+    }
+    setShowCatPicker(false);
+  }, [editingExpense, showAddModal]);
+
+  if (!showAddModal) return null;
+
+  const selectedCategory = CATEGORIES.find(c => c.id === categoryId)!;
+
+  const handleSave = () => {
+    const parsedAmount = parseFloat(amount);
+    if (!name.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    const expense: Expense = {
+      id: editingExpense?.id ?? genId(),
+      name: name.trim(),
+      categoryId,
+      amount: parsedAmount,
+      date,
+      type,
+      notes: notes.trim() || undefined,
+      startDate: type !== 'one-time' ? startDate : undefined,
+      endDate: type !== 'one-time' && endDate ? endDate : undefined,
+    };
+
+    if (editingExpense) {
+      dispatch({ type: 'UPDATE_EXPENSE', expense });
+    } else {
+      dispatch({ type: 'ADD_EXPENSE', expense });
+    }
+    closeAddModal();
+  };
+
+  const handleDelete = () => {
+    if (editingExpense) {
+      dispatch({ type: 'DELETE_EXPENSE', id: editingExpense.id });
+      closeAddModal();
+    }
+  };
+
+  const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
+    { value: 'one-time', label: 'One-time' },
+    { value: 'monthly',  label: 'Monthly' },
+    { value: 'yearly',   label: 'Yearly' },
+  ];
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 200,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+      }}
+    >
+      {/* Backdrop */}
+      <div
+        style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)' }}
+        onClick={closeAddModal}
+      />
+
+      {/* Sheet */}
+      <div
+        style={{
+          position: 'relative',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '24px 24px 0 0',
+          maxHeight: '92%',
+          overflowY: 'auto',
+          paddingBottom: 24,
+        }}
+      >
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB' }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+            {editingExpense ? 'Edit Expense' : 'New Expense'}
+          </h2>
+          <button
+            onClick={closeAddModal}
+            style={{ background: '#F7F7FA', border: 'none', borderRadius: 10, padding: '6px', cursor: 'pointer', display: 'flex' }}
+          >
+            <X size={18} color="#6B7280" />
+          </button>
+        </div>
+
+        <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Amount */}
+          <div style={{ backgroundColor: '#F7F7FA', borderRadius: 16, padding: '16px 20px', textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 4, fontWeight: 500 }}>AMOUNT</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <span style={{ fontSize: 36, fontWeight: 700, color: '#3E37FF' }}>€</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                style={{
+                  fontSize: 40,
+                  fontWeight: 800,
+                  color: '#1A1A2E',
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  width: '60%',
+                  textAlign: 'center',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>EXPENSE NAME</label>
+            <input
+              type="text"
+              placeholder="e.g. Dinner at restaurant"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 6,
+                padding: '12px 14px',
+                backgroundColor: '#F7F7FA',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                color: '#1A1A2E',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>CATEGORY</label>
+            <button
+              onClick={() => setShowCatPicker(!showCatPicker)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                marginTop: 6,
+                padding: '10px 14px',
+                backgroundColor: '#F7F7FA',
+                border: 'none',
+                borderRadius: 12,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <CategoryIcon categoryId={categoryId} size="sm" />
+              <span style={{ flex: 1, fontSize: 15, color: '#1A1A2E', fontFamily: 'inherit', fontWeight: 500 }}>
+                {selectedCategory.name}
+              </span>
+              <ChevronDown size={16} color="#9CA3AF" style={{ transform: showCatPicker ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }} />
+            </button>
+
+            {showCatPicker && (
+              <div style={{
+                marginTop: 8,
+                backgroundColor: '#F7F7FA',
+                borderRadius: 12,
+                padding: 8,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, 1fr)',
+                gap: 8,
+              }}>
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setCategoryId(cat.id); setShowCatPicker(false); }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '8px 4px',
+                      borderRadius: 10,
+                      border: 'none',
+                      cursor: 'pointer',
+                      backgroundColor: categoryId === cat.id ? cat.bg : 'transparent',
+                      outline: categoryId === cat.id ? `2px solid ${cat.color}` : 'none',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <CategoryIcon categoryId={cat.id} size="xs" />
+                    <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'center', lineHeight: 1.2, fontFamily: 'inherit' }}>
+                      {cat.name.split('/')[0].split(' ')[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Type Toggle */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>TYPE</label>
+            <div style={{
+              display: 'flex',
+              marginTop: 6,
+              backgroundColor: '#F7F7FA',
+              borderRadius: 12,
+              padding: 4,
+              gap: 4,
+            }}>
+              {TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setType(opt.value)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 0',
+                    borderRadius: 9,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: type === opt.value ? 600 : 400,
+                    backgroundColor: type === opt.value ? '#FFFFFF' : 'transparent',
+                    color: type === opt.value ? '#3E37FF' : '#6B7280',
+                    boxShadow: type === opt.value ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>
+              {type === 'one-time' ? 'DATE' : 'START DATE'}
+            </label>
+            <input
+              type="date"
+              value={type === 'one-time' ? date : startDate}
+              onChange={e => type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 6,
+                padding: '12px 14px',
+                backgroundColor: '#F7F7FA',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                color: '#1A1A2E',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* End date for recurring */}
+          {type !== 'one-time' && (
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>END DATE (OPTIONAL)</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  marginTop: 6,
+                  padding: '12px 14px',
+                  backgroundColor: '#F7F7FA',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 15,
+                  color: '#1A1A2E',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', letterSpacing: 0.5 }}>NOTES (OPTIONAL)</label>
+            <textarea
+              placeholder="Add a note..."
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 6,
+                padding: '12px 14px',
+                backgroundColor: '#F7F7FA',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 15,
+                color: '#1A1A2E',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                resize: 'none',
+              }}
+            />
+          </div>
+
+          {/* Save / Cancel */}
+          <button
+            onClick={handleSave}
+            style={{
+              width: '100%',
+              padding: '16px',
+              backgroundColor: '#3E37FF',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 14,
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              marginTop: 4,
+            }}
+          >
+            {editingExpense ? 'Save Changes' : 'Add Expense'}
+          </button>
+
+          {editingExpense && (
+            <button
+              onClick={handleDelete}
+              style={{
+                width: '100%',
+                padding: '14px',
+                backgroundColor: '#FEE2E2',
+                color: '#EF4444',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <Trash2 size={16} />
+              Delete Expense
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
