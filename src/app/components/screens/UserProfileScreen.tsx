@@ -7,6 +7,7 @@ import {
 } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
 import { useOnboarding } from '../../context/OnboardingContext';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 import { AvatarCropModal } from '../AvatarCropModal';
 
@@ -269,7 +270,7 @@ export default function UserProfileScreen() {
   const savePhone = (v: string) => { dispatch({ type: 'SET_USER_PHONE', phone: v }); showToast('Phone updated'); };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: 32, position: 'relative' }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
 
       {/* Hidden file input */}
       <input

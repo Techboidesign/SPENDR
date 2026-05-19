@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Wallet, Target } from '@phosphor-icons/react';
 import { useApp, getCategoryTotals } from '../../context/AppContext';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { CURRENT_MONTH_KEY } from '../../utils/periods';
@@ -77,7 +76,7 @@ export default function BudgetScreen() {
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <FeaturedBudgetCard
             title={<>Monthly<br />Income</>}
-            icon={<Wallet size={22} weight="fill" color="#10B981" />}
+            icon={{ iconKey: 'wallet' }}
             spent={totalSpent}
             limit={state.income}
             accentColor="#10B981"
@@ -90,7 +89,7 @@ export default function BudgetScreen() {
 
           <FeaturedBudgetCard
             title={<>Monthly<br />Budget</>}
-            icon={<Target size={22} weight="fill" color="#F59E0B" />}
+            icon={{ phosphorIcon: 'target' }}
             spent={totalSpent}
             limit={state.monthlyBudget}
             accentColor="#F59E0B"

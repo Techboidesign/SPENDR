@@ -1,29 +1,21 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
-import { MagnifyingGlass, Trash, CheckSquare, Square, CaretLeft, CaretRight, X } from '@phosphor-icons/react';
-import { useApp, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { ChartBar, ListBullets, MagnifyingGlass, Trash, CheckSquare, Square, X, Receipt } from '@phosphor-icons/react';
+import { useApp, getCategoryTotals, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
 import { getCategoryById } from '../../data/categories';
+import { ExpensesCategoryInsights } from '../expenses/ExpensesCategoryInsights';
 import { CategoryIcon } from '../CategoryIcon';
 import { Expense, ExpenseType } from '../../data/types';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { SectionTitle } from '../ui/SectionTitle';
-import { toYearMonthKey } from '../../utils/periods';
+import { CURRENT_MONTH_KEY } from '../../utils/periods';
+import { ExpensesMonthPill } from '../expenses/ExpensesMonthPill';
 
 const EXPENSE_CARD_SHADOW = '0 2px 10px rgba(0,0,0,0.05)';
-
-// Generate last 6 months dynamically
-const today = new Date();
-const MONTHS: string[] = [];
-const MONTH_NAMES: Record<string, string> = {};
-
-for (let i = 5; i >= 0; i--) {
-  const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-  const key = toYearMonthKey(date);
-  const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  MONTHS.push(key);
-  MONTH_NAMES[key] = label;
-}
+const BRAND = '#3E37FF';
 
 type FilterType = 'all' | 'one-time' | 'monthly' | 'yearly';
+type ExpensesViewMode = 'list' | 'chart';
 
 function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
   const today = new Date().toISOString().slice(0, 10);
@@ -179,14 +171,28 @@ function ExpenseRow({ expense, isMultiSelect, isSelected, onSelect, onEdit, onDe
 
 export default function ExpensesScreen() {
   const { state, dispatch, openAddModal, formatCurrency } = useApp();
-  const [monthIdx, setMonthIdx] = useState(MONTHS.length - 1);
+  const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
+  const [viewMode, setViewMode] = useState<ExpensesViewMode>('list');
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [isMultiSelect, setIsMultiSelect] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const currentMonth = MONTHS[monthIdx];
+  const currentMonth = selectedMonthKey;
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  const toggleSearch = () => {
+    setSearchOpen(open => {
+      if (open) setSearch('');
+      return !open;
+    });
+  };
 
   // Get all expenses for this month (including recurring)
   const monthExpenses = useMemo(() =>
@@ -197,6 +203,18 @@ export default function ExpensesScreen() {
   const monthTotal = useMemo(() => {
     return monthExpenses.reduce((s, e) => s + getMonthlyAmount(e), 0);
   }, [monthExpenses]);
+
+  const categorySegments = useMemo(() => {
+    const totals = getCategoryTotals(state.expenses, currentMonth);
+    return Object.entries(totals)
+      .map(([id, amount]) => {
+        const cat = getCategoryById(id);
+        return { id, name: cat.name, color: cat.color, amount };
+      })
+      .filter(s => s.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
+  }, [state.expenses, currentMonth]);
 
   const filtered = useMemo(() => {
     return monthExpenses
@@ -253,6 +271,14 @@ export default function ExpensesScreen() {
     { value: 'yearly', label: 'Yearly' },
   ];
 
+  const setView = (mode: ExpensesViewMode) => {
+    setViewMode(mode);
+    if (mode === 'chart') {
+      setSearchOpen(false);
+      setSearch('');
+    }
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#F7F7FA' }}>
       {/* Multi-select header */}
@@ -282,91 +308,214 @@ export default function ExpensesScreen() {
         </div>
       ) : (
         <>
-          {/* Month selector */}
-          <div style={{
-            backgroundColor: '#FFFFFF', padding: '16px 20px 0',
-            borderBottom: '1px solid #F0F0F5',
-            animation: 'fadeIn 0.5s ease-out both',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <button
-                onClick={() => setMonthIdx(i => Math.max(0, i - 1))}
-                disabled={monthIdx === 0}
-                style={{ background: 'none', border: 'none', cursor: monthIdx === 0 ? 'default' : 'pointer', opacity: monthIdx === 0 ? 0.3 : 1 }}
+          <header
+            style={{
+              position: 'relative',
+              backgroundColor: '#FFFFFF',
+              borderBottom: '1px solid #F0F0F5',
+              animation: 'fadeIn 0.5s ease-out both',
+              overflow: 'visible',
+            }}
+          >
+            <div
+              style={{
+                padding: '20px 20px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Expenses</h1>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: 4,
+                  borderRadius: 9999,
+                  backgroundColor: '#F7F7FA',
+                  flexShrink: 0,
+                }}
               >
-                <CaretLeft size={20} weight="light" color="#6B7280" />
-              </button>
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 17, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
-                  {MONTH_NAMES[currentMonth]}
-                </p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', margin: '2px 0 0' }}>
-                  {formatCurrency(monthTotal)} total
-                </p>
+                {([
+                  { mode: 'list' as const, icon: ListBullets, label: 'List view' },
+                  { mode: 'chart' as const, icon: ChartBar, label: 'Chart view' },
+                ]).map(({ mode, icon: Icon, label }) => {
+                  const isActive = viewMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setView(mode)}
+                      aria-label={label}
+                      aria-pressed={isActive}
+                      style={{
+                        width: 36,
+                        height: 32,
+                        borderRadius: 9999,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isActive ? BRAND : 'transparent',
+                        boxShadow: isActive ? '0 2px 10px rgba(62, 55, 255, 0.35)' : 'none',
+                        transition: 'all 0.2s ease',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <Icon
+                        size={18}
+                        weight="light"
+                        color={isActive ? '#FFFFFF' : '#6B7280'}
+                        aria-hidden
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ padding: '0 20px 14px', position: 'relative', zIndex: 2 }}>
+              <ExpensesMonthPill
+                monthKey={selectedMonthKey}
+                onMonthChange={setSelectedMonthKey}
+                monthTotal={monthTotal}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
+            {viewMode === 'list' && (
+            <div
+              className="expenses-filter-row"
+              style={{
+                padding: '0 20px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <div
+                className="expenses-filter-chips"
+                style={{
+                  display: 'flex',
+                  flex: 1,
+                  minWidth: 0,
+                  gap: 6,
+                  overflowX: 'auto',
+                  scrollbarWidth: 'none',
+                }}
+              >
+              {FILTERS.map(f => {
+                const isActive = filter === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setFilter(f.value)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 9999,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: isActive ? 600 : 500,
+                      backgroundColor: isActive ? '#EDEDFF' : '#F7F7FA',
+                      color: isActive ? BRAND : '#6B7280',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      transition: 'all 0.2s',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
               </div>
               <button
-                onClick={() => setMonthIdx(i => Math.min(MONTHS.length - 1, i + 1))}
-                disabled={monthIdx === MONTHS.length - 1}
-                style={{ background: 'none', border: 'none', cursor: monthIdx === MONTHS.length - 1 ? 'default' : 'pointer', opacity: monthIdx === MONTHS.length - 1 ? 0.3 : 1 }}
+                type="button"
+                onClick={toggleSearch}
+                aria-label={searchOpen ? 'Close search' : 'Search expenses'}
+                style={{
+                  width: 42,
+                  height: 30,
+                  flexShrink: 0,
+                  marginLeft: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  borderRadius: 9999,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  backgroundColor: searchOpen ? '#2D28CC' : BRAND,
+                  boxShadow: '0 2px 10px rgba(62, 55, 255, 0.35)',
+                  transition: 'background-color 0.2s ease',
+                }}
               >
-                <CaretRight size={20} weight="light" color="#6B7280" />
+                <MagnifyingGlass size={16} weight="bold" color="#FFFFFF" />
               </button>
             </div>
+            )}
 
-            {/* Filter chips */}
-            <div style={{ display: 'flex', gap: 6, paddingBottom: 12, overflowX: 'auto' }}>
-              {FILTERS.map((f, i) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 20,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: filter === f.value ? 600 : 400,
-                    backgroundColor: filter === f.value ? '#EDEDFF' : '#F7F7FA',
-                    color: filter === f.value ? '#3E37FF' : '#6B7280',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.2s',
-                    fontFamily: 'inherit',
-                    animation: `fadeIn 0.4s ease-out ${0.1 + i * 0.05}s both`,
-                  }}
+            <AnimatePresence initial={false}>
+              {viewMode === 'list' && searchOpen && (
+                <motion.div
+                  key="expenses-search"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ overflow: 'hidden' }}
                 >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div style={{ backgroundColor: '#FFFFFF', padding: '10px 16px', borderBottom: '1px solid #F0F0F5',
-            animation: 'fadeIn 0.5s ease-out 0.1s both' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              backgroundColor: '#F7F7FA', borderRadius: 12, padding: '10px 14px',
-            }}>
-              <MagnifyingGlass size={16} weight="light" color="#9CA3AF" />
-              <input
-                type="text"
-                placeholder="Search expenses…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{
-                  flex: 1, border: 'none', background: 'transparent', outline: 'none',
-                  fontSize: 14, color: '#1A1A2E', fontFamily: 'inherit',
-                }}
-              />
-              {search && (
-                <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  <X size={14} weight="light" color="#9CA3AF" />
-                </button>
+                  <div style={{ padding: '0 20px 14px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        backgroundColor: '#F7F7FA',
+                        borderRadius: 14,
+                        padding: '11px 14px',
+                        border: `1px solid ${BRAND}30`,
+                      }}
+                    >
+                      <MagnifyingGlass size={16} weight="light" color={BRAND} />
+                      <input
+                        ref={searchInputRef}
+                        type="search"
+                        placeholder="Search expenses…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{
+                          flex: 1,
+                          border: 'none',
+                          background: 'transparent',
+                          outline: 'none',
+                          fontSize: 14,
+                          color: '#1A1A2E',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={toggleSearch}
+                        aria-label="Close search"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+                      >
+                        <X size={16} weight="light" color="#9CA3AF" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
               )}
-            </div>
-          </div>
+            </AnimatePresence>
+          </header>
         </>
       )}
 
@@ -380,9 +529,17 @@ export default function ExpensesScreen() {
           paddingBottom: TAB_BAR_CLEARANCE,
         }}
       >
-        {groupKeys.length === 0 ? (
+        {viewMode === 'chart' ? (
+          <ExpensesCategoryInsights
+            segments={categorySegments}
+            formatCurrency={formatCurrency}
+            monthKey={selectedMonthKey}
+            monthTotal={monthTotal}
+            shuffleKey={`${selectedMonthKey}-${viewMode}`}
+          />
+        ) : groupKeys.length === 0 ? (
           <div style={{ padding: '48px 8px', textAlign: 'center' }}>
-            <p style={{ fontSize: 32, margin: '0 0 12px' }}>📭</p>
+            <Receipt size={40} weight="light" color="#D1D5DB" style={{ marginBottom: 12 }} />
             <p style={{ fontSize: 15, fontWeight: 600, color: '#6B7280', margin: 0 }}>No expenses found</p>
             <p style={{ fontSize: 13, color: '#9CA3AF', margin: '4px 0 0' }}>Try adjusting your filters</p>
           </div>
@@ -423,6 +580,9 @@ export default function ExpensesScreen() {
 
       {/* Animations */}
       <style>{`
+        .expenses-filter-row::-webkit-scrollbar { display: none; }
+        .expenses-filter-chips::-webkit-scrollbar { display: none; }
+
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -437,6 +597,11 @@ export default function ExpensesScreen() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        @keyframes barGrow {
+          from { transform: scaleY(0); }
+          to { transform: scaleY(1); }
         }
 
         @keyframes bounceIn {

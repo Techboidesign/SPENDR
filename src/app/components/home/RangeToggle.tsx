@@ -1,7 +1,8 @@
-import { useState, type CSSProperties } from 'react';
-import { CaretDown } from '@phosphor-icons/react';
+import { useRef, useState, type CSSProperties } from 'react';
+import { CalendarBlank, CaretDown } from '@phosphor-icons/react';
 import type { HomeRange } from '../../utils/periods';
-import { CURRENT_MONTH_KEY, MONTH_OPTIONS } from '../../utils/periods';
+import { monthPickerLabel } from '../../utils/periods';
+import { MonthYearPickerDropdown } from '../shared/MonthYearPickerDropdown';
 
 const BRAND = '#3E37FF';
 
@@ -17,7 +18,7 @@ const tabBtnBase: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 4,
+  gap: 6,
   minWidth: 0,
 };
 
@@ -52,12 +53,9 @@ export function RangeToggle({
   compact?: boolean;
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const monthBtnRef = useRef<HTMLButtonElement>(null);
 
-  const monthOption = MONTH_OPTIONS.find(m => m.key === monthKey);
-  const monthDisplay =
-    monthKey === CURRENT_MONTH_KEY
-      ? 'This month'
-      : monthOption?.label ?? monthKey;
+  const monthDisplay = monthPickerLabel(monthKey);
 
   const handleMonthClick = () => {
     if (range === 'year') {
@@ -74,15 +72,15 @@ export function RangeToggle({
     <div
       style={{
         position: 'relative',
-        flex: compact ? '0 1 auto' : undefined,
-        minWidth: compact ? 0 : undefined,
-        maxWidth: compact ? 240 : undefined,
-        zIndex: compact ? 20 : undefined,
+        flex: compact ? '0 0 auto' : undefined,
+        width: compact ? 'fit-content' : undefined,
+        zIndex: dropdownOpen ? 400 : compact ? 20 : undefined,
       }}
     >
       <div
         style={{
-          display: 'flex',
+          display: compact ? 'inline-flex' : 'flex',
+          width: compact ? 'fit-content' : undefined,
           backgroundColor: compact ? 'rgba(255,255,255,0.78)' : '#F7F7FA',
           borderRadius: 9999,
           padding: 4,
@@ -93,19 +91,24 @@ export function RangeToggle({
         }}
       >
         <button
+          ref={monthBtnRef}
           type="button"
           onClick={handleMonthClick}
+          aria-expanded={dropdownOpen && monthActive}
+          aria-haspopup="dialog"
           style={{
             ...tabBtnBase,
             ...activeTabStyle(monthActive),
+            flex: compact || monthActive ? '0 0 auto' : 1,
+            padding: monthActive ? '8px 12px' : tabBtnBase.padding,
+            whiteSpace: 'nowrap',
           }}
         >
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {monthActive ? monthDisplay : 'Month'}
-          </span>
           {monthActive && (
-            <CaretDown size={12} weight="bold" color="#FFFFFF" />
+            <CalendarBlank size={15} weight="regular" color="#FFFFFF" aria-hidden />
           )}
+          <span>{monthActive ? monthDisplay : 'Month'}</span>
+          {monthActive && <CaretDown size={12} weight="bold" color="#FFFFFF" aria-hidden />}
         </button>
 
         <button
@@ -117,63 +120,24 @@ export function RangeToggle({
           style={{
             ...tabBtnBase,
             ...activeTabStyle(yearActive),
+            flex: compact ? '0 0 auto' : tabBtnBase.flex,
+            padding: '8px 40px',
           }}
         >
           Year
         </button>
       </div>
 
-      {dropdownOpen && range === 'month' && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 90 }}
-            onClick={() => setDropdownOpen(false)}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              right: 0,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-              border: '1px solid #F0F0F5',
-              zIndex: 100,
-              maxHeight: 220,
-              overflowY: 'auto',
-              padding: 4,
-            }}
-          >
-            {[...MONTH_OPTIONS].reverse().map(m => (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => {
-                  onMonthChange(m.key);
-                  onChange('month');
-                  setDropdownOpen(false);
-                }}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  border: 'none',
-                  borderRadius: 9999,
-                  background: m.key === monthKey ? '#EDEDFF' : 'transparent',
-                  color: m.key === monthKey ? BRAND : '#1A1A2E',
-                  fontSize: 12,
-                  fontWeight: m.key === monthKey ? 600 : 400,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {m.key === CURRENT_MONTH_KEY ? `This month (${m.label})` : m.label}
-              </button>
-            ))}
-          </div>
-        </>
+      {dropdownOpen && monthActive && (
+        <MonthYearPickerDropdown
+          monthKey={monthKey}
+          onChange={key => {
+            onMonthChange(key);
+            onChange('month');
+          }}
+          onClose={() => setDropdownOpen(false)}
+          anchorRect={monthBtnRef.current?.getBoundingClientRect() ?? null}
+        />
       )}
     </div>
   );

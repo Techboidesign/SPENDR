@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Info, PencilSimple } from '@phosphor-icons/react';
+import { FeatureCardIcon, type FeatureCardIconProps } from '../ui/FeatureCardIcon';
+import { FEATURE_CARD, featureCardGradient } from '../ui/featureCard';
 
 /** Mix hex toward white for lighter progress fills */
 function lightenHex(hex: string, mix = 0.32): string {
@@ -33,7 +35,7 @@ export function FeaturedBudgetCard({
 }: {
   title: ReactNode;
   subtitle?: string;
-  icon: ReactNode;
+  icon: Omit<FeatureCardIconProps, 'accentColor' | 'accentBg'>;
   spent: number;
   limit: number;
   accentColor: string;
@@ -62,32 +64,19 @@ export function FeaturedBudgetCard({
       style={{
         width: '100%',
         textAlign: 'left',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        background: featureCardGradient(accentBg),
+        borderRadius: FEATURE_CARD.radiusLg,
         border: 'none',
         padding: 0,
         cursor: 'pointer',
         fontFamily: 'inherit',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
+        boxShadow: FEATURE_CARD.shadow,
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '16px 16px 14px' }}>
+      <div style={{ padding: FEATURE_CARD.paddingLg }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              backgroundColor: accentBg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {icon}
-          </div>
+          <FeatureCardIcon accentColor={accentColor} accentBg={accentBg} {...icon} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0, lineHeight: 1.25 }}>
               {title}
@@ -101,7 +90,7 @@ export function FeaturedBudgetCard({
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: '#F3F4F6',
+              backgroundColor: 'rgba(255,255,255,0.65)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

@@ -398,7 +398,7 @@ export default function HomeScreen() {
           position: 'relative',
           overflow: 'hidden',
           background: 'linear-gradient(168deg,#ECEAFF 0%,#E5E2FF 22%,#EEF0FF 52%,#F3F2FF 85%,#F5F5FA 100%)',
-          paddingBottom: 28,
+          paddingBottom: 16,
           marginBottom: 16,
           boxSizing: 'content-box',
         }}>

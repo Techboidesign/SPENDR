@@ -1,4 +1,5 @@
 import { ArrowLeft, ShieldCheck } from '@phosphor-icons/react';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 
 const SECTIONS = [
@@ -44,7 +45,7 @@ export default function PrivacyScreen() {
   const { exit } = useSubPageNav();
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: 32 }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE }}>
 
       {/* Header */}
       <div style={{

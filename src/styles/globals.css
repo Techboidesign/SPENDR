@@ -88,3 +88,11 @@
 .device-shell--native .tab-bar-bottom-scrim {
   height: calc(128px + env(safe-area-inset-bottom, 0px));
 }
+
+.month-year-picker-col {
+  scrollbar-width: none;
+}
+
+.month-year-picker-col::-webkit-scrollbar {
+  display: none;
+}

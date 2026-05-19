@@ -1,7 +1,13 @@
-import { createContext, useCallback, useContext, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
+import { BottomTabBar } from './BottomTabBar';
 import DeviceShell from './DeviceShell';
+import SettingsScreen from './screens/SettingsScreen';
+
+const SLIDE_EASE = [0.32, 0.72, 0, 1] as const;
+const SLIDE_DURATION = 0.32;
+const SETTINGS_PATH = '/settings';
 
 interface SubPageNavCtx {
   exit: (path: string) => void;
@@ -11,8 +17,15 @@ export const useSubPageNav = () => useContext(SubPageNavContext);
 
 export default function SubPageLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [exiting, setExiting] = useState(false);
-  const [exitTarget, setExitTarget] = useState('/settings');
+  const [exitTarget, setExitTarget] = useState(SETTINGS_PATH);
+
+  const isSubPage = location.pathname !== SETTINGS_PATH;
+
+  useEffect(() => {
+    setExiting(false);
+  }, [location.pathname]);
 
   const exit = useCallback((path: string) => {
     setExitTarget(path);
@@ -20,23 +33,41 @@ export default function SubPageLayout() {
   }, []);
 
   return (
-    <DeviceShell>
+    <DeviceShell chrome={<BottomTabBar />}>
       <SubPageNavContext.Provider value={{ exit }}>
-        <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: exiting ? '100%' : 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 380,
-            damping: 36,
-            mass: 0.85,
-          }}
-          onAnimationComplete={() => {
-            if (exiting) navigate(exitTarget);
-          }}
-          style={{ position: 'absolute', inset: 0 }}
-        >
-          <Outlet />
+        <motion.div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflow: 'hidden',
+              pointerEvents: isSubPage ? 'none' : 'auto',
+            }}
+            aria-hidden={isSubPage}
+          >
+            <SettingsScreen />
+          </div>
+
+          {isSubPage && (
+            <motion.div
+              key={location.pathname}
+              initial={{ x: '100%' }}
+              animate={{ x: exiting ? '100%' : 0 }}
+              transition={{ duration: SLIDE_DURATION, ease: SLIDE_EASE }}
+              onAnimationComplete={() => {
+                if (exiting) navigate(exitTarget);
+              }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                willChange: 'transform',
+                backgroundColor: '#F7F7FA',
+              }}
+            >
+              <Outlet />
+            </motion.div>
+          )}
         </motion.div>
       </SubPageNavContext.Provider>
     </DeviceShell>

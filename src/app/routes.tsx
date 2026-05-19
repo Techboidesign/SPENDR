@@ -7,7 +7,6 @@ import PhoneFrameLayout from './components/PhoneFrameLayout';
 import HomeScreen from './components/screens/HomeScreen';
 import ExpensesScreen from './components/screens/ExpensesScreen';
 import BudgetScreen from './components/screens/BudgetScreen';
-import SettingsScreen from './components/screens/SettingsScreen';
 import UserProfileScreen from './components/screens/UserProfileScreen';
 import HelpScreen from './components/screens/HelpScreen';
 import PrivacyScreen from './components/screens/PrivacyScreen';
@@ -107,7 +106,6 @@ export const router = createBrowserRouter([
               { path: 'expenses', Component: ExpensesScreen },
               { path: 'insights', element: <Navigate to="/" replace /> },
               { path: 'budget', Component: BudgetScreen },
-              { path: 'settings', Component: SettingsScreen },
             ],
           },
           {

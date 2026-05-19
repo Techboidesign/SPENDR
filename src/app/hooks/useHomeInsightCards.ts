@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp, getCategoryTotals, getMonthExpenses, getMonthlyAmount } from '../context/AppContext';
+import type { CategoryIconKey } from '../data/categoryConfig';
 import { YEAR_MONTH_BARS } from '../utils/periods';
+
+export type InsightPhosphorIcon = 'trend-up' | 'arrows-clockwise' | 'chart-line-up';
 
 export type InsightCardData = {
   id: string;
@@ -11,6 +14,8 @@ export type InsightCardData = {
   accentColor: string;
   accentBg: string;
   categoryId?: string;
+  iconKey?: CategoryIconKey;
+  phosphorIcon?: InsightPhosphorIcon;
   progress?: number;
   onClick: () => void;
 };
@@ -102,8 +107,9 @@ function buildYearCards({
       eyebrow: 'Average month',
       headline: formatCurrency(avg),
       detail: `${monthsWithSpend.length} active months`,
-      accentColor: '#3E37FF',
-      accentBg: '#EDEDFF',
+      accentColor: '#059669',
+      accentBg: '#D1FAE5',
+      iconKey: 'wallet',
       onClick: () => navigate('/expenses'),
     });
   }
@@ -115,8 +121,9 @@ function buildYearCards({
       eyebrow: 'Highest month',
       headline: peak.month,
       detail: 'Peak spend',
-      accentColor: '#F59E0B',
+      accentColor: '#D97706',
       accentBg: '#FEF3C7',
+      phosphorIcon: 'chart-line-up',
       onClick: () => navigate('/expenses'),
     });
   }
@@ -127,8 +134,9 @@ function buildYearCards({
       eyebrow: 'Recurring',
       headline: `${recurringPct}%`,
       detail: 'Recurring spend',
-      accentColor: '#3E37FF',
-      accentBg: '#EDEDFF',
+      accentColor: '#7C3AED',
+      accentBg: '#EDE9FE',
+      phosphorIcon: 'arrows-clockwise',
       onClick: () => navigate('/expenses'),
     });
   }

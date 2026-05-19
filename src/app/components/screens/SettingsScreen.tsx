@@ -11,6 +11,9 @@ import { CategoryIcon } from '../CategoryIcon';
 import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModal';
 import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
+import { FEATURE_CARD, featureCardSurface } from '../ui/featureCard';
+
+const PROFILE_FEATURE = { accentColor: '#3E37FF', accentBg: '#EDEDFF' };
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD'];
 
@@ -466,37 +469,63 @@ export default function SettingsScreen() {
 
       <div style={{ padding: '16px 16px 0' }}>
 
-        {/* ── Profile card ── */}
+        {/* ── Profile card (Feature Card) ── */}
         <div style={{ marginBottom: 8 }}>
           <button
+            type="button"
             onClick={() => navigate('/settings/profile')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              backgroundColor: '#FFFFFF', borderRadius: 16,
-              padding: '16px', width: '100%',
-              border: 'none', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              textAlign: 'left', fontFamily: 'inherit',
+              width: '100%',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              ...featureCardSurface(PROFILE_FEATURE.accentBg, {
+                radius: FEATURE_CARD.radiusLg,
+                padding: FEATURE_CARD.paddingLg,
+              }),
             }}
           >
             {state.userAvatar ? (
-              <img src={state.userAvatar} alt="avatar" style={{ width: 52, height: 52, borderRadius: 26, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }} />
+              <img
+                src={state.userAvatar}
+                alt=""
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                }}
+              />
             ) : (
               <div style={{
-                width: 52, height: 52, borderRadius: 26,
-                background: 'linear-gradient(135deg, #3E37FF 0%, #7C3AED 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 700, color: '#FFFFFF', flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(62,55,255,0.3)',
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: PROFILE_FEATURE.accentColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#FFFFFF',
+                flexShrink: 0,
               }}>
                 {state.userName[0]}
               </div>
             )}
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 17, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>{state.userFullName}</p>
-              <p style={{ fontSize: 12, color: '#9CA3AF', margin: '2px 0 0' }}>{state.userUsername} · Personal</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, ...FEATURE_CARD.eyebrow }}>Profile</p>
+              <p style={{ margin: '2px 0 0', ...FEATURE_CARD.headline }}>{state.userFullName}</p>
+              <p style={{ margin: '2px 0 0', ...FEATURE_CARD.detail }}>
+                {state.userUsername} · Personal
+              </p>
             </div>
-            <CaretRight size={18} weight="light" color="#D1D5DB" />
+            <CaretRight size={18} weight="light" color={PROFILE_FEATURE.accentColor} aria-hidden />
           </button>
         </div>
 

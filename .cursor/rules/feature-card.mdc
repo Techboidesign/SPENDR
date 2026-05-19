@@ -1,0 +1,56 @@
+---
+description: Feature Card style — gradient highlight cards with unified icons
+globs: "src/app/components/**/*.tsx"
+alwaysApply: false
+---
+
+# Feature Card style
+
+Use **Feature Cards** for compact, accent-tinted highlight tiles (not full `SurfaceCard` white blocks).
+
+**Used on:** Home Insights rail, Expenses chart insight, Budget featured cards (Monthly Income / Monthly Budget).
+
+## Shared primitives
+
+Import from `src/app/components/ui/featureCard.ts` and `FeatureCardIcon.tsx`:
+
+- `FEATURE_CARD` — shadow, radius, padding, icon size, eyebrow/headline/detail typography
+- `featureCardGradient(accentBg)` — `linear-gradient(145deg, accentBg 0%, #FFFFFF 55%)`
+- `featureCardSurface(accentBg, options?)` — gradient + shadow + radius + padding
+- `<FeatureCardIcon accentColor accentBg categoryId? iconKey? phosphorIcon? />`
+
+## Required visuals
+
+| Element | Rule |
+|--------|------|
+| **Background** | `featureCardGradient(accentBg)` — never flat `#FFFFFF` for the card body |
+| **Shadow** | `FEATURE_CARD.shadow` (`0 4px 16px rgba(0,0,0,0.07)`) |
+| **Icon** | Always `FeatureCardIcon` at **sm** (36×36, radius 10): Phosphor **light** on `accentBg`, or `CategoryIcon` / `CategoryIconPreview` |
+| **Accent pair** | Each card gets distinct `accentColor` + `accentBg` (category colors or semantic palette) |
+
+## Typography (when using insight-style copy)
+
+- **Eyebrow:** `FEATURE_CARD.eyebrow` — 9px uppercase gray
+- **Headline:** `FEATURE_CARD.headline` — 16px, weight 800, `#1A1A2E`, letter-spacing -0.5
+- **Detail:** `FEATURE_CARD.detail` — 11px `#6B7280`
+
+Content layout may vary (progress bars, amounts, grid vs full-width); **gradient + icon rules are fixed**.
+
+## Layout patterns
+
+- **Compact insight (2-col grid, expense insight):** row — text left, `FeatureCardIcon` right; `FEATURE_CARD.padding`, `FEATURE_CARD.radius`
+- **Featured budget (full width):** row header with icon + title + edit affordance; custom body (amount, progress bar); `FEATURE_CARD.radiusLg`, `FEATURE_CARD.paddingLg`
+
+## Icons
+
+- Categories → `categoryId` on `FeatureCardIcon`
+- Configured glyphs → `iconKey` from `CategoryIconKey` (e.g. `wallet`, `piggy`)
+- Insight phosphors → `phosphorIcon`: `trend-up`, `arrows-clockwise`, `chart-line-up`, `target`
+
+Do **not** use filled Phosphor icons or ad-hoc 44px icon boxes on Feature Cards.
+
+## Do not
+
+- Mix flat white card backgrounds with Feature Card icons
+- Duplicate gradient/icon constants — use `featureCard.ts` / `FeatureCardIcon`
+- Use emoji or non-Phosphor icon libraries (see `phosphor-icons-only` rule)

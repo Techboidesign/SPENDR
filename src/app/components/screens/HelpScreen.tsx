@@ -3,6 +3,7 @@ import {
   ArrowLeft, Plus, Minus, EnvelopeSimple,
   ChatCircleDots, BookOpen, Heart,
 } from '@phosphor-icons/react';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 
 const FAQ_ITEMS = [
@@ -98,7 +99,7 @@ export default function HelpScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: 32, position: 'relative' }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
 
       {/* Toast */}
       {toast && (

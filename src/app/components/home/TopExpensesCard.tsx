@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { TrendDown, TrendUp } from '@phosphor-icons/react';
 import { getCategoryById } from '../../data/categories';
@@ -11,7 +12,10 @@ export type TopExpenseItem = {
   pctOfTotal: number;
 };
 
-const CAROUSEL_CARD_W = 220;
+const CAROUSEL_CARD_W = 200;
+const PAGE_GUTTER = 14;
+const PAGE_BG = '#F5F5FA';
+const EDGE_FADE_W = 32;
 
 function shortCategoryName(categoryId: string): string {
   return getCategoryById(categoryId).name.split('/')[0].split(' & ')[0];
@@ -33,6 +37,29 @@ function getChangeMeta(item: TopExpenseItem) {
   return { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown };
 }
 
+function EdgeFade({ side, visible }: { side: 'left' | 'right'; visible: boolean }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        ...(side === 'left' ? { left: 0 } : { right: 0 }),
+        width: EDGE_FADE_W,
+        pointerEvents: 'none',
+        zIndex: 2,
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.2s ease',
+        background:
+          side === 'left'
+            ? `linear-gradient(to right, ${PAGE_BG} 0%, ${PAGE_BG}88 35%, transparent 100%)`
+            : `linear-gradient(to left, ${PAGE_BG} 0%, ${PAGE_BG}88 35%, transparent 100%)`,
+      }}
+    />
+  );
+}
+
 export function TopExpensesCard({
   items,
   formatCurrency,
@@ -41,6 +68,26 @@ export function TopExpensesCard({
   formatCurrency: (n: number) => string;
 }) {
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(false);
+
+  const updateFades = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setShowLeftFade(el.scrollLeft > 6);
+    setShowRightFade(maxScroll > 6 && el.scrollLeft < maxScroll - 6);
+  }, []);
+
+  useEffect(() => {
+    updateFades();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateFades);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [items, updateFades]);
 
   if (items.length === 0) {
     return (
@@ -51,18 +98,36 @@ export function TopExpensesCard({
   }
 
   return (
-    <>
+    <div
+      style={{
+        position: 'relative',
+        marginLeft: -PAGE_GUTTER,
+        marginRight: -PAGE_GUTTER,
+        width: `calc(100% + ${PAGE_GUTTER * 2}px)`,
+        overflow: 'hidden',
+      }}
+    >
+      <EdgeFade side="left" visible={showLeftFade} />
+      <EdgeFade side="right" visible={showRightFade} />
+
       <div
+        ref={scrollRef}
+        onScroll={updateFades}
         className="top-expenses-scroll"
         style={{
           display: 'flex',
-          gap: 12,
+          gap: 10,
           overflowX: 'auto',
+          overflowY: 'hidden',
           scrollSnapType: 'x mandatory',
+          scrollPaddingLeft: PAGE_GUTTER,
+          scrollPaddingRight: PAGE_GUTTER,
           WebkitOverflowScrolling: 'touch',
           overscrollBehaviorX: 'contain',
           touchAction: 'pan-x',
           paddingBottom: 4,
+          paddingLeft: PAGE_GUTTER,
+          paddingRight: PAGE_GUTTER,
           scrollbarWidth: 'none',
         }}
       >
@@ -79,8 +144,8 @@ export function TopExpensesCard({
                 flex: `0 0 ${CAROUSEL_CARD_W}px`,
                 scrollSnapAlign: 'start',
                 width: CAROUSEL_CARD_W,
-                padding: '18px 16px',
-                borderRadius: 18,
+                padding: '14px 14px',
+                borderRadius: 16,
                 border: 'none',
                 background: `linear-gradient(145deg, ${cat.bg} 0%, #FFFFFF 55%)`,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
@@ -89,7 +154,7 @@ export function TopExpensesCard({
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 12,
+                gap: 10,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -120,23 +185,21 @@ export function TopExpensesCard({
                 </span>
               </div>
               <div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: '0 0 4px' }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: '0 0 3px' }}>
                   {shortCategoryName(item.cat)}
                 </p>
-                <p style={{ fontSize: 20, fontWeight: 800, color: cat.color, margin: 0, letterSpacing: -0.5 }}>
+                <p style={{ fontSize: 18, fontWeight: 800, color: cat.color, margin: 0, letterSpacing: -0.5 }}>
                   {formatCurrency(item.curAmt)}
                 </p>
               </div>
-              <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.35 }}>
-                {item.pctOfTotal.toFixed(0)}% of your spend this month
-              </p>
             </button>
           );
         })}
       </div>
+
       <style>{`
         .top-expenses-scroll::-webkit-scrollbar { display: none; }
       `}</style>
-    </>
+    </div>
   );
 }

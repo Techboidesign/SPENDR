@@ -49,6 +49,22 @@ export function monthLabel(yearMonth: string): string {
   });
 }
 
+/** Short label for month pickers, e.g. "May 2026" */
+export function monthPickerLabel(yearMonth: string): string {
+  return MONTH_OPTIONS.find(m => m.key === yearMonth)?.label ?? monthLabel(yearMonth);
+}
+
+export function monthKeyToDate(yearMonth: string): Date {
+  const [y, m] = yearMonth.split('-').map(Number);
+  return new Date(y, m - 1, 1);
+}
+
+/** Bounds for month pickers (last 12 calendar months). */
+export const MONTH_PICKER_MIN_DATE = monthKeyToDate(MONTH_OPTIONS[0].key);
+export const MONTH_PICKER_MAX_DATE = monthKeyToDate(
+  MONTH_OPTIONS[MONTH_OPTIONS.length - 1].key,
+);
+
 export function momCompareLabel(yearMonth: string): string {
   const prev = getPreviousMonthKey(yearMonth);
   return `${monthLabel(yearMonth)} vs ${monthLabel(prev)}`;
