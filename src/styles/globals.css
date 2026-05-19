@@ -1,0 +1,90 @@
+/* Hide scrollbars app-wide while keeping scroll behavior */
+*,
+*::before,
+*::after {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Home — lock vertical scrollport; horizontal carousels stay nested */
+.home-screen-scroll {
+  overflow-x: hidden !important;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
+/* Fade + blur behind floating tab bar */
+.tab-bar-bottom-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 128px;
+  pointer-events: none;
+  z-index: 40;
+  background: linear-gradient(
+    to top,
+    rgba(245, 245, 250, 0.97) 0%,
+    rgba(245, 245, 250, 0.82) 28%,
+    rgba(245, 245, 250, 0.45) 58%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+}
+
+/* Floating tab bar — frosted glass (readable icons) */
+.tab-bar-glass {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(248, 249, 252, 0.88) 45%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  -webkit-backdrop-filter: blur(48px) saturate(1.85) brightness(1.05);
+  backdrop-filter: blur(48px) saturate(1.85) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Full-screen shell on phone / installed PWA (no design mockup) */
+.device-shell--native {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  background-color: #ffffff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+}
+
+.device-shell__content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+.device-shell--native .tab-bar-float-wrap {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.device-shell--native .tab-bar-bottom-scrim {
+  height: calc(128px + env(safe-area-inset-bottom, 0px));
+}

@@ -1,0 +1,45 @@
+---
+description: Use only Phosphor icons; never emoji or illustrated icon sets
+alwaysApply: true
+---
+
+# Icons: Phosphor only
+
+## Required
+
+- **All UI icons** must come from `@phosphor-icons/react`.
+- Import named icons from `@phosphor-icons/react` (e.g. `House`, `Plus`, `ArrowLeft`).
+- Default to `weight="light"` unless the surrounding screen already uses a different weight consistently.
+- For **category visuals**, use the existing `CategoryIcon` component — it maps categories to Phosphor icons.
+
+```tsx
+import { House } from '@phosphor-icons/react';
+
+<House size={20} weight="light" color="#1A1A2E" />
+```
+
+## Forbidden — never use these as icons
+
+- **Unicode emoji** in UI: `🏠`, `🛒`, `📱`, strings from `category.emoji`, or any emoji in buttons, tabs, charts, lists, empty states, or labels.
+- **WhatsApp / iMessage / sticker-style illustrated icons** — colorful flat illustrations, 3D emoji, Apple emoji art, Twemoji, Noto Emoji, OpenMoji, or similar used as interface icons.
+- **Other icon libraries** for app UI: `lucide-react`, `@mui/icons-material`, `react-icons`, Heroicons, Font Awesome, Tabler, etc.
+- **`<img>` / SVG assets** used as generic UI icons when a Phosphor equivalent exists (logos and user-uploaded avatars are fine).
+- **Inline SVG icon copies** pasted from design kits unless there is no Phosphor equivalent and the user explicitly asked for a custom asset.
+
+If you find emoji or Lucide in code you are editing, **replace them with Phosphor** in the same change.
+
+## Phosphor naming
+
+- Browse: https://phosphoricons.com
+- Use PascalCase component names (`Trash`, `Gear`, `ChartBar`), not string icon names.
+
+## Exceptions (only these)
+
+- **Brand logos** (Google, Apple sign-in) where an official logo asset is required.
+- **User avatars** (uploaded photos or crop UI).
+
+## Checklist before finishing
+
+- [ ] No `lucide-react` imports anywhere under `src/`.
+- [ ] No emoji characters used as icons in JSX or chart axes.
+- [ ] Category rows use `<CategoryIcon categoryId={...} />`, not emoji text.

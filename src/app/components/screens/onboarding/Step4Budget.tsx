@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { House, ForkKnife, Car, Lightning, ShoppingBag, FilmSlate, PiggyBank } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { Input } from '../../ui/input';
+import { FormInput, formFieldStyleCompact } from '../../shared/FormFields';
 import OnboardingLayout from './OnboardingLayout';
 
 const BUDGET_CATEGORIES = [
@@ -106,20 +106,12 @@ export default function Step4Budget() {
           }}>
             $
           </span>
-          <Input
+          <FormInput
             type="number"
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
             placeholder="0"
-            style={{
-              width: '100%',
-              height: 50,
-              fontSize: 16,
-              paddingLeft: 32,
-              borderRadius: 14,
-              border: '2px solid #3E37FF',
-              backgroundColor: '#FFFFFF',
-            }}
+            style={{ paddingLeft: 32, fontSize: 16 }}
           />
         </div>
       </div>
@@ -168,19 +160,15 @@ export default function Step4Budget() {
                     }}>
                       $
                     </span>
-                    <Input
+                    <FormInput
                       type="number"
                       value={allocations[cat.id] || ''}
                       onChange={(e) => handleAllocationChange(cat.id, e.target.value)}
                       placeholder="0"
                       style={{
-                        width: '100%',
-                        height: 32,
-                        fontSize: 13,
+                        ...formFieldStyleCompact,
                         paddingLeft: 16,
                         paddingRight: 6,
-                        borderRadius: 10,
-                        border: '1px solid #E5E7EB',
                       }}
                     />
                   </div>

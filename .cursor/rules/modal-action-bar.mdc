@@ -1,0 +1,55 @@
+---
+description: Floating modal footer — CANCEL/DELETE left, SAVE right with floppy disk icon
+globs: "src/app/components/**/*Modal*.tsx"
+alwaysApply: false
+---
+
+# Modal action bar
+
+All modals with primary actions must use the shared **`ModalActionBar`** (`src/app/components/ModalActionBar.tsx`).
+
+## Layout
+
+1. **Floating, persistent footer** — pinned to the bottom of the sheet; body scrolls above it.
+2. **Two buttons, one row** — equal width (`flex: 1` each), `gap: 10`.
+3. **Left** — destructive or dismiss:
+   - `DELETE` + `leftVariant="delete"` when the modal can remove data (e.g. edit expense).
+   - `CANCEL` + `leftVariant="cancel"` otherwise.
+4. **Right** — primary save:
+   - Label: **`SAVE`** (uppercase).
+   - **Floppy disk icon** (`FloppyDisk` from `@phosphor-icons/react`, `weight="bold"`, size 18) before the label.
+
+## Sheet structure
+
+```tsx
+<BottomSheetModal
+  sheetStyle={{
+    padding: 0,
+    maxHeight: '88vh',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  }}
+>
+  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '12px 20px 0' }}>
+    {/* scrollable content — no inline Save/Cancel buttons */}
+  </div>
+  <ModalActionBar onLeft={...} leftLabel="CANCEL" onSave={...} saveLabel="SAVE" />
+</BottomSheetModal>
+```
+
+For full-screen dark modals (e.g. avatar crop), pass `dark` on `ModalActionBar`.
+
+## Do not
+
+- Stack Save and Delete vertically in the scroll area.
+- Use lowercase labels (`Save`, `Cancel`) on the action bar.
+- Omit the floppy disk icon on SAVE.
+- Put the only dismiss action only in the header — the left bar button must still be CANCEL or DELETE.
+
+## Reference implementations
+
+- `AddExpenseModal.tsx` — DELETE + SAVE when editing; CANCEL + SAVE when creating
+- `CategoryEditModal.tsx` — CANCEL + SAVE
+- `BudgetEditModal.tsx` — CANCEL + SAVE
+- `AvatarCropModal.tsx` — CANCEL + SAVE (`dark`)

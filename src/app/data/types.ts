@@ -17,6 +17,23 @@ export interface BudgetGoal {
   amount: number;
 }
 
+export interface CategoryCustomization {
+  name?: string;
+  iconKey?: string;
+  color?: string;
+  bg?: string;
+  iconColor?: string;
+}
+
+export interface CustomCategory {
+  id: string;
+  name: string;
+  color: string;
+  bg: string;
+  iconColor?: string;
+  iconKey: string;
+}
+
 export interface AppState {
   expenses: Expense[];
   income: number;
@@ -29,6 +46,8 @@ export interface AppState {
   userUsername: string;
   userPhone: string;
   userAvatar: string; // base64 data URL or empty string
+  categoryCustomizations: Record<string, CategoryCustomization>;
+  customCategories: CustomCategory[];
 }
 
 export type Action =
@@ -45,4 +64,7 @@ export type Action =
   | { type: 'SET_USER_EMAIL'; email: string }
   | { type: 'SET_USER_USERNAME'; username: string }
   | { type: 'SET_USER_PHONE'; phone: string }
-  | { type: 'SET_USER_AVATAR'; avatar: string };
+  | { type: 'SET_USER_AVATAR'; avatar: string }
+  | { type: 'SET_CATEGORY_CUSTOMIZATION'; categoryId: string; customization: CategoryCustomization }
+  | { type: 'ADD_CUSTOM_CATEGORY'; category: CustomCategory }
+  | { type: 'UPDATE_CUSTOM_CATEGORY'; category: CustomCategory };

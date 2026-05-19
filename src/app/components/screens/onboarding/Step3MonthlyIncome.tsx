@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { Input } from '../../ui/input';
+import { FormInput, FormSelect } from '../../shared/FormFields';
 import OnboardingLayout from './OnboardingLayout';
 
 export default function Step3MonthlyIncome() {
@@ -121,20 +121,12 @@ export default function Step3MonthlyIncome() {
           }}>
             $
           </span>
-          <Input
+          <FormInput
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0"
-            style={{
-              width: '100%',
-              height: 50,
-              fontSize: 15,
-              paddingLeft: 34,
-              borderRadius: 14,
-              border: '2px solid #3E37FF',
-              backgroundColor: '#FFFFFF',
-            }}
+            style={{ paddingLeft: 34 }}
           />
         </div>
       </div>
@@ -144,28 +136,16 @@ export default function Step3MonthlyIncome() {
         <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
           How often do you get paid?
         </label>
-        <select
+        <FormSelect
           value={frequency}
           onChange={(e) => setFrequency(e.target.value as typeof frequency)}
-          style={{
-            width: '100%',
-            height: 50,
-            fontSize: 15,
-            paddingLeft: 14,
-            paddingRight: 48,
-            borderRadius: 14,
-            border: '2px solid #3E37FF',
-            backgroundColor: '#FFFFFF',
-            color: '#1A1A2E',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
+          style={{ color: '#1A1A2E' }}
         >
           <option value="monthly">Monthly</option>
           <option value="bi-weekly">Bi-weekly</option>
           <option value="weekly">Weekly</option>
           <option value="irregular">Irregular</option>
-        </select>
+        </FormSelect>
       </div>
 
       <div style={{

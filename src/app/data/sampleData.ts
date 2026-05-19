@@ -1,7 +1,33 @@
 import { Expense, BudgetGoal, AppState } from './types';
 
 export const INITIAL_EXPENSES: Expense[] = [
-  // ── April 2026 (current month) ──────────────────────────────
+  // ── May 2026 (current month) ────────────────────────────────
+  { id: 'b01', name: 'Monthly Rent',         categoryId: 'rent',          amount: 950.00, date: '2026-05-01', type: 'monthly',  startDate: '2026-01-01' },
+  { id: 'b02', name: 'Electricity Bill',     categoryId: 'utilities',     amount: 82.10,  date: '2026-05-01', type: 'monthly',  startDate: '2026-01-01' },
+  { id: 'b03', name: 'Internet Plan',        categoryId: 'utilities',     amount: 39.00,  date: '2026-05-01', type: 'monthly',  startDate: '2026-01-01' },
+  { id: 'b04', name: 'Spotify Premium',      categoryId: 'subscriptions', amount: 9.99,   date: '2026-05-01', type: 'monthly',  startDate: '2025-06-01' },
+  { id: 'b05', name: 'Netflix',              categoryId: 'subscriptions', amount: 15.99,  date: '2026-05-01', type: 'monthly',  startDate: '2025-03-01' },
+  { id: 'b06', name: 'iCloud 200 GB',        categoryId: 'subscriptions', amount: 2.99,   date: '2026-05-01', type: 'monthly',  startDate: '2024-09-01' },
+  { id: 'b07', name: 'Fitness App Pro',      categoryId: 'subscriptions', amount: 12.99,  date: '2026-05-01', type: 'monthly',  startDate: '2026-01-01' },
+  { id: 'b08', name: 'Gym Membership',       categoryId: 'health',        amount: 45.00,  date: '2026-05-01', type: 'monthly',  startDate: '2026-01-01' },
+  { id: 'b09', name: 'Monthly Bus Pass',     categoryId: 'transport',     amount: 89.00,  date: '2026-05-01', type: 'monthly',  startDate: '2025-09-01' },
+  { id: 'b10', name: 'Adobe Creative',       categoryId: 'subscriptions', amount: 54.99,  date: '2026-05-01', type: 'yearly',   startDate: '2025-04-01' },
+  { id: 'b11', name: 'Rewe Supermarket',     categoryId: 'groceries',     amount: 72.15,  date: '2026-05-02', type: 'one-time' },
+  { id: 'b12', name: 'Brunch — Sunday',      categoryId: 'dining',        amount: 38.40,  date: '2026-05-03', type: 'one-time' },
+  { id: 'b13', name: 'Amazon Order',         categoryId: 'shopping',      amount: 41.20,  date: '2026-05-04', type: 'one-time' },
+  { id: 'b14', name: 'Pharmacy',             categoryId: 'health',        amount: 22.30,  date: '2026-05-05', type: 'one-time' },
+  { id: 'b15', name: 'Fuel — Shell',         categoryId: 'transport',     amount: 58.50,  date: '2026-05-05', type: 'one-time' },
+  { id: 'b16', name: 'Coffee & Croissant',   categoryId: 'dining',        amount: 9.60,   date: '2026-05-06', type: 'one-time' },
+  { id: 'b17', name: 'Lidl Weekly Shop',     categoryId: 'groceries',     amount: 48.90,  date: '2026-05-06', type: 'one-time' },
+  { id: 'b18', name: 'Concert Tickets',      categoryId: 'entertainment', amount: 65.00,  date: '2026-05-07', type: 'one-time' },
+  { id: 'b19', name: 'Summer Trainers',      categoryId: 'shopping',      amount: 95.00,  date: '2026-05-08', type: 'one-time' },
+  { id: 'b20', name: 'Team Lunch',           categoryId: 'dining',        amount: 31.00,  date: '2026-05-09', type: 'one-time' },
+  { id: 'b21', name: 'Aldi Groceries',       categoryId: 'groceries',     amount: 36.40,  date: '2026-05-10', type: 'one-time' },
+  { id: 'b22', name: 'Uber — Night Out',     categoryId: 'transport',     amount: 16.80,  date: '2026-05-12', type: 'one-time' },
+  { id: 'b23', name: 'Protein Powder',       categoryId: 'health',        amount: 32.50,  date: '2026-05-14', type: 'one-time' },
+  { id: 'b24', name: 'Stationery',           categoryId: 'other',         amount: 12.50,  date: '2026-05-15', type: 'one-time' },
+
+  // ── April 2026 ──────────────────────────────────────────────
   { id: 'a01', name: 'Monthly Rent',         categoryId: 'rent',          amount: 950.00, date: '2026-04-01', type: 'monthly',  startDate: '2026-01-01' },
   { id: 'a02', name: 'Electricity Bill',     categoryId: 'utilities',     amount: 78.40,  date: '2026-04-01', type: 'monthly',  startDate: '2026-01-01' },
   { id: 'a03', name: 'Internet Plan',        categoryId: 'utilities',     amount: 39.00,  date: '2026-04-01', type: 'monthly',  startDate: '2026-01-01' },
@@ -137,4 +163,6 @@ export const INITIAL_APP_STATE: AppState = {
   userUsername: '@techboi_design',
   userPhone: '+34 600 123 456',
   userAvatar: '',
+  categoryCustomizations: {},
+  customCategories: [],
 };

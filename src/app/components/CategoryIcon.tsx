@@ -1,23 +1,7 @@
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react';
-import {
-  House, ShoppingCart, ForkKnife, Car, DeviceMobile,
-  FilmSlate, Heartbeat, ShoppingBag, Lightning, Package,
-} from '@phosphor-icons/react';
-import { getCategoryById } from '../data/categories';
-
-// Map each category id → Phosphor icon component
-const CATEGORY_ICONS: Record<string, React.ComponentType<React.ComponentProps<typeof PhosphorIcon>>> = {
-  rent:          House,
-  groceries:     ShoppingCart,
-  dining:        ForkKnife,
-  transport:     Car,
-  subscriptions: DeviceMobile,
-  entertainment: FilmSlate,
-  health:        Heartbeat,
-  shopping:      ShoppingBag,
-  utilities:     Lightning,
-  other:         Package,
-};
+import { Package } from '@phosphor-icons/react';
+import { useApp } from '../context/AppContext';
+import { CATEGORY_ICON_MAP, type CategoryIconKey } from '../data/categoryConfig';
 
 interface CategoryIconProps {
   categoryId: string;
@@ -32,9 +16,11 @@ const SIZE_MAP = {
 };
 
 export function CategoryIcon({ categoryId, size = 'md' }: CategoryIconProps) {
-  const category = getCategoryById(categoryId);
+  const { getCategory } = useApp();
+  const category = getCategory(categoryId);
   const dim = SIZE_MAP[size];
-  const IconComp = CATEGORY_ICONS[categoryId] ?? Package;
+  const IconComp =
+    CATEGORY_ICON_MAP[category.iconKey as CategoryIconKey] ?? Package;
   const iconColor = category.iconColor || category.color;
 
   return (
@@ -61,7 +47,8 @@ interface CategoryDotProps {
 }
 
 export function CategoryDot({ categoryId, size = 10 }: CategoryDotProps) {
-  const category = getCategoryById(categoryId);
+  const { getCategory } = useApp();
+  const category = getCategory(categoryId);
   return (
     <span
       style={{
@@ -73,5 +60,39 @@ export function CategoryDot({ categoryId, size = 10 }: CategoryDotProps) {
         flexShrink: 0,
       }}
     />
+  );
+}
+
+/** For modals / previews */
+export function CategoryIconPreview({
+  iconKey,
+  color,
+  bg,
+  iconColor,
+  size = 'md',
+}: {
+  iconKey: CategoryIconKey;
+  color: string;
+  bg: string;
+  iconColor?: string;
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+}) {
+  const dim = SIZE_MAP[size];
+  const IconComp = CATEGORY_ICON_MAP[iconKey] ?? Package;
+  return (
+    <div
+      style={{
+        width: dim.outer,
+        height: dim.outer,
+        borderRadius: dim.radius,
+        backgroundColor: bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <IconComp size={dim.icon} weight="light" color={iconColor ?? color} />
+    </div>
   );
 }

@@ -34,7 +34,6 @@ export default function OnboardingLayout({
       flexDirection: 'column',
       backgroundColor: '#F5F5FA',
     }}>
-      {/* Header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -64,25 +63,9 @@ export default function OnboardingLayout({
           <div style={{ width: 36 }} />
         )}
 
-        {showSkip && onSkip && (
-          <button
-            onClick={onSkip}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#9CA3AF',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            Skip
-          </button>
-        )}
+        <div style={{ width: 36 }} />
       </div>
 
-      {/* Progress bar */}
       <div style={{ padding: '0 20px 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {Array.from({ length: totalSteps }).map((_, idx) => (
@@ -100,7 +83,6 @@ export default function OnboardingLayout({
         </div>
       </div>
 
-      {/* Scrollable content */}
       <div style={{
         flex: 1,
         overflowY: 'auto',
@@ -110,7 +92,6 @@ export default function OnboardingLayout({
         {children}
       </div>
 
-      {/* Fixed footer with Next button */}
       {onNext && (
         <div style={{
           flexShrink: 0,
@@ -135,6 +116,28 @@ export default function OnboardingLayout({
           >
             {nextLabel}
           </Button>
+
+          {showSkip && onSkip && (
+            <button
+              type="button"
+              onClick={onSkip}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                padding: '8px 0',
+                background: 'none',
+                border: 'none',
+                color: '#9CA3AF',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                letterSpacing: 0.5,
+              }}
+            >
+              SKIP
+            </button>
+          )}
         </div>
       )}
     </div>

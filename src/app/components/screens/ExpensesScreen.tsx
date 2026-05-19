@@ -1,9 +1,14 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import { Plus, Search, Trash2, CheckSquare, Square, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { MagnifyingGlass, Trash, CheckSquare, Square, CaretLeft, CaretRight, X } from '@phosphor-icons/react';
 import { useApp, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
 import { getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
 import { Expense, ExpenseType } from '../../data/types';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
+import { SectionTitle } from '../ui/SectionTitle';
+import { toYearMonthKey } from '../../utils/periods';
+
+const EXPENSE_CARD_SHADOW = '0 2px 10px rgba(0,0,0,0.05)';
 
 // Generate last 6 months dynamically
 const today = new Date();
@@ -12,7 +17,7 @@ const MONTH_NAMES: Record<string, string> = {};
 
 for (let i = 5; i >= 0; i--) {
   const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-  const key = date.toISOString().slice(0, 7);
+  const key = toYearMonthKey(date);
   const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   MONTHS.push(key);
   MONTH_NAMES[key] = label;
@@ -86,7 +91,16 @@ function ExpenseRow({ expense, isMultiSelect, isSelected, onSelect, onEdit, onDe
   };
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid #F7F7FA' }}>
+    <div
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: 16,
+        boxShadow: EXPENSE_CARD_SHADOW,
+        backgroundColor: '#FFFFFF',
+        outline: isMultiSelect && isSelected ? '2px solid #3E37FF' : 'none',
+      }}
+    >
       {/* Delete button behind */}
       <div style={{
         position: 'absolute', right: 0, top: 0, bottom: 0,
@@ -97,16 +111,19 @@ function ExpenseRow({ expense, isMultiSelect, isSelected, onSelect, onEdit, onDe
           onClick={() => onDelete(expense.id)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <Trash2 size={20} color="#FFFFFF" />
+          <Trash size={20} weight="light" color="#FFFFFF" />
         </button>
       </div>
 
       {/* Row content */}
       <div
         style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '14px 16px',
           backgroundColor: '#FFFFFF',
+          borderRadius: 16,
           transform: `translateX(${swipeX}px)`,
           transition: isDragging.current ? 'none' : 'transform 0.2s ease',
           userSelect: 'none',
@@ -128,8 +145,8 @@ function ExpenseRow({ expense, isMultiSelect, isSelected, onSelect, onEdit, onDe
         {isMultiSelect && (
           <div style={{ flexShrink: 0 }}>
             {isSelected
-              ? <CheckSquare size={20} color="#3E37FF" />
-              : <Square size={20} color="#D1D5DB" />}
+              ? <CheckSquare size={20} weight="fill" color="#3E37FF" />
+              : <Square size={20} weight="light" color="#D1D5DB" />}
           </div>
         )}
         <CategoryIcon categoryId={expense.categoryId} size="sm" />
@@ -245,7 +262,7 @@ export default function ExpensesScreen() {
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <button onClick={exitMultiSelect} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <X size={20} color="#FFFFFF" />
+            <X size={20} weight="light" color="#FFFFFF" />
           </button>
           <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: '#FFFFFF' }}>
             {selected.size} selected
@@ -258,7 +275,7 @@ export default function ExpensesScreen() {
               background: '#EF4444', border: 'none', cursor: 'pointer',
               borderRadius: 8, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <Trash2 size={14} color="#FFFFFF" />
+              <Trash size={14} weight="light" color="#FFFFFF" />
               <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, fontFamily: 'inherit' }}>Delete</span>
             </button>
           )}
@@ -277,7 +294,7 @@ export default function ExpensesScreen() {
                 disabled={monthIdx === 0}
                 style={{ background: 'none', border: 'none', cursor: monthIdx === 0 ? 'default' : 'pointer', opacity: monthIdx === 0 ? 0.3 : 1 }}
               >
-                <ChevronLeft size={20} color="#6B7280" />
+                <CaretLeft size={20} weight="light" color="#6B7280" />
               </button>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 17, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
@@ -292,7 +309,7 @@ export default function ExpensesScreen() {
                 disabled={monthIdx === MONTHS.length - 1}
                 style={{ background: 'none', border: 'none', cursor: monthIdx === MONTHS.length - 1 ? 'default' : 'pointer', opacity: monthIdx === MONTHS.length - 1 ? 0.3 : 1 }}
               >
-                <ChevronRight size={20} color="#6B7280" />
+                <CaretRight size={20} weight="light" color="#6B7280" />
               </button>
             </div>
 
@@ -332,7 +349,7 @@ export default function ExpensesScreen() {
               display: 'flex', alignItems: 'center', gap: 10,
               backgroundColor: '#F7F7FA', borderRadius: 12, padding: '10px 14px',
             }}>
-              <Search size={16} color="#9CA3AF" />
+              <MagnifyingGlass size={16} weight="light" color="#9CA3AF" />
               <input
                 type="text"
                 placeholder="Search expenses…"
@@ -345,7 +362,7 @@ export default function ExpensesScreen() {
               />
               {search && (
                 <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  <X size={14} color="#9CA3AF" />
+                  <X size={14} weight="light" color="#9CA3AF" />
                 </button>
               )}
             </div>
@@ -354,78 +371,55 @@ export default function ExpensesScreen() {
       )}
 
       {/* Expense list */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 80 }}>
+      <div
+        data-app-scroll
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px 14px',
+          paddingBottom: TAB_BAR_CLEARANCE,
+        }}
+      >
         {groupKeys.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <div style={{ padding: '48px 8px', textAlign: 'center' }}>
             <p style={{ fontSize: 32, margin: '0 0 12px' }}>📭</p>
             <p style={{ fontSize: 15, fontWeight: 600, color: '#6B7280', margin: 0 }}>No expenses found</p>
             <p style={{ fontSize: 13, color: '#9CA3AF', margin: '4px 0 0' }}>Try adjusting your filters</p>
           </div>
         ) : (
-          groupKeys.map((dateLabel, groupIdx) => (
-            <div key={dateLabel} style={{ animation: `fadeSlideUp 0.5s ease-out ${0.2 + groupIdx * 0.08}s both` }}>
-              <div style={{
-                padding: '10px 16px 6px',
-                backgroundColor: '#F7F7FA',
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF', letterSpacing: 0.5 }}>
-                  {dateLabel.toUpperCase()}
-                </span>
-              </div>
-              <div style={{ backgroundColor: '#FFFFFF' }}>
-                {grouped[dateLabel].map(exp => (
-                  <div
-                    key={exp.id}
-                    onTouchStart={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                    onTouchEnd={handleRowTouchEnd}
-                    onMouseDown={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                    onMouseUp={handleRowTouchEnd}
-                  >
-                    <ExpenseRow
-                      expense={exp}
-                      isMultiSelect={isMultiSelect}
-                      isSelected={selected.has(exp.id)}
-                      onSelect={toggleSelect}
-                      onEdit={openAddModal}
-                      onDelete={id => dispatch({ type: 'DELETE_EXPENSE', id })}
-                      formatCurrency={formatCurrency}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {groupKeys.map((dateLabel, groupIdx) => (
+              <section
+                key={dateLabel}
+                style={{ animation: `fadeSlideUp 0.5s ease-out ${0.2 + groupIdx * 0.08}s both` }}
+              >
+                <SectionTitle>{dateLabel}</SectionTitle>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {grouped[dateLabel].map(exp => (
+                    <div
+                      key={exp.id}
+                      onTouchStart={() => !isMultiSelect && handleRowTouchStart(exp.id)}
+                      onTouchEnd={handleRowTouchEnd}
+                      onMouseDown={() => !isMultiSelect && handleRowTouchStart(exp.id)}
+                      onMouseUp={handleRowTouchEnd}
+                    >
+                      <ExpenseRow
+                        expense={exp}
+                        isMultiSelect={isMultiSelect}
+                        isSelected={selected.has(exp.id)}
+                        onSelect={toggleSelect}
+                        onEdit={openAddModal}
+                        onDelete={id => dispatch({ type: 'DELETE_EXPENSE', id })}
+                        formatCurrency={formatCurrency}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </div>
-
-      {/* FAB */}
-      {!isMultiSelect && (
-        <button
-          onClick={() => openAddModal()}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: '#3E37FF',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(62,55,255,0.4)',
-            zIndex: 100,
-            animation: 'bounceIn 0.5s ease-out 0.3s both',
-            transition: 'transform 0.2s ease',
-          }}
-        >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
-        </button>
-      )}
 
       {/* Animations */}
       <style>{`

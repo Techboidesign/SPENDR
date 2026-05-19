@@ -1,7 +1,29 @@
-import React, { createContext, useContext, useReducer, useState, useEffect } from 'react';
-import { AppState, Action, Expense } from '../data/types';
-import { INITIAL_APP_STATE } from '../data/sampleData';
+import React, { createContext, useContext, useReducer, useState, useEffect, useMemo, useCallback } from 'react';
+import { AppState, Action, Expense, CategoryCustomization } from '../data/types';
+import { resolveCategories, resolveCategory } from '../data/categoryConfig';
+import { getCategoryById as getDefaultCategoryById, type Category } from '../data/categories';
+import type { CategoryIconKey } from '../data/categoryConfig';
+import { INITIAL_APP_STATE, INITIAL_EXPENSES } from '../data/sampleData';
 import { getItem, setItem } from '../utils/storage';
+import { CURRENT_MONTH_KEY } from '../utils/periods';
+
+function hydrateState(saved: AppState | null): AppState {
+  if (!saved) return INITIAL_APP_STATE;
+
+  const withCategories: AppState = {
+    ...saved,
+    categoryCustomizations: saved.categoryCustomizations ?? {},
+    customCategories: saved.customCategories ?? [],
+  };
+
+  const hasCurrentMonth = withCategories.expenses.some(e => e.date.startsWith(CURRENT_MONTH_KEY));
+  if (hasCurrentMonth) return withCategories;
+
+  const seedMonth = INITIAL_EXPENSES.filter(e => e.date.startsWith(CURRENT_MONTH_KEY));
+  if (seedMonth.length === 0) return withCategories;
+
+  return { ...withCategories, expenses: [...seedMonth, ...withCategories.expenses] };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -49,14 +71,40 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, userPhone: action.phone };
     case 'SET_USER_AVATAR':
       return { ...state, userAvatar: action.avatar };
+    case 'SET_CATEGORY_CUSTOMIZATION':
+      return {
+        ...state,
+        categoryCustomizations: {
+          ...state.categoryCustomizations,
+          [action.categoryId]: action.customization,
+        },
+      };
+    case 'ADD_CUSTOM_CATEGORY':
+      return {
+        ...state,
+        customCategories: [...state.customCategories, action.category],
+      };
+    case 'UPDATE_CUSTOM_CATEGORY':
+      return {
+        ...state,
+        customCategories: state.customCategories.map(c =>
+          c.id === action.category.id ? action.category : c,
+        ),
+      };
     default:
       return state;
   }
 }
 
+interface ResolvedCategory extends Category {
+  iconKey: CategoryIconKey;
+}
+
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
+  categories: ResolvedCategory[];
+  getCategory: (id: string) => ResolvedCategory;
   showAddModal: boolean;
   editingExpense: Expense | null;
   openAddModal: (expense?: Expense) => void;
@@ -70,7 +118,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Load initial state from localStorage or use default
   const [state, dispatch] = useReducer(reducer, undefined, () => {
     const saved = getItem<AppState>('appState');
-    return saved || INITIAL_APP_STATE;
+    return hydrateState(saved);
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -98,8 +146,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return `${symbol}${amount.toFixed(2)}`;
   };
 
+  const categories = useMemo(
+    () => resolveCategories(state.categoryCustomizations, state.customCategories),
+    [state.categoryCustomizations, state.customCategories],
+  );
+
+  const getCategory = useCallback(
+    (id: string) => {
+      const found = categories.find(c => c.id === id);
+      if (found) return found;
+      const custom = state.customCategories.find(c => c.id === id);
+      if (custom) {
+        return resolveCategories({}, [custom])[0];
+      }
+      return resolveCategory(
+        getDefaultCategoryById(id),
+        state.categoryCustomizations[id],
+      );
+    },
+    [categories, state.categoryCustomizations, state.customCategories],
+  );
+
   return (
-    <AppContext.Provider value={{ state, dispatch, showAddModal, editingExpense, openAddModal, closeAddModal, formatCurrency }}>
+    <AppContext.Provider
+      value={{
+        state,
+        dispatch,
+        categories,
+        getCategory,
+        showAddModal,
+        editingExpense,
+        openAddModal,
+        closeAddModal,
+        formatCurrency,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );

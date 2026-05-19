@@ -1,0 +1,37 @@
+---
+description: Section titles outside cards; no card-in-card nesting (Goals pattern)
+globs: "src/app/components/**/*.tsx"
+alwaysApply: false
+---
+
+# Section + card layout
+
+Follow the **Budget → Categories** pattern (also used on Goals):
+
+1. **Section title lives outside** any white card (`SectionTitle` component).
+2. **Below the title**, use either:
+   - **One `SurfaceCard`** for a single block of content (chart, pie, transaction list), or
+   - **A stack of item cards** (gap `10px`) with no wrapping `SurfaceCard` around them.
+3. **Never nest cards** — no title inside a card that wraps other cards (no card-inception).
+4. **No redundant subtitles** under section titles unless the user asks for them.
+5. **Settings and Profile screens** are exempt — do not refactor them to this pattern unless requested.
+
+## Examples
+
+```tsx
+// List of items (Top expenses, category budgets)
+<SectionTitle>Top expenses</SectionTitle>
+<TopExpensesCard items={...} />
+
+// Single chart or widget
+<SectionTitle>Top categories</SectionTitle>
+<SurfaceCard>
+  <CategorySpendingChart ... />
+</SurfaceCard>
+```
+
+## Primitives
+
+- `SectionTitle` — `src/app/components/ui/SectionTitle.tsx`
+- `SurfaceCard` — one white surface for non-list content
+- Item cards — `borderRadius: 16`, `boxShadow: '0 2px 10px rgba(0,0,0,0.05)'`, no outer wrapper

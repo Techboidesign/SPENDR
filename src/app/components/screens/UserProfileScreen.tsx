@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import {
   ArrowLeft, Camera, User, At, EnvelopeSimple, Phone,
   Lock, ShieldCheck, CalendarBlank, Crown, SignOut,
   Check, X, CaretRight, Eye, EyeSlash,
 } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
+import { useOnboarding } from '../../context/OnboardingContext';
 import { useSubPageNav } from '../SubPageLayout';
 import { AvatarCropModal } from '../AvatarCropModal';
 
@@ -217,6 +219,8 @@ function PasswordSheet({ onClose }: { onClose: () => void }) {
 export default function UserProfileScreen() {
   const { state, dispatch } = useApp();
   const { exit } = useSubPageNav();
+  const navigate = useNavigate();
+  const { logout } = useOnboarding();
 
   // File input for avatar upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,6 +231,12 @@ export default function UserProfileScreen() {
   const [toast, setToast] = useState('');
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
+
+  const handleSignOut = () => {
+    setShowSignOutConfirm(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   /* Avatar upload flow */
   const handleAvatarClick = () => fileInputRef.current?.click();
@@ -454,7 +464,7 @@ export default function UserProfileScreen() {
             </div>
             <p style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', textAlign: 'center', margin: '0 0 6px' }}>Sign Out?</p>
             <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '0 0 24px' }}>Your data is saved locally and will be here when you return.</p>
-            <button onClick={() => { setShowSignOutConfirm(false); showToast('Signed out (demo — data preserved)'); }}
+            <button onClick={handleSignOut}
               style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: '#F97316', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 }}>
               Sign Out
             </button>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Check, ArrowsOut } from '@phosphor-icons/react';
+import { ArrowsOut } from '@phosphor-icons/react';
+import { ModalActionBar } from './ModalActionBar';
 
 const CANVAS_SIZE = 290;
 const CROP_RADIUS = 118; // circle crop radius in canvas pixels
@@ -253,37 +254,13 @@ export function AvatarCropModal({ imageSrc, onSave, onCancel }: Props) {
     }}>
       {/* Top bar */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '14px 20px',
         flexShrink: 0,
       }}>
-        <button
-          onClick={onCancel}
-          style={{
-            background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 20,
-            padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 14, fontWeight: 500, color: '#FFFFFF',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          <X size={14} weight="light" color="#FFFFFF" />
-          Cancel
-        </button>
         <p style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
           Move & Scale
         </p>
-        <button
-          onClick={handleConfirm}
-          style={{
-            background: '#3E37FF', border: 'none', borderRadius: 20,
-            padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 14, fontWeight: 600, color: '#FFFFFF',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          <Check size={14} weight="light" color="#FFFFFF" />
-          Use Photo
-        </button>
       </div>
 
       {/* Canvas crop area */}
@@ -354,6 +331,14 @@ export function AvatarCropModal({ imageSrc, onSave, onCancel }: Props) {
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', width: 16, textAlign: 'center' }}>+</span>
         </div>
       </div>
+
+      <ModalActionBar
+        dark
+        onLeft={onCancel}
+        leftLabel="CANCEL"
+        onSave={handleConfirm}
+        saveLabel="SAVE"
+      />
     </div>
   );
 }

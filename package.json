@@ -5,9 +5,17 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:host": "vite --host",
+    "preview:host": "vite preview --host",
+    "deploy:netlify": "npm run build && npx netlify-cli deploy --prod --dir=dist"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
@@ -47,7 +55,6 @@
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
     "input-otp": "1.4.2",
-    "lucide-react": "0.487.0",
     "motion": "12.23.24",
     "next-themes": "0.4.6",
     "react-day-picker": "8.10.1",

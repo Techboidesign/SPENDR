@@ -1,19 +1,19 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import {
-  Plus, ArrowRight, ArrowUp, ArrowDown,
-  Wallet, PiggyBank, ChartPieSlice,
-} from '@phosphor-icons/react';
-import { useApp, getCategoryTotals, getMonthlyAmount } from '../../context/AppContext';
-import { CATEGORIES, getCategoryById } from '../../data/categories';
-import { CategoryIcon } from '../CategoryIcon';
-
-// Dynamic date calculation
-const today = new Date();
-const CURRENT_MONTH = today.toISOString().slice(0, 7); // e.g., '2026-05'
-const MONTH_LABEL = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-const DAYS_LEFT = daysInMonth - today.getDate();
+import { ArrowUp, ArrowDown, ArrowRight, CaretRight, PiggyBank, Wallet } from '@phosphor-icons/react';
+import { useApp, getCategoryTotals } from '../../context/AppContext';
+import type { HomeRange } from '../../utils/periods';
+import { CURRENT_MONTH_KEY, YEAR_MONTH_BARS } from '../../utils/periods';
+import { usePeriodInsights } from '../../hooks/usePeriodInsights';
+import { RangeToggle } from '../home/RangeToggle';
+import { SpendingTrendChart } from '../home/SpendingTrendChart';
+import { TopExpensesCard } from '../home/TopExpensesCard';
+import { HomeInsightsRail } from '../home/HomeInsightsRail';
+import { useHomeInsightCards } from '../../hooks/useHomeInsightCards';
+import { RecentTransactionsList } from '../home/RecentTransactionsCard';
+import { SectionTitle } from '../ui/SectionTitle';
+import { SurfaceCard } from '../ui/SurfaceCard';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 
 /* ─── SVG donut constants ─────────────────────────────── */
 const SVG_W   = 362;   // full card width
@@ -25,11 +25,87 @@ const SW      = 46;           // stroke-width  → ring from r=105 to r=151
 const CIRC    = 2 * Math.PI * R;          // ≈ 804px
 const GAP_PX  = 6;            // pixel gap between segments (at ring radius)
 const RADIAN  = Math.PI / 180;
+const FROST_R = R - SW / 2 - 8; // inner hub radius (~97)
+const BUDGET_RING_R = FROST_R - 5;
+const BUDGET_RING_STROKE = 7;
+
+const BUDGET_RING_ANIM_MS = 1000;
+
+function HeroDonutBudgetRing({
+  percent,
+  color,
+  bg,
+  animationKey,
+}: {
+  percent: number;
+  color: string;
+  bg: string;
+  /** Changes on month/year/range — retriggers a smooth fill from 0 */
+  animationKey: string;
+}) {
+  const target = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : 0;
+  const [displayPercent, setDisplayPercent] = useState(0);
+  const circumference = 2 * Math.PI * BUDGET_RING_R;
+  const offset = circumference - (displayPercent / 100) * circumference;
+
+  useEffect(() => {
+    setDisplayPercent(0);
+    const start = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / BUDGET_RING_ANIM_MS, 1);
+      const eased = 1 - (1 - t) ** 3;
+      setDisplayPercent(target * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [animationKey, target]);
+
+  return (
+    <>
+      <circle cx={CX} cy={CY} r={FROST_R} fill="#FFFFFF" fillOpacity={0.96} />
+      <circle
+        cx={CX}
+        cy={CY}
+        r={BUDGET_RING_R}
+        fill="none"
+        stroke={bg}
+        strokeWidth={BUDGET_RING_STROKE}
+      />
+      <circle
+        cx={CX}
+        cy={CY}
+        r={BUDGET_RING_R}
+        fill="none"
+        stroke={color}
+        strokeWidth={BUDGET_RING_STROKE}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${CX} ${CY})`}
+      />
+    </>
+  );
+}
 
 /* ─── SVG Donut component ────────────────────────────── */
-function DonutChart({ segments, formatCurrency }: {
+function DonutChart({
+  segments,
+  formatCurrency,
+  budgetPercent,
+  budgetColor,
+  budgetBg,
+  budgetRingKey,
+}: {
   segments: { fill: string; amount: number; name: string }[];
   formatCurrency: (n: number) => string;
+  budgetPercent: number;
+  budgetColor: string;
+  budgetBg: string;
+  budgetRingKey: string;
 }) {
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
   const total = segments.reduce((s, c) => s + c.amount, 0);
@@ -119,8 +195,6 @@ function DonutChart({ segments, formatCurrency }: {
     startAngle += fullSweep; // advance by full sweep including gap
   });
 
-  const frostR = innerR - 8; // 97
-
   const hoveredSegment = hoveredIdx !== null ? segments[hoveredIdx] : null;
   const hoveredWedge = hoveredIdx !== null ? wedges[hoveredIdx] : null;
 
@@ -157,15 +231,13 @@ function DonutChart({ segments, formatCurrency }: {
           />
         ))}
 
-        {/* Frosted center for text overlay */}
-        <circle cx={CX} cy={CY} r={frostR} fill="white" fillOpacity={0.92} />
-        <defs>
-          <radialGradient id="innerGrad2" cx="40%" cy="35%" r="60%">
-            <stop offset="0%"   stopColor="#F5F3FF" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#EDE9FD" stopOpacity="0.5" />
-          </radialGradient>
-        </defs>
-        <circle cx={CX} cy={CY} r={frostR} fill="url(#innerGrad2)" />
+        {/* Budget % ring — matches badge colors */}
+        <HeroDonutBudgetRing
+          percent={budgetPercent}
+          color={budgetColor}
+          bg={budgetBg}
+          animationKey={budgetRingKey}
+        />
       </svg>
 
       {/* Tooltip positioned at segment center */}
@@ -201,21 +273,38 @@ function DonutChart({ segments, formatCurrency }: {
 
 /* ═══════════════════════════════════════════════════════ */
 export default function HomeScreen() {
-  const { state, openAddModal, formatCurrency } = useApp();
+  const { state, formatCurrency, categories } = useApp();
   const navigate = useNavigate();
+  const [range, setRange] = useState<HomeRange>('month');
+  const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
 
-  const categoryTotals = useMemo(
-    () => getCategoryTotals(state.expenses, CURRENT_MONTH),
-    [state.expenses],
-  );
+  const insights = usePeriodInsights(state.expenses, range, selectedMonthKey);
+
+  const heroCategoryTotals = useMemo(() => {
+    if (range === 'month') {
+      return getCategoryTotals(state.expenses, selectedMonthKey);
+    }
+    const totals: Record<string, number> = {};
+    for (const m of YEAR_MONTH_BARS) {
+      const monthTotals = getCategoryTotals(state.expenses, m.key);
+      for (const [catId, amt] of Object.entries(monthTotals)) {
+        totals[catId] = (totals[catId] ?? 0) + amt;
+      }
+    }
+    return totals;
+  }, [state.expenses, range, selectedMonthKey]);
+
+  const periodBudget = range === 'year' ? state.monthlyBudget * 12 : state.monthlyBudget;
+  const periodIncome = range === 'year' ? state.income * 12 : state.income;
+
   const totalSpent = useMemo(
-    () => Object.values(categoryTotals).reduce((s, v) => s + v, 0),
-    [categoryTotals],
+    () => Object.values(heroCategoryTotals).reduce((s, v) => s + v, 0),
+    [heroCategoryTotals],
   );
 
-  const budgetPct   = Math.min((totalSpent / state.monthlyBudget) * 100, 100);
-  const remaining   = state.monthlyBudget - totalSpent;
-  const savingsAmt  = state.income - totalSpent;
+  const budgetPct   = Math.min((totalSpent / periodBudget) * 100, 100);
+  const remaining   = periodBudget - totalSpent;
+  const savingsAmt  = periodIncome - totalSpent;
   const savingsRate = ((savingsAmt / state.income) * 100).toFixed(0);
 
   // Animated counters
@@ -247,27 +336,20 @@ export default function HomeScreen() {
 
   const budgetColor = budgetPct < 60 ? '#10B981' : budgetPct < 85 ? '#F59E0B' : '#EF4444';
   const budgetBg    = budgetPct < 60 ? '#D1FAE5' : budgetPct < 85 ? '#FEF3C7' : '#FEE2E2';
-  const budgetGrad  = budgetPct < 60
-    ? 'linear-gradient(90deg,#10B981,#34D399)'
-    : budgetPct < 85
-    ? 'linear-gradient(90deg,#F59E0B,#FBBF24)'
-    : 'linear-gradient(90deg,#EF4444,#F87171)';
+  const budgetRingKey = `${range}-${selectedMonthKey}`;
 
-  const statusText = budgetPct < 60
-    ? 'On track'
-    : budgetPct < 85
-    ? 'Watch spending'
-    : 'Over budget';
+  const insightCards = useHomeInsightCards(formatCurrency, insights.monthlyBarData);
 
   const topCategories = useMemo(() =>
-    CATEGORIES
-      .map(cat => ({ ...cat, amount: categoryTotals[cat.id] ?? 0 }))
+    categories
+      .map(cat => ({ ...cat, amount: heroCategoryTotals[cat.id] ?? 0 }))
       .filter(c => c.amount > 0)
-      .sort((a, b) => b.amount - a.amount),
-    [categoryTotals],
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5),
+    [heroCategoryTotals, categories],
   );
 
-  const top5Categories = useMemo(() => topCategories.slice(0, 5), [topCategories]);
+  const spentLabel = range === 'year' ? 'Spent this year' : 'Spent';
 
   const stats = [
     {
@@ -296,17 +378,44 @@ export default function HomeScreen() {
   const innerR = R - SW / 2 - 8; // ≈ 97px
 
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
-      <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F5F5FA', paddingBottom: 80 }}>
+    <div style={{ height: '100%', position: 'relative', overflowX: 'hidden' }}>
+      <div
+        className="home-screen-scroll"
+        style={{
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          backgroundColor: '#F5F5FA',
+          paddingBottom: TAB_BAR_CLEARANCE,
+          overscrollBehaviorX: 'none',
+        }}
+      >
 
         {/* ╔══════════════════════════╗
             ║   GRADIENT HERO          ║
             ╚══════════════════════════╝ */}
         <div style={{
-          position: 'relative', overflow: 'hidden',
-          background: 'linear-gradient(168deg,#ECEAFF 0%,#E5E2FF 22%,#EEF0FF 52%,#F3F2FF 75%,#F7F7FA 100%)',
-          paddingBottom: 20,
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'linear-gradient(168deg,#ECEAFF 0%,#E5E2FF 22%,#EEF0FF 52%,#F3F2FF 85%,#F5F5FA 100%)',
+          paddingBottom: 28,
+          marginBottom: 16,
+          boxSizing: 'content-box',
         }}>
+          {/* Bottom fade into page background */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 72,
+              pointerEvents: 'none',
+              zIndex: 4,
+              background: 'linear-gradient(to bottom, rgba(245,245,250,0) 0%, #F5F5FA 88%)',
+            }}
+          />
           {/* Decorative blobs */}
           <div style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
             background:'radial-gradient(circle,rgba(124,58,237,0.14) 0%,transparent 68%)',
@@ -318,38 +427,41 @@ export default function HomeScreen() {
             background:'radial-gradient(circle,rgba(139,92,246,0.08) 0%,transparent 70%)',
             bottom:80, right:20, pointerEvents:'none' }} />
 
-          {/* Top row */}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-            padding:'14px 20px 20px', position:'relative', zIndex:1 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ backgroundColor:'rgba(62,55,255,0.10)', borderRadius:20,
-                padding:'5px 12px', display:'inline-flex', alignItems:'center', gap:6,
-                animation: 'fadeIn 0.6s ease-out 0.1s both' }}>
-                <div style={{ width:5, height:5, borderRadius:'50%', backgroundColor:'#3E37FF',
-                  animation: 'pulse 2s ease-in-out infinite' }} />
-                <span style={{ fontSize:12, fontWeight:600, color:'#3E37FF' }}>{MONTH_LABEL}</span>
-              </div>
-
-              <div style={{ display:'inline-flex', alignItems:'center', gap:7,
-                backgroundColor:budgetBg, borderRadius:20, padding:'5px 12px',
-                animation: 'fadeIn 0.6s ease-out 0.3s both' }}>
-                <div style={{ width:7, height:7, borderRadius:4,
-                  backgroundColor:budgetColor, flexShrink:0,
-                  animation: 'pulse 2s ease-in-out infinite' }} />
-                <span style={{ fontSize:12, fontWeight:600, color:budgetColor }}>{statusText}</span>
-              </div>
-            </div>
+          {/* Top row — period toggle (left) + avatar (right) */}
+          <div style={{
+            position: 'relative',
+            padding: '14px 14px 16px',
+            paddingRight: 62,
+            zIndex: 20,
+            minHeight: 48,
+          }}>
+            <RangeToggle
+              compact
+              range={range}
+              onChange={setRange}
+              monthKey={selectedMonthKey}
+              onMonthChange={setSelectedMonthKey}
+            />
 
             <button
+              type="button"
               onClick={() => navigate('/settings')}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(-50%) scale(1)'; }}
               style={{
-                width:40, height:40, borderRadius:20,
-                border:'2.5px solid rgba(255,255,255,0.9)',
-                cursor:'pointer', flexShrink:0, overflow:'hidden',
-                padding:0, background:'none',
-                boxShadow:'0 4px 14px rgba(62,55,255,0.22)',
+                position: 'absolute',
+                right: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                border: '2.5px solid rgba(255,255,255,0.9)',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                padding: 0,
+                background: 'none',
+                boxShadow: '0 4px 14px rgba(62,55,255,0.22)',
                 transition: 'transform 0.2s ease',
               }}
             >
@@ -373,7 +485,8 @@ export default function HomeScreen() {
             borderRadius: 22,
             boxShadow: '0 6px 28px rgba(62,55,255,0.11), 0 2px 8px rgba(0,0,0,0.05)',
             overflow: 'hidden',
-            position: 'relative', zIndex: 1,
+            position: 'relative',
+            zIndex: 5,
             animation: 'slideUpFade 0.7s ease-out both',
           }}>
 
@@ -388,14 +501,12 @@ export default function HomeScreen() {
                     stroke="#F0EFFE"
                     strokeWidth={SW}
                   />
-                  <circle cx={CX} cy={CY} r={innerR} fill="white" fillOpacity={0.92} />
-                  <defs>
-                    <radialGradient id="innerGrad2" cx="40%" cy="35%" r="60%">
-                      <stop offset="0%" stopColor="#F5F3FF" stopOpacity="0.7" />
-                      <stop offset="100%" stopColor="#EDE9FD" stopOpacity="0.5" />
-                    </radialGradient>
-                  </defs>
-                  <circle cx={CX} cy={CY} r={innerR} fill="url(#innerGrad2)" />
+                  <HeroDonutBudgetRing
+                    percent={budgetPct}
+                    color={budgetColor}
+                    bg={budgetBg}
+                    animationKey={budgetRingKey}
+                  />
                 </svg>
               ) : (
                 <DonutChart
@@ -405,6 +516,10 @@ export default function HomeScreen() {
                     name: cat.name
                   }))}
                   formatCurrency={formatCurrency}
+                  budgetPercent={budgetPct}
+                  budgetColor={budgetColor}
+                  budgetBg={budgetBg}
+                  budgetRingKey={budgetRingKey}
                 />
               )}
 
@@ -431,7 +546,7 @@ export default function HomeScreen() {
                     letterSpacing: 1.8,
                     textTransform: 'uppercase' as const,
                   }}>
-                    Spent
+                    {spentLabel}
                   </span>
                   <span style={{
                     display: 'block',
@@ -443,13 +558,32 @@ export default function HomeScreen() {
                   }}>
                     {formatCurrency(animatedSpent)}
                   </span>
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    backgroundColor: budgetBg,
-                    borderRadius: 12,
-                    padding: '4px 10px',
-                  }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/budget')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      backgroundColor: budgetBg,
+                      borderRadius: 12,
+                      padding: '4px 6px 4px 10px',
+                      border: `1px solid ${budgetColor}40`,
+                      boxShadow: `0 1px 2px ${budgetColor}18`,
+                      cursor: 'pointer',
+                      pointerEvents: 'auto',
+                      fontFamily: 'inherit',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'scale(1.04)';
+                      e.currentTarget.style.boxShadow = `0 2px 6px ${budgetColor}28`;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = `0 1px 2px ${budgetColor}18`;
+                    }}
+                  >
                     <span style={{
                       fontSize: 11,
                       fontWeight: 700,
@@ -457,27 +591,9 @@ export default function HomeScreen() {
                     }}>
                       {animatedBudgetPct.toFixed(0)}% of budget
                     </span>
-                  </div>
+                    <CaretRight size={12} weight="bold" color={budgetColor} />
+                  </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Budget bar */}
-            <div style={{ padding: '4px 20px 12px' }}>
-              <div style={{ backgroundColor:'#F3F4F6', borderRadius:6, height:5, overflow:'hidden' }}>
-                <div style={{
-                  height:'100%', width:`${budgetPct}%`, borderRadius:6,
-                  background:budgetGrad,
-                  animation: 'progressBar 1.2s ease-out 0.6s both',
-                }} />
-              </div>
-              <div style={{ display:'flex', justifyContent:'space-between', marginTop:5 }}>
-                <span style={{ fontSize:10, color:'#9CA3AF', fontWeight:500 }}>
-                  {formatCurrency(totalSpent)} spent
-                </span>
-                <span style={{ fontSize:10, color:'#9CA3AF', fontWeight:500 }}>
-                  {formatCurrency(state.monthlyBudget)} budget
-                </span>
               </div>
             </div>
 
@@ -494,200 +610,76 @@ export default function HomeScreen() {
                     margin:'0 auto 7px' }}>
                     {s.icon}
                   </div>
-                  <p style={{ fontSize:13, fontWeight:800, color:'#1A1A2E',
-                    margin:'0 0 2px', letterSpacing:-0.3 }}>{s.value}</p>
-                  <p style={{ fontSize:10, color:'#9CA3AF', margin:0, fontWeight:500 }}>{s.label}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+                    <p style={{ fontSize:13, fontWeight:800, color:'#1A1A2E',
+                      margin:0, letterSpacing:-0.3, lineHeight:1.1 }}>{s.value}</p>
+                    <p style={{ fontSize:10, color:'#9CA3AF', margin:0, fontWeight:500, lineHeight:1.1 }}>{s.label}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ╔══════════════════════════╗
-            ║   BELOW-FOLD             ║
-            ╚══════════════════════════╝ */}
-        <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:12 }}>
+        <HomeInsightsRail cards={insightCards} />
 
-          {/* Spending Breakdown */}
-          <div style={{ backgroundColor:'#FFFFFF', borderRadius:18, padding:'16px 16px 4px',
-            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
-            animation: 'slideUpFade 0.7s ease-out 0.2s both' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <ChartPieSlice size={15} weight="light" color="#3E37FF" />
-                <p style={{ fontSize:14, fontWeight:700, color:'#1A1A2E', margin:0 }}>Breakdown</p>
-              </div>
-              <button
-                onClick={() => navigate('/insights')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#DDD9FF';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#EDEDFF';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-                style={{
-                  display:'flex', alignItems:'center', gap:4, backgroundColor:'#EDEDFF',
-                  border:'none', borderRadius:20, padding:'5px 10px', cursor:'pointer',
-                  fontSize:11, fontWeight:600, color:'#3E37FF',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                Insights <ArrowRight size={11} weight="light" color="#3E37FF" />
-              </button>
-            </div>
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {range === 'year' && (
+            <section>
+              <SectionTitle>Spending trend</SectionTitle>
+              <SurfaceCard>
+                <SpendingTrendChart data={insights.monthlyBarData} />
+              </SurfaceCard>
+            </section>
+          )}
 
-            {top5Categories.length === 0 ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 24,
-                  backgroundColor: '#F0EFFE', margin: '0 auto 12px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <ChartPieSlice size={24} weight="light" color="#A09CC4" />
-                </div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', margin: '0 0 4px' }}>
-                  No expenses yet
-                </p>
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
-                  Add your first expense to see breakdown
-                </p>
-              </div>
-            ) : (
-              top5Categories.map((cat, i) => {
-                const pct = totalSpent > 0
-                  ? ((cat.amount / totalSpent) * 100).toFixed(1) : '0.0';
-                return (
-                  <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:12,
-                    padding:'10px 0',
-                    borderBottom: i < top5Categories.length - 1 ? '1px solid #F7F7FA' : 'none',
-                    animation: `fadeSlideLeft 0.5s ease-out ${0.4 + i * 0.08}s both` }}>
-                    <CategoryIcon categoryId={cat.id} size="sm" />
-                    <span style={{ flex:1, fontSize:13, fontWeight:600, color:'#1A1A2E' }}>
-                      {cat.name}
-                    </span>
-                    <div style={{ textAlign:'right' }}>
-                      <p style={{ fontSize:14, fontWeight:700, color:'#1A1A2E', margin:0 }}>
-                        {formatCurrency(cat.amount)}
-                      </p>
-                      <p style={{ fontSize:10, color:'#B0B7C3', margin:'1px 0 0', fontWeight:500 }}>
-                        {pct}%
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+          {range === 'month' && (
+            <section>
+              <SectionTitle>Top expenses</SectionTitle>
+              <TopExpensesCard
+                items={insights.topExpenses}
+                formatCurrency={formatCurrency}
+              />
+            </section>
+          )}
 
-          {/* Recent Transactions */}
-          <div style={{ backgroundColor:'#FFFFFF', borderRadius:18, padding:'16px 16px 4px',
-            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
-            animation: 'slideUpFade 0.7s ease-out 0.3s both' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <Wallet size={15} weight="light" color="#3E37FF" />
-                <p style={{ fontSize:14, fontWeight:700, color:'#1A1A2E', margin:0 }}>
-                  Recent Transactions
-                </p>
-              </div>
-              <button
-                onClick={() => navigate('/expenses')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#DDD9FF';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#EDEDFF';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-                style={{
-                  display:'flex', alignItems:'center', gap:4, backgroundColor:'#EDEDFF',
-                  border:'none', borderRadius:20, padding:'5px 10px', cursor:'pointer',
-                  fontSize:11, fontWeight:600, color:'#3E37FF',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                See all <ArrowRight size={11} weight="light" color="#3E37FF" />
-              </button>
-            </div>
-
-            {state.expenses
-              .filter(e => e.date.startsWith(CURRENT_MONTH))
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .slice(0, 5).length === 0 ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 24,
-                  backgroundColor: '#F0EFFE', margin: '0 auto 12px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Wallet size={24} weight="light" color="#A09CC4" />
-                </div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', margin: '0 0 4px' }}>
-                  No transactions yet
-                </p>
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
-                  Tap + to add your first expense
-                </p>
-              </div>
-            ) : (
-              state.expenses
-                .filter(e => e.date.startsWith(CURRENT_MONTH))
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .slice(0, 5)
-                .map((exp, i, arr) => {
-                  const cat = getCategoryById(exp.categoryId);
-                  return (
-                    <div key={exp.id} style={{ display:'flex', alignItems:'center', gap:12,
-                      padding:'9px 0',
-                      borderBottom: i < arr.length - 1 ? '1px solid #F7F7FA' : 'none',
-                      animation: `fadeSlideLeft 0.5s ease-out ${0.5 + i * 0.08}s both` }}>
-                      <CategoryIcon categoryId={exp.categoryId} size="sm" />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ fontSize:13, fontWeight:600, color:'#1A1A2E', margin:0,
-                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                          {exp.name}
-                        </p>
-                        <p style={{ fontSize:11, color:'#9CA3AF', margin:'1px 0 0' }}>{cat.name}</p>
-                      </div>
-                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                        <p style={{ fontSize:14, fontWeight:700, color:'#1A1A2E', margin:0 }}>
-                          -{formatCurrency(exp.amount)}
-                        </p>
-                        {exp.type !== 'one-time' && (
-                          <span style={{ fontSize:9, fontWeight:600, color:'#D97706',
-                            backgroundColor:'#FEF3C7', padding:'1px 5px', borderRadius:4 }}>
-                            {exp.type === 'monthly' ? 'Monthly' : 'Yearly'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-            )}
-          </div>
+          <section style={{ animation: 'slideUpFade 0.7s ease-out 0.3s both' }}>
+            <SectionTitle
+              action={
+                <button
+                  type="button"
+                  onClick={() => navigate('/expenses')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: '#EDEDFF',
+                    border: 'none',
+                    borderRadius: 20,
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#3E37FF',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  See all <ArrowRight size={11} weight="light" color="#3E37FF" />
+                </button>
+              }
+            >
+              Recent transactions
+            </SectionTitle>
+            <RecentTransactionsList
+              range={range}
+              monthKey={selectedMonthKey}
+              yearLabel={insights.yearLabel}
+              expenses={state.expenses}
+              formatCurrency={formatCurrency}
+            />
+          </section>
         </div>
       </div>
-
-      {/* FAB */}
-      <button
-        onClick={() => openAddModal()}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        style={{
-          position:'absolute', bottom:20, right:20,
-          width:56, height:56, borderRadius:28,
-          backgroundColor:'#3E37FF', border:'none', cursor:'pointer',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          boxShadow:'0 6px 22px rgba(62,55,255,0.42)', zIndex:100,
-          animation: 'bounceIn 0.5s ease-out 0.3s both',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        }}
-      >
-        <Plus size={24} weight="bold" color="#FFFFFF" />
-      </button>
 
       {/* Global animations */}
       <style>{`
@@ -718,8 +710,14 @@ export default function HomeScreen() {
           }
         }
 
-        @keyframes progressBar {
-          from { width: 0; }
+        @keyframes barGrow {
+          from { transform: scaleY(0); }
+          to { transform: scaleY(1); }
+        }
+
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes bounceIn {

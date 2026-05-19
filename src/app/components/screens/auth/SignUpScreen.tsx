@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Eye, EyeSlash } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
+import { FormInput } from '../../shared/FormFields';
 import { useOnboarding } from '../../../context/OnboardingContext';
 
 export default function SignUpScreen() {
@@ -115,12 +115,11 @@ export default function SignUpScreen() {
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
             Email
           </label>
-          <Input
+          <FormInput
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            style={{ width: '100%', height: 50, fontSize: 16, borderRadius: 14 }}
           />
         </div>
 
@@ -130,12 +129,12 @@ export default function SignUpScreen() {
             Password
           </label>
           <div style={{ position: 'relative' }}>
-            <Input
+            <FormInput
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              style={{ width: '100%', height: 50, fontSize: 16, paddingRight: 48, borderRadius: 14 }}
+              style={{ paddingRight: 48 }}
             />
             <button
               onClick={() => setShowPassword(!showPassword)}

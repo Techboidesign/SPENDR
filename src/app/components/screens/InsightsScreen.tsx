@@ -111,80 +111,75 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
   );
 }
 
-/* ── Monthly stacked bar (1m view only) ── */
+/* ── Top 10 categories vertical bar chart (1m view only) ── */
 function MonthlyStackedBar({
   segments,
-  total,
   formatCurrency,
 }: {
   segments: Array<{ id: string; name: string; color: string; amount: number }>;
-  total: number;
   formatCurrency: (n: number) => string;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const BAR_H = 120;
-
-  const hoveredSeg = hoveredId ? segments.find(s => s.id === hoveredId) ?? null : null;
+  const maxVal = Math.max(...segments.map(s => s.amount), 1);
 
   return (
     <div style={{ position: 'relative' }}>
-      {/* Chart area */}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 140, paddingLeft: 36 }}>
-        {/* Stacked bar */}
-        <div style={{ position: 'relative', flex: 1 }}>
-          {hoveredSeg !== null && (
-            <div style={{
-              position: 'absolute', bottom: BAR_H + 8, left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: '#1A1A2E', borderRadius: 8, padding: '6px 10px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap', zIndex: 10,
-            }}>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 1px' }}>{hoveredSeg.name}</p>
-              <p style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 700, margin: 0 }}>{formatCurrency(hoveredSeg.amount)}</p>
+        {segments.map((seg, i) => {
+          const barH = Math.max((seg.amount / maxVal) * BAR_H, 4);
+          const isHovered = hoveredId === seg.id;
+          const dimmed = hoveredId !== null && !isHovered;
+
+          return (
+            <div
+              key={seg.id}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative', minWidth: 0 }}
+              onMouseEnter={() => setHoveredId(seg.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              {isHovered && (
+                <div style={{
+                  position: 'absolute', bottom: barH + 8, left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#1A1A2E', borderRadius: 8, padding: '6px 10px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap', zIndex: 10,
+                }}>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 1px' }}>{seg.name}</p>
+                  <p style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 700, margin: 0 }}>{formatCurrency(seg.amount)}</p>
+                </div>
+              )}
+              <div style={{
+                width: '100%', height: barH,
+                backgroundColor: seg.color,
+                borderRadius: '5px 5px 0 0',
+                cursor: 'default',
+                transformOrigin: 'bottom',
+                animation: `barGrow 0.6s ease-out ${i * 0.04}s both`,
+                opacity: dimmed ? 0.45 : 1,
+                transition: 'opacity 0.15s',
+              }} />
             </div>
-          )}
-          <div style={{
-            width: '100%', height: BAR_H,
-            borderRadius: '6px 6px 0 0',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column-reverse',
-            transformOrigin: 'bottom',
-            animation: 'barGrow 0.6s ease-out both',
-          }}>
-            {segments.map(seg => (
-              <div
-                key={seg.id}
-                onMouseEnter={() => setHoveredId(seg.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                style={{
-                  width: '100%',
-                  height: `${(seg.amount / total) * 100}%`,
-                  backgroundColor: seg.color,
-                  transition: 'opacity 0.15s',
-                  opacity: hoveredId === null || hoveredId === seg.id ? 1 : 0.55,
-                  cursor: 'default',
-                }}
-              />
-            ))}
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Y-axis labels */}
+      {/* Y-axis labels — scaled to largest category */}
       <div style={{ position: 'absolute', top: 0, left: 0, height: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
         {[1, 0.5, 0].map((frac, i) => (
-          <span key={i} style={{ fontSize: 9, color: '#9CA3AF' }}>€{Math.round(total * frac)}</span>
+          <span key={i} style={{ fontSize: 9, color: '#9CA3AF' }}>€{Math.round(maxVal * frac)}</span>
         ))}
       </div>
 
       <div style={{ marginLeft: 36, height: 1, backgroundColor: '#F3F4F6' }} />
 
-      {/* X-axis */}
-      <div style={{ paddingLeft: 36, marginTop: 6, textAlign: 'center' }}>
-        <span style={{ fontSize: 9, color: '#3E37FF', fontWeight: 600 }}>
-          {today.toLocaleDateString('en-US', { month: 'short' })}
-        </span>
+      {/* X-axis — category icons, left = highest spend */}
+      <div style={{ display: 'flex', gap: 4, paddingLeft: 36, marginTop: 6, alignItems: 'flex-end' }}>
+        {segments.map(seg => (
+          <div key={`label-${seg.id}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }} title={seg.name}>
+            <CategoryIcon categoryId={seg.id} size="xs" />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -290,7 +285,8 @@ export default function InsightsScreen() {
     return CATEGORIES
       .map(cat => ({ id: cat.id, name: cat.name, color: cat.color, amount: totals[cat.id] ?? 0 }))
       .filter(c => c.amount > 0)
-      .sort((a, b) => a.amount - b.amount); // ascending so biggest is on top visually
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10);
   }, [state.expenses]);
 
   const monthlyTotal = useMemo(() =>
@@ -361,7 +357,7 @@ export default function InsightsScreen() {
                   </p>
                 </div>
               ) : (
-                <MonthlyStackedBar segments={monthlySegments} total={monthlyTotal} formatCurrency={formatCurrency} />
+                <MonthlyStackedBar segments={monthlySegments} formatCurrency={formatCurrency} />
               )
             ) : (
               <CssBarChart data={monthlyData} />

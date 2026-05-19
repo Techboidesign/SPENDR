@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Check } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
+import { FormInput } from '../../shared/FormFields';
 
 export default function ForgotPasswordScreen() {
   const navigate = useNavigate();
@@ -138,12 +138,12 @@ export default function ForgotPasswordScreen() {
           <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
             Email
           </label>
-          <Input
+          <FormInput
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            style={{ width: '100%', height: 50, fontSize: 16, borderRadius: 14 }}
+            
           />
         </div>
 

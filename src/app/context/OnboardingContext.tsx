@@ -16,7 +16,7 @@ export interface OnboardingData {
   monthlyBudget?: number;
   budgetAllocations?: Record<string, number>;
   selectedCategories?: string[];
-  customCategories?: Array<{ name: string; emoji?: string; color?: string }>;
+  customCategories?: Array<{ name: string; color?: string }>;
   notifications?: {
     budgetAlerts?: boolean;
     weeklySummary?: boolean;

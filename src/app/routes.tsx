@@ -6,7 +6,6 @@ import SubPageLayout from './components/SubPageLayout';
 import PhoneFrameLayout from './components/PhoneFrameLayout';
 import HomeScreen from './components/screens/HomeScreen';
 import ExpensesScreen from './components/screens/ExpensesScreen';
-import InsightsScreen from './components/screens/InsightsScreen';
 import BudgetScreen from './components/screens/BudgetScreen';
 import SettingsScreen from './components/screens/SettingsScreen';
 import UserProfileScreen from './components/screens/UserProfileScreen';
@@ -106,7 +105,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, Component: HomeScreen },
               { path: 'expenses', Component: ExpensesScreen },
-              { path: 'insights', Component: InsightsScreen },
+              { path: 'insights', element: <Navigate to="/" replace /> },
               { path: 'budget', Component: BudgetScreen },
               { path: 'settings', Component: SettingsScreen },
             ],

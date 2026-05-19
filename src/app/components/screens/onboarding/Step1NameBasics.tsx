@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { Input } from '../../ui/input';
+import { FormInput, FormSelect } from '../../shared/FormFields';
 import OnboardingLayout from './OnboardingLayout';
 
 const CURRENCIES = [
@@ -67,12 +67,11 @@ export default function Step1NameBasics() {
         <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
           What's your first name?
         </label>
-        <Input
+        <FormInput
           type="text"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           placeholder="Enter your name"
-          style={{ width: '100%', height: 50, fontSize: 15 }}
         />
       </div>
 
@@ -81,29 +80,17 @@ export default function Step1NameBasics() {
         <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
           Preferred currency
         </label>
-        <select
+        <FormSelect
           value={currency}
           onChange={(e) => setCurrency(e.target.value)}
-          style={{
-            width: '100%',
-            height: 50,
-            fontSize: 15,
-            paddingLeft: 14,
-            paddingRight: 48,
-            borderRadius: 14,
-            border: '2px solid #3E37FF',
-            backgroundColor: '#FFFFFF',
-            color: '#1A1A2E',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
+          style={{ color: '#1A1A2E' }}
         >
           {CURRENCIES.map(curr => (
             <option key={curr.code} value={curr.code}>
               {curr.symbol} {curr.name} ({curr.code})
             </option>
           ))}
-        </select>
+        </FormSelect>
       </div>
 
       {/* Country (optional) */}
@@ -111,28 +98,16 @@ export default function Step1NameBasics() {
         <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
           Country <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
         </label>
-        <select
+        <FormSelect
           value={country}
           onChange={(e) => setCountry(e.target.value)}
-          style={{
-            width: '100%',
-            height: 50,
-            fontSize: 15,
-            paddingLeft: 14,
-            paddingRight: 48,
-            borderRadius: 14,
-            border: '2px solid #3E37FF',
-            backgroundColor: '#FFFFFF',
-            color: country ? '#1A1A2E' : '#9CA3AF',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
+          style={{ color: country ? '#1A1A2E' : '#9CA3AF' }}
         >
           <option value="">Select country</option>
           {COUNTRIES.map(c => (
             <option key={c} value={c}>{c}</option>
           ))}
-        </select>
+        </FormSelect>
       </div>
     </OnboardingLayout>
   );

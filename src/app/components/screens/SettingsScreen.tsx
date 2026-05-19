@@ -1,15 +1,34 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  DownloadSimple, UploadSimple, CurrencyEur,
+  DownloadSimple, UploadSimple,
   Tag, Bell, Question, CaretRight, Check, X, Plus,
-  Wallet, Receipt, ShieldCheck, Info,
+  Wallet, Receipt, ShieldCheck, Info, SignOut,
 } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
-import { CATEGORIES } from '../../data/categories';
+import { useOnboarding } from '../../context/OnboardingContext';
 import { CategoryIcon } from '../CategoryIcon';
+import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModal';
+import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
+import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD'];
+
+const BADGE_TRANSITION = 'transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease';
+
+function badgeHoverHandlers(baseShadow: string) {
+  return {
+    onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
+      e.currentTarget.style.boxShadow =
+        baseShadow === 'none' ? '0 3px 12px rgba(0,0,0,0.1)' : `${baseShadow}, 0 3px 12px rgba(0,0,0,0.1)`;
+    },
+    onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.currentTarget.style.transform = '';
+      e.currentTarget.style.boxShadow = baseShadow;
+    },
+  };
+}
 
 function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -202,8 +221,15 @@ function InlineEditRow({
 
 /* ── Main Screen ── */
 export default function SettingsScreen() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, categories } = useApp();
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { logout } = useOnboarding();
+
+  const handleLogOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [budgetAlerts, setBudgetAlerts] = useState(true);
   const [recurringReminders, setRecurringReminders] = useState(true);
@@ -216,7 +242,7 @@ export default function SettingsScreen() {
 
       // Create CSV rows
       const rows = state.expenses.map(exp => {
-        const category = CATEGORIES.find(c => c.id === exp.categoryId);
+        const category = categories.find(c => c.id === exp.categoryId);
         return [
           exp.date,
           exp.name,
@@ -259,7 +285,7 @@ export default function SettingsScreen() {
       // Group expenses by category
       const categoryTotals: Record<string, { name: string; amount: number; count: number }> = {};
       state.expenses.forEach(exp => {
-        const cat = CATEGORIES.find(c => c.id === exp.categoryId);
+        const cat = categories.find(c => c.id === exp.categoryId);
         const catName = cat?.name || exp.categoryId;
         if (!categoryTotals[catName]) {
           categoryTotals[catName] = { name: catName, amount: 0, count: 0 };
@@ -382,7 +408,7 @@ export default function SettingsScreen() {
             const [date, name, amount, category, type] = matches.map(m => m.replace(/^"|"$/g, '').trim());
 
             // Find category by name
-            const categoryObj = CATEGORIES.find(c => c.name === category);
+            const categoryObj = categories.find(c => c.name === category);
             if (!categoryObj) return;
 
             // Validate data
@@ -418,7 +444,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: 32 }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE }}>
       {/* Header */}
       <div style={{ backgroundColor: '#FFFFFF', padding: '20px 20px 16px', borderBottom: '1px solid #F0F0F5' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Settings</h1>
@@ -477,38 +503,67 @@ export default function SettingsScreen() {
         {/* ── Preferences ── */}
         <SettingsSection title="Preferences">
           <div style={{ position: 'relative' }}>
-            <SettingsRow
-              icon={CurrencyEur} iconBg="#EDE9FE" iconColor="#7C3AED"
-              label="Currency"
-              value={state.currency}
+            <button
+              type="button"
               onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
-            />
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '13px 16px',
+                width: '100%',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                borderBottom: showCurrencyPicker ? 'none' : '1px solid #F7F7FA',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FAFAFC'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <AnimatedCurrencyIcon currency={state.currency} />
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>Currency</span>
+              <span style={{ fontSize: 13, color: '#9CA3AF' }}>{state.currency}</span>
+              <CaretRight size={15} weight="light" color="#D1D5DB" />
+            </button>
             {showCurrencyPicker && (
               <div style={{ backgroundColor: '#F7F7FA', borderRadius: '0 0 16px 16px', padding: '8px 16px 12px', borderTop: '1px solid #F0F0F5' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CURRENCIES.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => { dispatch({ type: 'SET_CURRENCY', currency: c }); setShowCurrencyPicker(false); }}
-                      style={{
-                        padding: '7px 14px', borderRadius: 20,
-                        border: 'none', cursor: 'pointer',
-                        fontSize: 13, fontWeight: 600,
-                        backgroundColor: state.currency === c ? '#EDEDFF' : '#FFFFFF',
-                        color: state.currency === c ? '#3E37FF' : '#6B7280',
-                        boxShadow: state.currency === c ? '0 0 0 2px #3E37FF' : '0 1px 4px rgba(0,0,0,0.08)',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      {c}
-                    </button>
-                  ))}
+                  {CURRENCIES.map(c => {
+                    const selected = state.currency === c;
+                    const shadow = selected ? '0 0 0 2px #3E37FF' : '0 1px 4px rgba(0,0,0,0.08)';
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => { dispatch({ type: 'SET_CURRENCY', currency: c }); setShowCurrencyPicker(false); }}
+                        style={{
+                          padding: '7px 14px',
+                          borderRadius: 20,
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          backgroundColor: selected ? '#EDEDFF' : '#FFFFFF',
+                          color: selected ? '#3E37FF' : '#6B7280',
+                          boxShadow: shadow,
+                          fontFamily: 'inherit',
+                          transition: BADGE_TRANSITION,
+                        }}
+                        {...badgeHoverHandlers(shadow)}
+                      >
+                        {c}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Category chips */}
+          {/* Categories */}
           <div style={{ borderTop: '1px solid #F7F7FA' }}>
             <div style={{ padding: '12px 16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -518,31 +573,67 @@ export default function SettingsScreen() {
                 <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A2E', flex: 1 }}>Categories</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {CATEGORIES.map(cat => {
+                {categories.map(cat => {
                   const displayColor = cat.iconColor || cat.color;
+                  const pillShadow = `0 1px 3px ${displayColor}18`;
                   return (
-                    <div key={cat.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '2px 14px 2px 4px', borderRadius: 20,
-                      backgroundColor: cat.bg, border: `1px solid ${displayColor}20`,
-                    }}>
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setEditingCategoryId(cat.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        padding: '2px 14px 2px 4px',
+                        borderRadius: 20,
+                        backgroundColor: cat.bg,
+                        border: `1px solid ${displayColor}20`,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        boxShadow: pillShadow,
+                        transition: BADGE_TRANSITION,
+                      }}
+                      {...badgeHoverHandlers(pillShadow)}
+                    >
                       <CategoryIcon categoryId={cat.id} size="xs" />
                       <span style={{ fontSize: 11, fontWeight: 500, color: displayColor }}>
                         {cat.name.split('/')[0].split(' & ')[0]}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '10px 14px 10px 10px', borderRadius: 20,
-                  backgroundColor: '#F7F7FA', border: '1px dashed #D1D5DB',
-                  cursor: 'pointer',
-                }}>
-                  <Plus size={11} weight="light" color="#9CA3AF" />
-                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>Custom</span>
-                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setEditingCategoryId(NEW_CATEGORY_ID)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: 10,
+                  padding: '6px 12px 6px 8px',
+                  borderRadius: 20,
+                  border: '1px dashed #D1D5DB',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: BADGE_TRANSITION,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
+                  e.currentTarget.style.borderColor = '#3E37FF';
+                  e.currentTarget.style.backgroundColor = '#EDEDFF';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = '';
+                  e.currentTarget.style.borderColor = '#D1D5DB';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Plus size={14} weight="bold" color="#3E37FF" />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#3E37FF' }}>Add Category</span>
+              </button>
             </div>
           </div>
         </SettingsSection>
@@ -570,6 +661,19 @@ export default function SettingsScreen() {
             <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>Recurring Reminders</span>
             <Toggle value={recurringReminders} onChange={setRecurringReminders} />
           </div>
+        </SettingsSection>
+
+        {/* ── Account ── */}
+        <SettingsSection title="Account">
+          <SettingsRow
+            icon={SignOut}
+            iconBg="#FFF7ED"
+            iconColor="#F97316"
+            label="Log Out"
+            onClick={handleLogOut}
+            danger
+            last
+          />
         </SettingsSection>
 
         {/* ── About ── */}
@@ -627,6 +731,12 @@ export default function SettingsScreen() {
         </div>
 
       </div>
+
+      <CategoryEditModal
+        open={editingCategoryId !== null}
+        categoryId={editingCategoryId}
+        onClose={() => setEditingCategoryId(null)}
+      />
     </div>
   );
 }

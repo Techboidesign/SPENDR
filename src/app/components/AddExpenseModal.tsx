@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown, Trash2 } from 'lucide-react';
+import { X, CaretDown } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { Expense, ExpenseType } from '../data/types';
-import { CATEGORIES } from '../data/categories';
 import { CategoryIcon } from './CategoryIcon';
+import { ModalActionBar } from './ModalActionBar';
 
 function genId() {
   return 'exp_' + Math.random().toString(36).slice(2, 10);
 }
 
 export function AddExpenseModal() {
-  const { showAddModal, editingExpense, closeAddModal, dispatch, formatCurrency } = useApp();
+  const { showAddModal, editingExpense, closeAddModal, dispatch, formatCurrency, categories, getCategory } = useApp();
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -49,7 +49,7 @@ export function AddExpenseModal() {
 
   if (!showAddModal) return null;
 
-  const selectedCategory = CATEGORIES.find(c => c.id === categoryId)!;
+  const selectedCategory = getCategory(categoryId);
 
   const handleSave = () => {
     const parsedAmount = parseFloat(amount);
@@ -112,10 +112,12 @@ export function AddExpenseModal() {
           backgroundColor: '#FFFFFF',
           borderRadius: '24px 24px 0 0',
           maxHeight: '92%',
-          overflowY: 'auto',
-          paddingBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4 }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB' }} />
@@ -130,7 +132,7 @@ export function AddExpenseModal() {
             onClick={closeAddModal}
             style={{ background: '#F7F7FA', border: 'none', borderRadius: 10, padding: '6px', cursor: 'pointer', display: 'flex' }}
           >
-            <X size={18} color="#6B7280" />
+            <X size={18} weight="light" color="#6B7280" />
           </button>
         </div>
 
@@ -209,7 +211,7 @@ export function AddExpenseModal() {
               <span style={{ flex: 1, fontSize: 15, color: '#1A1A2E', fontFamily: 'inherit', fontWeight: 500 }}>
                 {selectedCategory.name}
               </span>
-              <ChevronDown size={16} color="#9CA3AF" style={{ transform: showCatPicker ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }} />
+              <CaretDown size={16} weight="light" color="#9CA3AF" style={{ transform: showCatPicker ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }} />
             </button>
 
             {showCatPicker && (
@@ -222,7 +224,7 @@ export function AddExpenseModal() {
                 gridTemplateColumns: 'repeat(5, 1fr)',
                 gap: 8,
               }}>
-                {CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => { setCategoryId(cat.id); setShowCatPicker(false); }}
@@ -364,51 +366,16 @@ export function AddExpenseModal() {
             />
           </div>
 
-          {/* Save / Cancel */}
-          <button
-            onClick={handleSave}
-            style={{
-              width: '100%',
-              padding: '16px',
-              backgroundColor: '#3E37FF',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: 14,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              marginTop: 4,
-            }}
-          >
-            {editingExpense ? 'Save Changes' : 'Add Expense'}
-          </button>
-
-          {editingExpense && (
-            <button
-              onClick={handleDelete}
-              style={{
-                width: '100%',
-                padding: '14px',
-                backgroundColor: '#FEE2E2',
-                color: '#EF4444',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              <Trash2 size={16} />
-              Delete Expense
-            </button>
-          )}
         </div>
+        </div>
+
+        <ModalActionBar
+          onLeft={editingExpense ? handleDelete : closeAddModal}
+          leftLabel={editingExpense ? 'DELETE' : 'CANCEL'}
+          leftVariant={editingExpense ? 'delete' : 'cancel'}
+          onSave={handleSave}
+          saveLabel="SAVE"
+        />
       </div>
     </div>
   );
