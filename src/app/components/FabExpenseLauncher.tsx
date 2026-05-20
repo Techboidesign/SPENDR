@@ -39,6 +39,8 @@ const SLOTS: {
 
 const POP_SPRING = { type: 'spring' as const, stiffness: 620, damping: 26, mass: 0.72 };
 const TAP_SPRING = { type: 'spring' as const, stiffness: 700, damping: 22 };
+const FAB_COLOR_TRANSITION = { duration: 0.07, ease: [0.4, 0, 0.2, 1] as const };
+const ICON_SWAP_TRANSITION = { duration: 0.09, ease: [0.33, 1, 0.32, 1] as const };
 
 function slotIndexFromX(dx: number): number {
   if (dx < -SPREAD_X * 0.45) return 0;
@@ -310,8 +312,18 @@ export function FabExpenseLauncher() {
           aria-label={open ? 'Close menu' : 'Add expense'}
           aria-expanded={open}
           disabled={isParsingReceipt}
-          animate={{ scale: open ? 0.92 : 1 }}
-          transition={TAP_SPRING}
+          animate={{
+            scale: open ? 0.92 : 1,
+            backgroundColor: open ? '#FFFFFF' : BRAND,
+            boxShadow: open
+              ? '0 4px 16px rgba(0, 0, 0, 0.12)'
+              : '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)',
+          }}
+          transition={{
+            scale: TAP_SPRING,
+            backgroundColor: FAB_COLOR_TRANSITION,
+            boxShadow: FAB_COLOR_TRANSITION,
+          }}
           whileTap={{ scale: 0.9 }}
           style={{
             position: 'absolute',
@@ -322,44 +334,62 @@ export function FabExpenseLauncher() {
             width: FAB_SIZE,
             height: FAB_SIZE,
             borderRadius: '50%',
-            backgroundColor: BRAND,
             border: `${FAB_BORDER}px solid rgba(255, 255, 255, 0.95)`,
             cursor: isParsingReceipt ? 'wait' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow:
-              '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)',
             pointerEvents: 'auto',
             padding: 0,
             touchAction: 'none',
           }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            {open ? (
-              <motion.span
-                key="close"
-                initial={{ scale: 0.5, rotate: -45 }}
-                animate={{ scale: 1, rotate: 0 }}
-                exit={{ scale: 0.5, rotate: 45 }}
-                transition={POP_SPRING}
-                style={{ display: 'flex' }}
-              >
-                <X size={28} weight="bold" color="#FFFFFF" />
-              </motion.span>
-            ) : (
-              <motion.span
-                key="plus"
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={POP_SPRING}
-                style={{ display: 'flex' }}
-              >
-                <Plus size={30} weight="bold" color="#FFFFFF" />
-              </motion.span>
-            )}
-          </AnimatePresence>
+          <span
+            style={{
+              position: 'relative',
+              width: 30,
+              height: 30,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AnimatePresence mode="sync" initial={false}>
+              {open ? (
+                <motion.span
+                  key="close"
+                  initial={{ scale: 0.35, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.35, opacity: 0 }}
+                  transition={ICON_SWAP_TRANSITION}
+                  style={{
+                    position: 'absolute',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={28} weight="bold" color={BRAND} />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="plus"
+                  initial={{ scale: 0.35, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.35, opacity: 0 }}
+                  transition={ICON_SWAP_TRANSITION}
+                  style={{
+                    position: 'absolute',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Plus size={30} weight="bold" color="#FFFFFF" />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </span>
         </motion.button>
 
         {open && !dragging && (

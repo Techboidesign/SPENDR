@@ -69,11 +69,12 @@ export function CategorySpendingChart({
                   height: barH,
                   backgroundColor: seg.color,
                   borderRadius: '5px 5px 0 0',
-                  cursor: 'default',
+                  cursor: 'pointer',
                   transformOrigin: 'bottom',
                   animation: `barGrow 0.6s ease-out ${i * 0.04}s both`,
                   opacity: dimmed ? 0.45 : 1,
-                  transition: 'opacity 0.15s',
+                  transform: isHovered ? 'scaleX(1.06)' : 'scaleX(1)',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease',
                 }}
               />
             </div>
@@ -101,15 +102,40 @@ export function CategorySpendingChart({
       <div style={{ marginLeft: 36, height: 1, backgroundColor: '#F3F4F6' }} />
 
       <div style={{ display: 'flex', gap: 4, paddingLeft: 36, marginTop: 6, alignItems: 'flex-end' }}>
-        {segments.map(seg => (
-          <div
-            key={`label-${seg.id}`}
-            style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}
-            title={seg.name}
-          >
-            <CategoryIcon categoryId={seg.id} size="xs" />
-          </div>
-        ))}
+        {segments.map(seg => {
+          const isHovered = hoveredId === seg.id;
+          const dimmed = hoveredId !== null && !isHovered;
+
+          return (
+            <div
+              key={`label-${seg.id}`}
+              role="button"
+              tabIndex={0}
+              title={seg.name}
+              onMouseEnter={() => setHoveredId(seg.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              onFocus={() => setHoveredId(seg.id)}
+              onBlur={() => setHoveredId(null)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') setHoveredId(seg.id);
+              }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                minWidth: 0,
+                cursor: 'pointer',
+                opacity: dimmed ? 0.45 : 1,
+                transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+                transition: 'opacity 0.15s ease, transform 0.15s ease',
+                borderRadius: 10,
+                padding: '2px 0',
+              }}
+            >
+              <CategoryIcon categoryId={seg.id} size="xs" />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

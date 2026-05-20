@@ -25,6 +25,11 @@ import { completeOnboardingOnServer } from '../services/completeOnboarding';
 import { parseReceiptFiles, parseReceiptImage } from '../services/receiptParseService';
 import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { generateId } from '../utils/id';
+import {
+  buildCanonicalRecurringMap,
+  recurringAppliesToMonth,
+  applyRecurringSeriesUpdate,
+} from '../utils/recurringExpense';
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -39,7 +44,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'UPDATE_EXPENSE':
       return {
         ...state,
-        expenses: state.expenses.map(e => (e.id === action.expense.id ? action.expense : e)),
+        expenses: applyRecurringSeriesUpdate(state.expenses, action.expense),
       };
     case 'DELETE_EXPENSE':
       return { ...state, expenses: state.expenses.filter(e => e.id !== action.id) };
@@ -363,26 +368,6 @@ export function useApp() {
   return ctx;
 }
 
-function recurringAppliesToMonth(expense: Expense, targetYearMonth: string): boolean {
-  if (expense.type === 'one-time') {
-    return expense.date.startsWith(targetYearMonth);
-  }
-
-  const expenseDate = new Date(expense.date + 'T00:00:00');
-  const [targetYear, targetMonth] = targetYearMonth.split('-').map(Number);
-  const targetDate = new Date(targetYear, targetMonth - 1, 1);
-
-  if (expenseDate > targetDate) {
-    return false;
-  }
-
-  if (expense.type === 'monthly' || expense.type === 'yearly') {
-    return true;
-  }
-
-  return false;
-}
-
 export function getMonthlyAmount(expense: Expense): number {
   if (expense.type === 'yearly') {
     return expense.amount / 12;
@@ -392,25 +377,23 @@ export function getMonthlyAmount(expense: Expense): number {
 
 export function getMonthExpenses(expenses: AppState['expenses'], yearMonth: string) {
   const applicable: Expense[] = [];
-  const recurringKeys = new Set<string>();
 
   for (const expense of expenses) {
-    if (expense.type === 'one-time') {
-      if (expense.date.startsWith(yearMonth)) {
-        applicable.push(expense);
-      }
-    } else {
-      const key = `${expense.name}|${expense.categoryId}|${expense.type}`;
+    if (expense.type === 'one-time' && expense.date.startsWith(yearMonth)) {
+      applicable.push(expense);
+    }
+  }
 
-      if (!recurringKeys.has(key) && recurringAppliesToMonth(expense, yearMonth)) {
-        recurringKeys.add(key);
-        applicable.push(expense);
-      }
+  for (const expense of buildCanonicalRecurringMap(expenses).values()) {
+    if (recurringAppliesToMonth(expense, yearMonth)) {
+      applicable.push(expense);
     }
   }
 
   return applicable;
 }
+
+export { recurringAppliesToMonth } from '../utils/recurringExpense';
 
 export function getCategoryTotals(expenses: AppState['expenses'], yearMonth: string) {
   const monthExp = getMonthExpenses(expenses, yearMonth);

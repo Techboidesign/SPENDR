@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { CalendarBlank, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { monthPickerLabel } from '../../utils/periods';
 import { MonthYearPickerDropdown } from '../shared/MonthYearPickerDropdown';
@@ -26,7 +26,7 @@ const pillBase: CSSProperties = {
   minHeight: 32,
 };
 
-function AnimatedMonthTotal({
+export function AnimatedMonthTotal({
   value,
   formatCurrency,
 }: {
@@ -62,6 +62,8 @@ function AnimatedMonthTotal({
     return () => clearInterval(timer);
   }, [value]);
 
+  const formatted = formatCurrency(display);
+
   return (
     <span
       style={{
@@ -69,9 +71,12 @@ function AnimatedMonthTotal({
         backgroundColor: TOTAL_GREEN,
         color: TOTAL_GREEN_TEXT,
         boxShadow: 'none',
+        fontWeight: 500,
+        gap: 4,
       }}
     >
-      {formatCurrency(display)}
+      <span>Month&apos;s total:</span>
+      <span style={{ fontWeight: 700 }}>{formatted}</span>
     </span>
   );
 }
@@ -96,13 +101,13 @@ function navBtn(disabled: boolean): CSSProperties {
 export function ExpensesMonthPill({
   monthKey,
   onMonthChange,
-  monthTotal,
-  formatCurrency,
+  disabled = false,
+  trailingSlot,
 }: {
   monthKey: string;
   onMonthChange: (key: string) => void;
-  monthTotal?: number;
-  formatCurrency?: (amount: number) => string;
+  disabled?: boolean;
+  trailingSlot?: ReactNode;
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -116,12 +121,18 @@ export function ExpensesMonthPill({
   const monthDisplay = monthPickerLabel(monthKey);
 
   const goPrev = () => {
-    if (canGoPrev) onMonthChange(MONTH_OPTIONS[safeIndex - 1].key);
+    if (disabled || !canGoPrev) return;
+    onMonthChange(MONTH_OPTIONS[safeIndex - 1].key);
   };
 
   const goNext = () => {
-    if (canGoNext) onMonthChange(MONTH_OPTIONS[safeIndex + 1].key);
+    if (disabled || !canGoNext) return;
+    onMonthChange(MONTH_OPTIONS[safeIndex + 1].key);
   };
+
+  useEffect(() => {
+    if (disabled) setDropdownOpen(false);
+  }, [disabled]);
 
   return (
     <div
@@ -130,6 +141,9 @@ export function ExpensesMonthPill({
         position: 'relative',
         zIndex: dropdownOpen ? 400 : 1,
         width: '100%',
+        opacity: disabled ? 0.38 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+        transition: 'opacity 0.15s ease',
       }}
     >
       <div
@@ -138,21 +152,33 @@ export function ExpensesMonthPill({
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
+          gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={disabled || !canGoPrev}
+            aria-label="Previous month"
+            style={navBtn(disabled || !canGoPrev)}
+          >
+            <CaretLeft size={16} weight="bold" color="#6B7280" />
+          </button>
+
           <button
             ref={monthBtnRef}
             type="button"
-            onClick={() => setDropdownOpen(o => !o)}
+            disabled={disabled}
+            onClick={() => !disabled && setDropdownOpen(o => !o)}
             aria-expanded={dropdownOpen}
             aria-haspopup="dialog"
             style={{
               ...pillBase,
-              cursor: 'pointer',
-              backgroundColor: BRAND,
+              cursor: disabled ? 'default' : 'pointer',
+              backgroundColor: disabled ? '#9CA3AF' : BRAND,
               color: '#FFFFFF',
-              boxShadow: '0 2px 10px rgba(62, 55, 255, 0.35)',
+              boxShadow: disabled ? 'none' : '0 2px 10px rgba(62, 55, 255, 0.35)',
             }}
           >
             <CalendarBlank size={15} weight="regular" color="#FFFFFF" aria-hidden />
@@ -160,34 +186,23 @@ export function ExpensesMonthPill({
             <CaretDown size={12} weight="bold" color="#FFFFFF" aria-hidden />
           </button>
 
-          {monthTotal !== undefined && formatCurrency !== undefined && (
-            <AnimatedMonthTotal value={monthTotal} formatCurrency={formatCurrency} />
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={!canGoPrev}
-            aria-label="Previous month"
-            style={navBtn(!canGoPrev)}
-          >
-            <CaretLeft size={16} weight="bold" color="#6B7280" />
-          </button>
           <button
             type="button"
             onClick={goNext}
-            disabled={!canGoNext}
+            disabled={disabled || !canGoNext}
             aria-label="Next month"
-            style={navBtn(!canGoNext)}
+            style={navBtn(disabled || !canGoNext)}
           >
             <CaretRight size={16} weight="bold" color="#6B7280" />
           </button>
         </div>
+
+        {trailingSlot != null && (
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{trailingSlot}</div>
+        )}
       </div>
 
-      {dropdownOpen && (
+      {dropdownOpen && !disabled && (
         <MonthYearPickerDropdown
           monthKey={monthKey}
           onChange={onMonthChange}

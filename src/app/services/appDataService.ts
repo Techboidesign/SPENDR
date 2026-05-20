@@ -8,6 +8,7 @@ import type {
   DbUserPreferences,
 } from '../data/database.types';
 import { getSupabase } from '../../lib/supabase';
+import { recurringSeriesKey } from '../utils/recurringExpense';
 
 const EMPTY_APP_STATE: AppState = {
   expenses: [],
@@ -157,9 +158,20 @@ export async function syncActionToSupabase(
       break;
     }
     case 'UPDATE_EXPENSE': {
-      const row = expenseToRow(userId, action.expense);
-      const { error } = await supabase.from('expenses').upsert(row);
-      if (error) throw error;
+      const seriesKey =
+        action.expense.type === 'one-time'
+          ? null
+          : recurringSeriesKey(action.expense);
+      const rows = (seriesKey
+        ? state.expenses.filter(
+            e => e.type !== 'one-time' && recurringSeriesKey(e) === seriesKey,
+          )
+        : [action.expense]
+      ).map(e => expenseToRow(userId, e));
+      if (rows.length > 0) {
+        const { error } = await supabase.from('expenses').upsert(rows);
+        if (error) throw error;
+      }
       break;
     }
     case 'DELETE_EXPENSE': {
