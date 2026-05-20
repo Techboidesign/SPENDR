@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { CalendarBlank, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { CalendarBlank, CaretDown } from '@phosphor-icons/react';
 import { monthPickerLabel } from '../../utils/periods';
 import { MonthYearPickerDropdown } from '../shared/MonthYearPickerDropdown';
-import { MONTH_OPTIONS } from '../../utils/periods';
 
 const BRAND = '#3E37FF';
 const TOTAL_GREEN = '#D1FAE5';
@@ -81,23 +80,6 @@ export function AnimatedMonthTotal({
   );
 }
 
-function navBtn(disabled: boolean): CSSProperties {
-  return {
-    width: 32,
-    height: 32,
-    borderRadius: 9999,
-    border: 'none',
-    backgroundColor: disabled ? 'transparent' : '#F7F7FA',
-    cursor: disabled ? 'default' : 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    opacity: disabled ? 0.35 : 1,
-    transition: 'background-color 0.15s ease',
-  };
-}
-
 export function ExpensesMonthPill({
   monthKey,
   onMonthChange,
@@ -113,22 +95,7 @@ export function ExpensesMonthPill({
   const rootRef = useRef<HTMLDivElement>(null);
   const monthBtnRef = useRef<HTMLButtonElement>(null);
 
-  const monthIndex = MONTH_OPTIONS.findIndex(m => m.key === monthKey);
-  const safeIndex = monthIndex >= 0 ? monthIndex : MONTH_OPTIONS.length - 1;
-  const canGoPrev = safeIndex > 0;
-  const canGoNext = safeIndex < MONTH_OPTIONS.length - 1;
-
   const monthDisplay = monthPickerLabel(monthKey);
-
-  const goPrev = () => {
-    if (disabled || !canGoPrev) return;
-    onMonthChange(MONTH_OPTIONS[safeIndex - 1].key);
-  };
-
-  const goNext = () => {
-    if (disabled || !canGoNext) return;
-    onMonthChange(MONTH_OPTIONS[safeIndex + 1].key);
-  };
 
   useEffect(() => {
     if (disabled) setDropdownOpen(false);
@@ -155,17 +122,7 @@ export function ExpensesMonthPill({
           gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={disabled || !canGoPrev}
-            aria-label="Previous month"
-            style={navBtn(disabled || !canGoPrev)}
-          >
-            <CaretLeft size={16} weight="bold" color="#6B7280" />
-          </button>
-
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
           <button
             ref={monthBtnRef}
             type="button"
@@ -184,16 +141,6 @@ export function ExpensesMonthPill({
             <CalendarBlank size={15} weight="regular" color="#FFFFFF" aria-hidden />
             <span>{monthDisplay}</span>
             <CaretDown size={12} weight="bold" color="#FFFFFF" aria-hidden />
-          </button>
-
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={disabled || !canGoNext}
-            aria-label="Next month"
-            style={navBtn(disabled || !canGoNext)}
-          >
-            <CaretRight size={16} weight="bold" color="#6B7280" />
           </button>
         </div>
 

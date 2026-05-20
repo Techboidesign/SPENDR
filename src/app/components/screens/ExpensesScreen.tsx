@@ -371,7 +371,7 @@ export default function ExpensesScreen() {
                 fontWeight: 600,
                 color: CHARCOAL,
                 fontFamily: 'inherit',
-                padding: '8px 20px 8px 14px',
+                padding: '8px 14px',
                 borderRadius: 9999,
                 flexShrink: 0,
               }}
@@ -387,7 +387,7 @@ export default function ExpensesScreen() {
                   border: 'none',
                   cursor: 'pointer',
                   borderRadius: 9999,
-                  padding: '8px 28px 8px 16px',
+                  padding: '8px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
