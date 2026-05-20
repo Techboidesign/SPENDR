@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Check } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
 import { FormInput } from '../../shared/FormFields';
+import { useOnboarding } from '../../../context/OnboardingContext';
 
 export default function ForgotPasswordScreen() {
   const navigate = useNavigate();
+  const { resetPassword } = useOnboarding();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     setError('');
 
     if (!email) {
@@ -23,8 +26,15 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    // Mock sending reset email
-    setSent(true);
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {

@@ -1,5 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { getSupabase, getSiteUrl, isSupabaseConfigured } from '../../lib/supabase';
 import { getItem, setItem } from '../utils/storage';
+import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
+import { clearLocalUserData } from '../services/migrateLocalStorage';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
 
@@ -38,11 +49,13 @@ export interface AuthState {
   isAuthenticated: boolean;
   userId: string | null;
   method: 'email' | 'google' | 'apple' | null;
+  email: string | null;
 }
 
 interface OnboardingContextType {
   onboarding: OnboardingState;
   auth: AuthState;
+  authLoading: boolean;
   currentStep: string | null;
   updateData: (data: Partial<OnboardingData>) => void;
   next: (stepId: string) => void;
@@ -51,7 +64,12 @@ interface OnboardingContextType {
   skipAll: () => void;
   complete: () => void;
   setAuth: (auth: Partial<AuthState>) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  refreshOnboarding: () => Promise<void>;
 }
 
 const INITIAL_ONBOARDING: OnboardingState = {
@@ -67,28 +85,102 @@ const INITIAL_AUTH: AuthState = {
   isAuthenticated: false,
   userId: null,
   method: null,
+  email: null,
 };
 
 const OnboardingContext = createContext<OnboardingContextType | null>(null);
 
+function sessionToAuth(session: Session | null): AuthState {
+  if (!session?.user) return INITIAL_AUTH;
+  const provider = session.user.app_metadata?.provider;
+  const method =
+    provider === 'google' ? 'google' : provider === 'apple' ? 'apple' : 'email';
+  return {
+    isAuthenticated: true,
+    userId: session.user.id,
+    method,
+    email: session.user.email ?? null,
+  };
+}
+
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [onboarding, setOnboarding] = useState<OnboardingState>(() => {
-    return getItem<OnboardingState>('onboarding') || INITIAL_ONBOARDING;
+    if (!isSupabaseConfigured) {
+      return getItem<OnboardingState>('onboarding') ?? INITIAL_ONBOARDING;
+    }
+    return INITIAL_ONBOARDING;
   });
 
   const [auth, setAuthState] = useState<AuthState>(() => {
-    return getItem<AuthState>('auth') || INITIAL_AUTH;
+    if (!isSupabaseConfigured) {
+      return getItem<AuthState>('auth') ?? INITIAL_AUTH;
+    }
+    return INITIAL_AUTH;
   });
 
-  // Persist onboarding state to localStorage
+  const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
+  const onboardingRef = useRef(onboarding);
+  onboardingRef.current = onboarding;
+
+  const loadOnboardingForUser = useCallback(async (userId: string) => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const remote = await fetchOnboarding(userId);
+      if (remote) setOnboarding(remote);
+    } catch (err) {
+      console.error('Failed to load onboarding:', err);
+    }
+  }, []);
+
+  const refreshOnboarding = useCallback(async () => {
+    if (auth.userId) await loadOnboardingForUser(auth.userId);
+  }, [auth.userId, loadOnboardingForUser]);
+
+  // Supabase session listener
   useEffect(() => {
-    setItem('onboarding', onboarding);
+    if (!isSupabaseConfigured) {
+      setAuthLoading(false);
+      return;
+    }
+
+    const supabase = getSupabase();
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const nextAuth = sessionToAuth(session);
+      setAuthState(nextAuth);
+      if (nextAuth.userId) void loadOnboardingForUser(nextAuth.userId);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextAuth = sessionToAuth(session);
+      setAuthState(nextAuth);
+      if (nextAuth.userId) {
+        void loadOnboardingForUser(nextAuth.userId);
+      } else {
+        setOnboarding(INITIAL_ONBOARDING);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadOnboardingForUser]);
+
+  // Offline persistence when Supabase is not configured
+  useEffect(() => {
+    if (!isSupabaseConfigured) setItem('onboarding', onboarding);
   }, [onboarding]);
 
-  // Persist auth state to localStorage
   useEffect(() => {
-    setItem('auth', auth);
+    if (!isSupabaseConfigured) setItem('auth', auth);
   }, [auth]);
+
+  // Sync onboarding to cloud when authenticated
+  useEffect(() => {
+    if (!isSupabaseConfigured || !auth.userId || authLoading) return;
+    saveOnboarding(auth.userId, onboarding).catch(err => {
+      console.error('Failed to save onboarding:', err);
+    });
+  }, [onboarding, auth.userId, authLoading]);
 
   const updateData = useCallback((data: Partial<OnboardingData>) => {
     setOnboarding(prev => ({
@@ -112,11 +204,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setOnboarding(prev => {
       const steps = prev.completedSteps;
       if (steps.length <= 1) return prev;
-
-      // Go back to previous step
-      const lastCompletedIndex = steps.length - 1;
-      const previousStepId = steps[lastCompletedIndex - 1] || null;
-
+      const previousStepId = steps[steps.length - 2] || null;
       return {
         ...prev,
         lastStepId: previousStepId,
@@ -156,9 +244,53 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setAuthState(prev => ({ ...prev, ...authData }));
   }, []);
 
-  const logout = useCallback(() => {
+  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      const userId = 'user_' + Math.random().toString(36).slice(2);
+      setAuthState({ isAuthenticated: true, userId, method: 'email', email });
+      return { needsEmailConfirmation: false };
+    }
+    const { data, error } = await getSupabase().auth.signUp({ email, password });
+    if (error) throw error;
+    const needsEmailConfirmation = !data.session;
+    if (data.session) {
+      setAuthState(sessionToAuth(data.session));
+    }
+    return { needsEmailConfirmation };
+  }, []);
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      const userId = 'user_' + Math.random().toString(36).slice(2);
+      setAuthState({ isAuthenticated: true, userId, method: 'email', email });
+      return;
+    }
+    const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    setAuthState(sessionToAuth(data.session));
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    if (!isSupabaseConfigured) return;
+    const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+      redirectTo: `${getSiteUrl()}/login`,
+    });
+    if (error) throw error;
+  }, []);
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    if (!isSupabaseConfigured) return;
+    const { error } = await getSupabase().auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (isSupabaseConfigured) {
+      await getSupabase().auth.signOut();
+    }
     setAuthState(INITIAL_AUTH);
-    // Keep onboarding state for future logins
+    setOnboarding(INITIAL_ONBOARDING);
+    clearLocalUserData();
   }, []);
 
   return (
@@ -166,6 +298,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       value={{
         onboarding,
         auth,
+        authLoading,
         currentStep: onboarding.lastStepId,
         updateData,
         next,
@@ -175,6 +308,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         complete,
         setAuth,
         logout,
+        signUpWithEmail,
+        signInWithEmail,
+        resetPassword,
+        updatePassword,
+        refreshOnboarding,
       }}
     >
       {children}
@@ -188,28 +326,24 @@ export function useOnboarding() {
   return ctx;
 }
 
-// Routing helper - determines where user should land
 export function getOnboardingRoute(auth: AuthState, onboarding: OnboardingState): string {
-  // Not authenticated
   if (!auth.isAuthenticated) {
     if (onboarding.status === 'not_started') {
       return '/welcome';
     }
-    if (onboarding.status === 'in_progress') {
-      return '/welcome'; // Let them log in first, then resume
-    }
+  }
+
+  if (!auth.isAuthenticated) {
     return '/login';
   }
 
-  // Authenticated
   if (onboarding.status === 'completed' || onboarding.status === 'skipped') {
-    return '/'; // Main app
+    return '/';
   }
 
   if (onboarding.status === 'in_progress' && onboarding.lastStepId) {
     return `/onboarding/${onboarding.lastStepId}`;
   }
 
-  // Start onboarding
   return '/onboarding/name-basics';
 }

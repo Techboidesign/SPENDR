@@ -51,7 +51,10 @@ export interface AppState {
 }
 
 export type Action =
+  | { type: 'HYDRATE_STATE'; state: AppState }
+  | { type: 'RESET_STATE' }
   | { type: 'ADD_EXPENSE'; expense: Expense }
+  | { type: 'ADD_EXPENSES'; expenses: Expense[] }
   | { type: 'UPDATE_EXPENSE'; expense: Expense }
   | { type: 'DELETE_EXPENSE'; id: string }
   | { type: 'DELETE_EXPENSES'; ids: string[] }

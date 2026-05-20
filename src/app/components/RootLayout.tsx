@@ -1,11 +1,12 @@
 import { Outlet } from 'react-router';
 import { BottomTabBar } from './BottomTabBar';
 import { AddExpenseModal } from './AddExpenseModal';
+import { ReceiptParseOverlay } from './ReceiptParseOverlay';
 import { useApp } from '../context/AppContext';
 import DeviceShell from './DeviceShell';
 
 export default function RootLayout() {
-  const { showAddModal } = useApp();
+  const { showAddModal, isParsingReceipt, parseStatusMessage } = useApp();
 
   return (
     <DeviceShell
@@ -18,7 +19,12 @@ export default function RootLayout() {
           />
         </>
       }
-      overlay={showAddModal ? <AddExpenseModal /> : null}
+      overlay={
+        <>
+          {isParsingReceipt && <ReceiptParseOverlay message={parseStatusMessage} />}
+          {showAddModal ? <AddExpenseModal /> : null}
+        </>
+      }
     >
       <Outlet />
     </DeviceShell>

@@ -1,3 +1,4 @@
+import { CaretRight } from '@phosphor-icons/react';
 import { getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
 import { CircularProgress } from './CircularProgress';
@@ -60,6 +61,7 @@ export function CategoryBudgetCard({
         size={52}
         animationDelay={animationDelay}
       />
+      <CaretRight size={16} weight="light" color="#D1D5DB" aria-hidden style={{ flexShrink: 0 }} />
     </button>
   );
 }

@@ -2,15 +2,22 @@ import { useState, useEffect } from 'react';
 import { X, CaretDown } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { Expense, ExpenseType } from '../data/types';
+import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { CategoryIcon } from './CategoryIcon';
 import { ModalActionBar } from './ModalActionBar';
-
-function genId() {
-  return 'exp_' + Math.random().toString(36).slice(2, 10);
-}
+import { generateId } from '../utils/id';
 
 export function AddExpenseModal() {
-  const { showAddModal, editingExpense, closeAddModal, dispatch, formatCurrency, categories, getCategory } = useApp();
+  const {
+    showAddModal,
+    editingExpense,
+    addModalDraft,
+    closeAddModal,
+    dispatch,
+    formatCurrency,
+    categories,
+    getCategory,
+  } = useApp();
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -34,6 +41,15 @@ export function AddExpenseModal() {
       setStartDate(editingExpense.startDate ?? editingExpense.date);
       setEndDate(editingExpense.endDate ?? '');
       setNotes(editingExpense.notes ?? '');
+    } else if (addModalDraft) {
+      setAmount(addModalDraft.amount ?? '');
+      setName(addModalDraft.name ?? '');
+      setCategoryId(addModalDraft.categoryId ?? 'other');
+      setDate(addModalDraft.date ?? today);
+      setType(addModalDraft.type ?? 'one-time');
+      setStartDate(addModalDraft.startDate ?? addModalDraft.date ?? today);
+      setEndDate(addModalDraft.endDate ?? '');
+      setNotes(addModalDraft.notes ?? '');
     } else {
       setAmount('');
       setName('');
@@ -45,7 +61,7 @@ export function AddExpenseModal() {
       setNotes('');
     }
     setShowCatPicker(false);
-  }, [editingExpense, showAddModal]);
+  }, [editingExpense, addModalDraft, showAddModal, today]);
 
   if (!showAddModal) return null;
 
@@ -56,7 +72,7 @@ export function AddExpenseModal() {
     if (!name.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
 
     const expense: Expense = {
-      id: editingExpense?.id ?? genId(),
+      id: editingExpense?.id ?? generateId(),
       name: name.trim(),
       categoryId,
       amount: parsedAmount,
@@ -126,7 +142,7 @@ export function AddExpenseModal() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
-            {editingExpense ? 'Edit Expense' : 'New Expense'}
+            {editingExpense ? 'Edit Expense' : addModalDraft ? 'Review scanned expense' : 'New Expense'}
           </h2>
           <button
             onClick={closeAddModal}

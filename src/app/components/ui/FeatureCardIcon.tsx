@@ -22,6 +22,10 @@ const PHOSPHOR_ICONS = {
 export type FeatureCardIconProps = {
   accentColor: string;
   accentBg: string;
+  /** When set, overrides the icon tile background (e.g. darker chip on hero cards). */
+  iconSurfaceBg?: string;
+  /** When set, overrides icon/glyph color (e.g. white on dark tile). */
+  iconGlyphColor?: string;
   categoryId?: string;
   iconKey?: CategoryIconKey;
   phosphorIcon?: FeatureCardPhosphorIcon;
@@ -30,10 +34,15 @@ export type FeatureCardIconProps = {
 export function FeatureCardIcon({
   accentColor,
   accentBg,
+  iconSurfaceBg,
+  iconGlyphColor,
   categoryId,
   iconKey,
   phosphorIcon,
 }: FeatureCardIconProps) {
+  const tileBg = iconSurfaceBg ?? accentBg;
+  const glyph = iconGlyphColor ?? accentColor;
+
   if (categoryId) {
     return <CategoryIcon categoryId={categoryId} size="sm" />;
   }
@@ -42,9 +51,9 @@ export function FeatureCardIcon({
     return (
       <CategoryIconPreview
         iconKey={iconKey}
-        color={accentColor}
-        bg={accentBg}
-        iconColor={accentColor}
+        color={glyph}
+        bg={tileBg}
+        iconColor={glyph}
         size="sm"
       />
     );
@@ -59,14 +68,14 @@ export function FeatureCardIcon({
           width: outer,
           height: outer,
           borderRadius: radius,
-          backgroundColor: accentBg,
+          backgroundColor: tileBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        <Icon size={inner} weight="light" color={accentColor} aria-hidden />
+        <Icon size={inner} weight="light" color={glyph} aria-hidden />
       </div>
     );
   }

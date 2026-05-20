@@ -4,20 +4,21 @@ import { ArrowLeft, Eye, EyeSlash } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
 import { FormInput } from '../../shared/FormFields';
 import { useOnboarding } from '../../../context/OnboardingContext';
-
 export default function SignUpScreen() {
   const navigate = useNavigate();
-  const { setAuth } = useOnboarding();
+  const { signUpWithEmail } = useOnboarding();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const passwordStrength = getPasswordStrength(password);
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     setError('');
 
     if (!email || !password) {
@@ -35,28 +36,43 @@ export default function SignUpScreen() {
       return;
     }
 
-    // Mock authentication - in real app, call API
-    const userId = 'user_' + Math.random().toString(36).slice(2);
-    setAuth({
-      isAuthenticated: true,
-      userId,
-      method: 'email',
-    });
-
-    // Navigate to onboarding
-    navigate('/onboarding/name-basics');
+    setLoading(true);
+    try {
+      const { needsEmailConfirmation } = await signUpWithEmail(email.trim(), password);
+      if (needsEmailConfirmation) {
+        setEmailSent(true);
+        return;
+      }
+      navigate('/onboarding/name-basics');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSocialSignUp = (method: 'google' | 'apple') => {
-    // Mock social auth
-    const userId = 'user_' + Math.random().toString(36).slice(2);
-    setAuth({
-      isAuthenticated: true,
-      userId,
-      method,
-    });
-    navigate('/onboarding/name-basics');
+  const handleSocialSignUp = (_method: 'google' | 'apple') => {
+    setError('Social sign-in coming soon. Use email for now.');
   };
+
+  if (emailSent) {
+    return (
+      <div style={{
+        height: '100%', backgroundColor: '#F5F5FA', padding: 20,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', margin: '0 0 12px' }}>
+          Confirm your email
+        </h1>
+        <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5, margin: '0 0 24px' }}>
+          We sent a link to <strong>{email}</strong>. After confirming, log in to continue setup.
+        </p>
+        <Button onClick={() => navigate('/login')} style={{ width: '100%', height: 52, borderRadius: 20 }}>
+          Go to Log In
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div style={{

@@ -20,6 +20,26 @@ const TRACK_STRIPE = (accentColor: string) =>
 
 const BAR_EASE = [0.32, 0.72, 0, 1] as const;
 
+/** Mix hex toward black (0–1). */
+function mixTowardBlack(hex: string, t: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const mix = (c: number) => Math.round(c * (1 - t));
+  return `#${[mix(r), mix(g), mix(b)].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Relative luminance 0–1; lower = darker. */
+function relativeLuminance(hex: string): number {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return 0.5;
+  const srgb = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = srgb.map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
 export function FeaturedBudgetCard({
   title,
   subtitle,
@@ -57,6 +77,9 @@ export function FeaturedBudgetCard({
     return () => window.clearTimeout(t);
   }, [pct, animationDelay]);
 
+  const iconSurfaceBg = mixTowardBlack(accentColor, 0.22);
+  const iconGlyphColor = relativeLuminance(iconSurfaceBg) < 0.45 ? '#FFFFFF' : accentColor;
+
   return (
     <button
       type="button"
@@ -76,7 +99,13 @@ export function FeaturedBudgetCard({
     >
       <div style={{ padding: FEATURE_CARD.paddingLg }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
-          <FeatureCardIcon accentColor={accentColor} accentBg={accentBg} {...icon} />
+          <FeatureCardIcon
+            {...icon}
+            accentColor={accentColor}
+            accentBg={accentBg}
+            iconSurfaceBg={iconSurfaceBg}
+            iconGlyphColor={iconGlyphColor}
+          />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0, lineHeight: 1.25 }}>
               {title}

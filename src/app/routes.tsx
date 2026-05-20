@@ -1,6 +1,7 @@
 import { createBrowserRouter, Outlet, Navigate } from 'react-router';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
+import { isSupabaseConfigured } from '../lib/supabase';
 import RootLayout from './components/RootLayout';
 import SubPageLayout from './components/SubPageLayout';
 import PhoneFrameLayout from './components/PhoneFrameLayout';
@@ -31,27 +32,98 @@ function ProvidersLayout() {
   return (
     <OnboardingProvider>
       <AppProvider>
-        <Outlet />
+        <AuthLoadingGate>
+          <Outlet />
+        </AuthLoadingGate>
       </AppProvider>
     </OnboardingProvider>
   );
 }
 
+function AuthLoadingGate({ children }: { children: React.ReactNode }) {
+  const { authLoading } = useOnboarding();
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F7F7FA',
+          color: '#6B7280',
+          fontSize: 14,
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 /** Auth guard — redirects unauthenticated users to welcome/login */
 function AuthGuard() {
   const { auth, onboarding } = useOnboarding();
+  const { isDataLoading } = useApp();
 
   if (!auth.isAuthenticated) {
     return <Navigate to="/welcome" replace />;
   }
 
-  // Check if onboarding is incomplete
+  if (isDataLoading) {
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F7F7FA',
+          color: '#6B7280',
+          fontSize: 14,
+        }}
+      >
+        Syncing your data…
+      </div>
+    );
+  }
+
   if (onboarding.status === 'in_progress' && onboarding.lastStepId) {
     return <Navigate to={`/onboarding/${onboarding.lastStepId}`} replace />;
   }
 
   if (onboarding.status === 'not_started') {
     return <Navigate to="/onboarding/name-basics" replace />;
+  }
+
+  return <Outlet />;
+}
+
+/** Onboarding routes require sign-in when Supabase is enabled */
+function OnboardingAuthGuard() {
+  const { auth, authLoading } = useOnboarding();
+
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F5F5FA',
+          color: '#6B7280',
+          fontSize: 14,
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+
+  if (isSupabaseConfigured && !auth.isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;
@@ -79,11 +151,14 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Onboarding routes (require auth, with phone frame)
+      // Onboarding routes (require auth when Supabase enabled)
       {
         path: '/onboarding',
-        Component: PhoneFrameLayout,
+        Component: OnboardingAuthGuard,
         children: [
+          {
+            Component: PhoneFrameLayout,
+            children: [
           { path: 'name-basics', Component: Step1NameBasics },
           { path: 'goal', Component: Step2Goal },
           { path: 'monthly-income', Component: Step3MonthlyIncome },
@@ -91,6 +166,8 @@ export const router = createBrowserRouter([
           { path: 'categories', Component: Step5Categories },
           { path: 'notifications', Component: Step6Notifications },
           { path: 'complete', Component: Step7Complete },
+            ],
+          },
         ],
       },
 

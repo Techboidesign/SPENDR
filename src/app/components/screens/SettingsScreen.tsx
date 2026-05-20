@@ -12,6 +12,7 @@ import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModa
 import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { FEATURE_CARD, featureCardSurface } from '../ui/featureCard';
+import { generateId } from '../../utils/id';
 
 const PROFILE_FEATURE = { accentColor: '#3E37FF', accentBg: '#EDEDFF' };
 
@@ -229,8 +230,8 @@ export default function SettingsScreen() {
   const navigate = useNavigate();
   const { logout } = useOnboarding();
 
-  const handleLogOut = () => {
-    logout();
+  const handleLogOut = async () => {
+    await logout();
     navigate('/login', { replace: true });
   };
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -280,111 +281,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleExportPDF = () => {
-    try {
-      // Create a simple text-based report
-      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      // Group expenses by category
-      const categoryTotals: Record<string, { name: string; amount: number; count: number }> = {};
-      state.expenses.forEach(exp => {
-        const cat = categories.find(c => c.id === exp.categoryId);
-        const catName = cat?.name || exp.categoryId;
-        if (!categoryTotals[catName]) {
-          categoryTotals[catName] = { name: catName, amount: 0, count: 0 };
-        }
-        categoryTotals[catName].amount += exp.amount;
-        categoryTotals[catName].count += 1;
-      });
-
-      const totalSpent = state.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-      // Create PDF-style HTML content
-      const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Spendr Expense Report</title>
-  <style>
-    body { font-family: 'Space Grotesk', Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-    h1 { color: #3E37FF; font-size: 28px; margin-bottom: 8px; }
-    .subtitle { color: #9CA3AF; font-size: 14px; margin-bottom: 32px; }
-    .summary { background: #F7F7FA; padding: 20px; border-radius: 12px; margin-bottom: 24px; }
-    .summary-item { display: flex; justify-content: space-between; margin: 8px 0; }
-    .summary-label { color: #6B7280; }
-    .summary-value { font-weight: 700; color: #1A1A2E; }
-    table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-    th { background: #F7F7FA; padding: 12px; text-align: left; font-size: 12px; color: #6B7280; border-bottom: 2px solid #E5E7EB; }
-    td { padding: 12px; border-bottom: 1px solid #F0F0F5; }
-    .amount { font-weight: 700; color: #1A1A2E; }
-    .footer { margin-top: 40px; text-align: center; color: #9CA3AF; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <h1>Spendr Expense Report</h1>
-  <div class="subtitle">Generated on ${today}</div>
-
-  <div class="summary">
-    <div class="summary-item">
-      <span class="summary-label">Total Expenses</span>
-      <span class="summary-value">${state.expenses.length}</span>
-    </div>
-    <div class="summary-item">
-      <span class="summary-label">Total Spent</span>
-      <span class="summary-value">${state.currency === 'EUR' ? '€' : state.currency === 'USD' ? '$' : state.currency === 'GBP' ? '£' : state.currency}${totalSpent.toFixed(2)}</span>
-    </div>
-    <div class="summary-item">
-      <span class="summary-label">Monthly Budget</span>
-      <span class="summary-value">${state.currency === 'EUR' ? '€' : state.currency === 'USD' ? '$' : state.currency === 'GBP' ? '£' : state.currency}${state.monthlyBudget.toFixed(2)}</span>
-    </div>
-  </div>
-
-  <h2 style="font-size: 18px; margin-bottom: 16px;">Expenses by Category</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Category</th>
-        <th>Count</th>
-        <th>Total Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${Object.values(categoryTotals).sort((a, b) => b.amount - a.amount).map(cat => `
-        <tr>
-          <td>${cat.name}</td>
-          <td>${cat.count}</td>
-          <td class="amount">${state.currency === 'EUR' ? '€' : state.currency === 'USD' ? '$' : state.currency === 'GBP' ? '£' : state.currency}${cat.amount.toFixed(2)}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-
-  <div class="footer">
-    <p>© 2026 Spendr by Alejandro Alvarez</p>
-  </div>
-</body>
-</html>`;
-
-      // Create blob and download as HTML (which can be printed to PDF)
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `spendr-report-${new Date().toISOString().slice(0, 10)}.html`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setExportToast('✓ Report downloaded (open and print to PDF)');
-      setTimeout(() => setExportToast(''), 3000);
-    } catch (error) {
-      setExportToast('✗ Export failed');
-      setTimeout(() => setExportToast(''), 2500);
-    }
-  };
-
   const handleImportCSV = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -423,7 +319,7 @@ export default function SettingsScreen() {
             dispatch({
               type: 'ADD_EXPENSE',
               expense: {
-                id: `imp-${Date.now()}-${Math.random()}`,
+                id: generateId(),
                 name,
                 amount: parsedAmount,
                 categoryId: categoryObj.id,
@@ -595,11 +491,31 @@ export default function SettingsScreen() {
           {/* Categories */}
           <div style={{ borderTop: '1px solid #F7F7FA' }}>
             <div style={{ padding: '12px 16px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FCE7F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FCE7F3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Tag size={16} weight="light" color="#EC4899" />
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A2E', flex: 1 }}>Categories</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A2E', flex: 1, minWidth: 0 }}>
+                  Categories
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#9CA3AF',
+                    letterSpacing: 0.2,
+                    flexShrink: 0,
+                  }}
+                >
+                  Tap to edit
+                </span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {categories.map(cat => {
@@ -670,7 +586,6 @@ export default function SettingsScreen() {
         {/* ── Data management ── */}
         <SettingsSection title="Data">
           <SettingsRow icon={DownloadSimple} iconBg="#D1FAE5" iconColor="#10B981" label="Export as CSV" onClick={handleExportCSV} />
-          <SettingsRow icon={DownloadSimple} iconBg="#DBEAFE" iconColor="#3B82F6" label="Export as PDF" onClick={handleExportPDF} />
           <SettingsRow icon={UploadSimple} iconBg="#FEF3C7" iconColor="#D97706" label="Import from CSV" onClick={handleImportCSV} last />
         </SettingsSection>
 

@@ -4,6 +4,7 @@ import { CategoryIcon } from '../CategoryIcon';
 import { SurfaceCard } from '../ui/SurfaceCard';
 import { getCategoryById } from '../../data/categories';
 import { PCT_OF_MONTHLY_LABEL, useExpensesMonthInsight } from '../../hooks/useExpensesMonthInsight';
+import { useExpensesChartExtraInsights } from '../../hooks/useExpensesChartExtraInsights';
 import { ExpensesMonthInsightCard } from './ExpensesMonthInsightCard';
 
 export type CategorySegment = {
@@ -32,24 +33,28 @@ export function ExpensesCategoryInsights({
   );
 
   const insight = useExpensesMonthInsight(monthKey, monthTotal, shuffleKey);
+  const extraInsights = useExpensesChartExtraInsights(monthKey, monthTotal);
 
   if (segments.length === 0) {
     return (
-      <SurfaceCard>
-        <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '24px 0' }}>
-          No spending this month
-        </p>
-      </SurfaceCard>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {insight && <ExpensesMonthInsightCard insight={insight} />}
+        <SurfaceCard>
+          <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '24px 0' }}>
+            No spending this month
+          </p>
+        </SurfaceCard>
+      </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {insight && <ExpensesMonthInsightCard insight={insight} />}
+
       <SurfaceCard key={monthKey}>
         <CategorySpendingChart segments={segments} formatCurrency={formatCurrency} />
       </SurfaceCard>
-
-      {insight && <ExpensesMonthInsightCard insight={insight} />}
 
       <SurfaceCard padding={12}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -118,6 +123,10 @@ export function ExpensesCategoryInsights({
           })}
         </div>
       </SurfaceCard>
+
+      {extraInsights.map(card => (
+        <ExpensesMonthInsightCard key={card.id} insight={card} />
+      ))}
     </div>
   );
 }

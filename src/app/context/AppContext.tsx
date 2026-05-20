@@ -1,38 +1,45 @@
-import React, { createContext, useContext, useReducer, useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import { AppState, Action, Expense, CategoryCustomization } from '../data/types';
 import { resolveCategories, resolveCategory } from '../data/categoryConfig';
 import { getCategoryById as getDefaultCategoryById, type Category } from '../data/categories';
 import type { CategoryIconKey } from '../data/categoryConfig';
-import { INITIAL_APP_STATE, INITIAL_EXPENSES } from '../data/sampleData';
+import { INITIAL_APP_STATE } from '../data/sampleData';
 import { getItem, setItem } from '../utils/storage';
-import { CURRENT_MONTH_KEY } from '../utils/periods';
-
-function hydrateState(saved: AppState | null): AppState {
-  if (!saved) return INITIAL_APP_STATE;
-
-  const withCategories: AppState = {
-    ...saved,
-    categoryCustomizations: saved.categoryCustomizations ?? {},
-    customCategories: saved.customCategories ?? [],
-  };
-
-  const hasCurrentMonth = withCategories.expenses.some(e => e.date.startsWith(CURRENT_MONTH_KEY));
-  if (hasCurrentMonth) return withCategories;
-
-  const seedMonth = INITIAL_EXPENSES.filter(e => e.date.startsWith(CURRENT_MONTH_KEY));
-  if (seedMonth.length === 0) return withCategories;
-
-  return { ...withCategories, expenses: [...seedMonth, ...withCategories.expenses] };
-}
+import { isSupabaseConfigured } from '../../lib/supabase';
+import { useOnboarding } from './OnboardingContext';
+import {
+  fetchAppState,
+  syncActionToSupabase,
+} from '../services/appDataService';
+import { migrateLocalStorageIfNeeded } from '../services/migrateLocalStorage';
+import { completeOnboardingOnServer } from '../services/completeOnboarding';
+import { parseReceiptFiles, parseReceiptImage } from '../services/receiptParseService';
+import type { ExpenseFormDraft } from '../types/expenseDraft';
+import { generateId } from '../utils/id';
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'HYDRATE_STATE':
+      return action.state;
+    case 'RESET_STATE':
+      return { ...INITIAL_APP_STATE, expenses: [], budgetGoals: [], customCategories: [] };
     case 'ADD_EXPENSE':
       return { ...state, expenses: [action.expense, ...state.expenses] };
+    case 'ADD_EXPENSES':
+      return { ...state, expenses: [...action.expenses, ...state.expenses] };
     case 'UPDATE_EXPENSE':
       return {
         ...state,
-        expenses: state.expenses.map(e => e.id === action.expense.id ? action.expense : e),
+        expenses: state.expenses.map(e => (e.id === action.expense.id ? action.expense : e)),
       };
     case 'DELETE_EXPENSE':
       return { ...state, expenses: state.expenses.filter(e => e.id !== action.id) };
@@ -48,7 +55,7 @@ function reducer(state: AppState, action: Action): AppState {
         return {
           ...state,
           budgetGoals: state.budgetGoals.map(g =>
-            g.categoryId === action.categoryId ? { ...g, amount: action.amount } : g
+            g.categoryId === action.categoryId ? { ...g, amount: action.amount } : g,
           ),
         };
       }
@@ -107,39 +114,199 @@ interface AppContextType {
   getCategory: (id: string) => ResolvedCategory;
   showAddModal: boolean;
   editingExpense: Expense | null;
-  openAddModal: (expense?: Expense) => void;
+  addModalDraft: ExpenseFormDraft | null;
+  openAddModal: (expense?: Expense, draft?: ExpenseFormDraft) => void;
   closeAddModal: () => void;
   formatCurrency: (amount: number) => string;
+  isDataLoading: boolean;
+  isParsingReceipt: boolean;
+  parseStatusMessage: string;
+  scanReceiptFromCamera: (file: File) => Promise<void>;
+  uploadReceiptDocuments: (files: File[]) => Promise<void>;
+  completeOnboardingAndSync: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Load initial state from localStorage or use default
-  const [state, dispatch] = useReducer(reducer, undefined, () => {
-    const saved = getItem<AppState>('appState');
-    return hydrateState(saved);
+  const { auth, onboarding } = useOnboarding();
+  const userId = auth.userId;
+  const useCloud = isSupabaseConfigured && auth.isAuthenticated && Boolean(userId);
+
+  const [state, baseDispatch] = useReducer(reducer, undefined, () => {
+    if (!isSupabaseConfigured) {
+      const saved = getItem<AppState>('appState');
+      return saved ?? INITIAL_APP_STATE;
+    }
+    return { ...INITIAL_APP_STATE, expenses: [], budgetGoals: [] };
   });
+
+  const [isDataLoading, setIsDataLoading] = useState(useCloud);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [addModalDraft, setAddModalDraft] = useState<ExpenseFormDraft | null>(null);
+  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
+  const [parseStatusMessage, setParseStatusMessage] = useState('Analyzing receipt…');
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  // Persist state to localStorage whenever it changes
+  // Offline fallback: persist to localStorage when Supabase is not configured
   useEffect(() => {
-    setItem('appState', state);
-  }, [state]);
+    if (!useCloud) {
+      setItem('appState', state);
+    }
+  }, [state, useCloud]);
 
-  const openAddModal = (expense?: Expense) => {
+  // Load cloud data when user signs in
+  useEffect(() => {
+    if (!useCloud || !userId) {
+      setIsDataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsDataLoading(true);
+
+    (async () => {
+      try {
+        await migrateLocalStorageIfNeeded(userId);
+        const remote = await fetchAppState(userId);
+        if (!cancelled) {
+          baseDispatch({ type: 'HYDRATE_STATE', state: remote });
+        }
+      } catch (err) {
+        console.error('Failed to load app data:', err);
+      } finally {
+        if (!cancelled) setIsDataLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [useCloud, userId]);
+
+  // Reset when logged out
+  useEffect(() => {
+    if (!auth.isAuthenticated && isSupabaseConfigured) {
+      baseDispatch({ type: 'RESET_STATE' });
+    }
+  }, [auth.isAuthenticated]);
+
+  const dispatch = useCallback(
+    (action: Action) => {
+      baseDispatch(action);
+      if (!useCloud || !userId) return;
+      if (action.type === 'HYDRATE_STATE' || action.type === 'RESET_STATE') return;
+
+      const nextState = reducer(stateRef.current, action);
+      stateRef.current = nextState;
+
+      syncActionToSupabase(userId, action, nextState).catch(err => {
+        console.error('Sync failed:', err);
+      });
+    },
+    [useCloud, userId],
+  );
+
+  const completeOnboardingAndSync = useCallback(async () => {
+    if (!userId) return;
+    const merged = await completeOnboardingOnServer(userId, onboarding, stateRef.current);
+    baseDispatch({ type: 'HYDRATE_STATE', state: merged });
+  }, [userId, onboarding]);
+
+  const openAddModal = (expense?: Expense, draft?: ExpenseFormDraft) => {
     setEditingExpense(expense ?? null);
+    setAddModalDraft(draft ?? null);
     setShowAddModal(true);
   };
 
   const closeAddModal = () => {
     setShowAddModal(false);
     setEditingExpense(null);
+    setAddModalDraft(null);
   };
 
+  const applyParsedExpenses = useCallback(
+    (items: Awaited<ReturnType<typeof parseReceiptImage>>) => {
+      if (items.length === 1) {
+        const item = items[0];
+        setEditingExpense(null);
+        setAddModalDraft({
+          name: item.name,
+          amount: String(item.amount),
+          categoryId: item.categoryId,
+          date: item.date,
+          type: item.type,
+          notes: item.notes,
+          startDate: item.date,
+        });
+        setShowAddModal(true);
+        return;
+      }
+
+      const expenses: Expense[] = items.map(item => ({
+        id: generateId(),
+        name: item.name,
+        amount: item.amount,
+        categoryId: item.categoryId,
+        date: item.date,
+        type: item.type,
+        notes: item.notes,
+        startDate: item.type !== 'one-time' ? item.date : undefined,
+      }));
+      dispatch({ type: 'ADD_EXPENSES', expenses });
+    },
+    [dispatch],
+  );
+
+  const scanReceiptFromCamera = useCallback(
+    async (file: File) => {
+      setIsParsingReceipt(true);
+      setParseStatusMessage('Scanning receipt…');
+      try {
+        const items = await parseReceiptImage(file);
+        applyParsedExpenses(items);
+      } catch (err) {
+        console.error(err);
+        setParseStatusMessage(err instanceof Error ? err.message : 'Scan failed');
+        window.setTimeout(() => setIsParsingReceipt(false), 2200);
+        return;
+      }
+      setIsParsingReceipt(false);
+    },
+    [applyParsedExpenses],
+  );
+
+  const uploadReceiptDocuments = useCallback(
+    async (files: File[]) => {
+      setIsParsingReceipt(true);
+      setParseStatusMessage(
+        files.length > 1 ? `Parsing ${files.length} documents…` : 'Parsing document…',
+      );
+      try {
+        const items = await parseReceiptFiles(files);
+        applyParsedExpenses(items);
+      } catch (err) {
+        console.error(err);
+        setParseStatusMessage(err instanceof Error ? err.message : 'Upload failed');
+        window.setTimeout(() => setIsParsingReceipt(false), 2200);
+        return;
+      }
+      setIsParsingReceipt(false);
+    },
+    [applyParsedExpenses],
+  );
+
   const formatCurrency = (amount: number) => {
-    const symbol = state.currency === 'EUR' ? '€' : state.currency === 'USD' ? '$' : state.currency === 'GBP' ? '£' : state.currency;
+    const symbol =
+      state.currency === 'EUR'
+        ? '€'
+        : state.currency === 'USD'
+          ? '$'
+          : state.currency === 'GBP'
+            ? '£'
+            : state.currency;
     if (state.currency === 'EUR') return `€${amount.toFixed(2)}`;
     if (state.currency === 'USD') return `$${amount.toFixed(2)}`;
     if (state.currency === 'GBP') return `£${amount.toFixed(2)}`;
@@ -159,10 +326,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (custom) {
         return resolveCategories({}, [custom])[0];
       }
-      return resolveCategory(
-        getDefaultCategoryById(id),
-        state.categoryCustomizations[id],
-      );
+      return resolveCategory(getDefaultCategoryById(id), state.categoryCustomizations[id]);
     },
     [categories, state.categoryCustomizations, state.customCategories],
   );
@@ -176,9 +340,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getCategory,
         showAddModal,
         editingExpense,
+        addModalDraft,
         openAddModal,
         closeAddModal,
         formatCurrency,
+        isDataLoading,
+        isParsingReceipt,
+        parseStatusMessage,
+        scanReceiptFromCamera,
+        uploadReceiptDocuments,
+        completeOnboardingAndSync,
       }}
     >
       {children}
@@ -192,7 +363,6 @@ export function useApp() {
   return ctx;
 }
 
-// Helper: check if a recurring expense applies to a given month
 function recurringAppliesToMonth(expense: Expense, targetYearMonth: string): boolean {
   if (expense.type === 'one-time') {
     return expense.date.startsWith(targetYearMonth);
@@ -202,20 +372,17 @@ function recurringAppliesToMonth(expense: Expense, targetYearMonth: string): boo
   const [targetYear, targetMonth] = targetYearMonth.split('-').map(Number);
   const targetDate = new Date(targetYear, targetMonth - 1, 1);
 
-  // Check if expense started on or before the target month
   if (expenseDate > targetDate) {
     return false;
   }
 
   if (expense.type === 'monthly' || expense.type === 'yearly') {
-    // Both monthly and yearly expenses apply to all months from start date onwards
     return true;
   }
 
   return false;
 }
 
-// Helper: get the monthly equivalent amount for an expense
 export function getMonthlyAmount(expense: Expense): number {
   if (expense.type === 'yearly') {
     return expense.amount / 12;
@@ -223,20 +390,16 @@ export function getMonthlyAmount(expense: Expense): number {
   return expense.amount;
 }
 
-// Helper: get all expenses that apply to a given month (YYYY-MM), including recurring
 export function getMonthExpenses(expenses: AppState['expenses'], yearMonth: string) {
   const applicable: Expense[] = [];
   const recurringKeys = new Set<string>();
 
   for (const expense of expenses) {
     if (expense.type === 'one-time') {
-      // One-time expenses: include only if in exact month
       if (expense.date.startsWith(yearMonth)) {
         applicable.push(expense);
       }
     } else {
-      // Recurring expenses: deduplicate by name+category+type
-      // Only include the FIRST occurrence (earliest date) that applies to this month
       const key = `${expense.name}|${expense.categoryId}|${expense.type}`;
 
       if (!recurringKeys.has(key) && recurringAppliesToMonth(expense, yearMonth)) {
@@ -249,7 +412,6 @@ export function getMonthExpenses(expenses: AppState['expenses'], yearMonth: stri
   return applicable;
 }
 
-// Helper: sum of expenses by category for a month (includes recurring, with yearly prorated)
 export function getCategoryTotals(expenses: AppState['expenses'], yearMonth: string) {
   const monthExp = getMonthExpenses(expenses, yearMonth);
   const totals: Record<string, number> = {};

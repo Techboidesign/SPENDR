@@ -25,7 +25,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I export my data?',
-    a: 'Go to Settings → Data and choose Export as CSV or Export as PDF. The file will be prepared for download (feature fully available in the production release).',
+    a: 'Go to Settings → Data and tap Export as CSV. The file will download immediately.',
   },
   {
     q: 'Is my data stored securely?',

@@ -3,18 +3,31 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Eye, EyeSlash } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
 import { FormInput } from '../../shared/FormFields';
-import { useOnboarding } from '../../../context/OnboardingContext';
+import { useOnboarding, type OnboardingState } from '../../../context/OnboardingContext';
+import { fetchOnboarding } from '../../../services/onboardingService';
+import { getSupabase, isSupabaseConfigured } from '../../../../lib/supabase';
 
 export default function LogInScreen() {
   const navigate = useNavigate();
-  const { setAuth, onboarding } = useOnboarding();
+  const { signInWithEmail, onboarding } = useOnboarding();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogIn = () => {
+  const routeAfterLogin = (o: OnboardingState) => {
+    if (o.status === 'completed' || o.status === 'skipped') {
+      navigate('/');
+    } else if (o.status === 'in_progress' && o.lastStepId) {
+      navigate(`/onboarding/${o.lastStepId}`);
+    } else {
+      navigate('/onboarding/name-basics');
+    }
+  };
+
+  const handleLogIn = async () => {
     setError('');
 
     if (!email || !password) {
@@ -22,39 +35,27 @@ export default function LogInScreen() {
       return;
     }
 
-    // Mock authentication - in real app, call API
-    const userId = 'user_' + Math.random().toString(36).slice(2);
-    setAuth({
-      isAuthenticated: true,
-      userId,
-      method: 'email',
-    });
-
-    // Navigate based on onboarding status
-    if (onboarding.status === 'completed' || onboarding.status === 'skipped') {
-      navigate('/');
-    } else if (onboarding.status === 'in_progress' && onboarding.lastStepId) {
-      navigate(`/onboarding/${onboarding.lastStepId}`);
-    } else {
-      navigate('/onboarding/name-basics');
+    setLoading(true);
+    try {
+      await signInWithEmail(email.trim(), password);
+      let nextOnboarding = onboarding;
+      if (isSupabaseConfigured) {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        if (session?.user) {
+          const remote = await fetchOnboarding(session.user.id);
+          if (remote) nextOnboarding = remote;
+        }
+      }
+      routeAfterLogin(nextOnboarding);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Log in failed. Check your email and password.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSocialLogIn = (method: 'google' | 'apple') => {
-    // Mock social auth
-    const userId = 'user_' + Math.random().toString(36).slice(2);
-    setAuth({
-      isAuthenticated: true,
-      userId,
-      method,
-    });
-
-    // Navigate based on onboarding status
-    if (onboarding.status === 'completed' || onboarding.status === 'skipped') {
-      navigate('/');
-    } else {
-      navigate('/onboarding/name-basics');
-    }
+  const handleSocialLogIn = (_method: 'google' | 'apple') => {
+    setError('Social sign-in coming soon. Use email for now.');
   };
 
   return (

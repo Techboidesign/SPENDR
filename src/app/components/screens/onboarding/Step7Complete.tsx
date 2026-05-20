@@ -1,15 +1,29 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CheckCircle } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import { useApp } from '../../../context/AppContext';
 import { Button } from '../../ui/button';
 
 export default function Step7Complete() {
   const navigate = useNavigate();
   const { complete, onboarding } = useOnboarding();
+  const { completeOnboardingAndSync } = useApp();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLaunch = () => {
-    complete();
-    navigate('/');
+  const handleLaunch = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      complete();
+      await completeOnboardingAndSync();
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your setup. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const firstName = onboarding.data.firstName || 'there';
@@ -28,7 +42,6 @@ export default function Step7Complete() {
       justifyContent: 'center',
     }}>
       <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-        {/* Success icon */}
         <div style={{
           width: 80,
           height: 80,
@@ -50,7 +63,10 @@ export default function Step7Complete() {
           Your account is ready to go
         </p>
 
-        {/* Summary card */}
+        {error && (
+          <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 12 }}>{error}</p>
+        )}
+
         <div style={{
           backgroundColor: '#FFFFFF',
           borderRadius: 16,
@@ -64,11 +80,12 @@ export default function Step7Complete() {
             <div style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>{currency}</div>
           </div>
 
-          {monthlyBudget && (
+          {monthlyBudget != null && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Monthly budget</div>
               <div style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
-                ${monthlyBudget.toLocaleString()}
+                {currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'}
+                {monthlyBudget.toLocaleString()}
               </div>
             </div>
           )}
@@ -84,6 +101,7 @@ export default function Step7Complete() {
 
         <Button
           onClick={handleLaunch}
+          disabled={loading}
           style={{
             width: '100%',
             height: 50,
@@ -92,9 +110,10 @@ export default function Step7Complete() {
             backgroundColor: '#3E37FF',
             color: '#FFFFFF',
             borderRadius: 14,
+            opacity: loading ? 0.7 : 1,
           }}
         >
-          Launch Spendr
+          {loading ? 'Saving…' : 'Launch Spendr'}
         </Button>
 
         <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 12, lineHeight: 1.5 }}>

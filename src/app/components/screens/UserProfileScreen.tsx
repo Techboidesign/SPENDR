@@ -7,6 +7,8 @@ import {
 } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
 import { useOnboarding } from '../../context/OnboardingContext';
+import { isSupabaseConfigured } from '../../../lib/supabase';
+import { uploadAvatar } from '../../services/appDataService';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 import { AvatarCropModal } from '../AvatarCropModal';
@@ -133,6 +135,7 @@ function FieldRow({
 
 /* ─────────── Password change bottom sheet ─────────── */
 function PasswordSheet({ onClose }: { onClose: () => void }) {
+  const { updatePassword } = useOnboarding();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -141,12 +144,18 @@ function PasswordSheet({ onClose }: { onClose: () => void }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     if (!current) { setError('Enter your current password.'); return; }
     if (next.length < 8) { setError('New password must be at least 8 characters.'); return; }
     if (next !== confirm) { setError("Passwords don't match."); return; }
-    setError(''); setSuccess(true);
-    setTimeout(onClose, 1500);
+    setError('');
+    try {
+      await updatePassword(next);
+      setSuccess(true);
+      setTimeout(onClose, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update password.');
+    }
   };
 
   const PwField = ({ label, value, onChange, show, toggle }: {
@@ -221,7 +230,7 @@ export default function UserProfileScreen() {
   const { state, dispatch } = useApp();
   const { exit } = useSubPageNav();
   const navigate = useNavigate();
-  const { logout } = useOnboarding();
+  const { logout, auth } = useOnboarding();
 
   // File input for avatar upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -233,9 +242,9 @@ export default function UserProfileScreen() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     setShowSignOutConfirm(false);
-    logout();
+    await logout();
     navigate('/login', { replace: true });
   };
 
@@ -249,10 +258,21 @@ export default function UserProfileScreen() {
     reader.readAsDataURL(file);
     e.target.value = ''; // reset so same file can be re-selected
   };
-  const handleCropSave = (base64: string) => {
-    dispatch({ type: 'SET_USER_AVATAR', avatar: base64 });
-    setCropSrc(null);
-    showToast('Profile photo updated');
+  const handleCropSave = async (base64: string) => {
+    try {
+      if (isSupabaseConfigured && auth.userId && base64.startsWith('data:')) {
+        const res = await fetch(base64);
+        const blob = await res.blob();
+        const url = await uploadAvatar(auth.userId, blob, 'jpg');
+        dispatch({ type: 'SET_USER_AVATAR', avatar: url });
+      } else {
+        dispatch({ type: 'SET_USER_AVATAR', avatar: base64 });
+      }
+      setCropSrc(null);
+      showToast('Profile photo updated');
+    } catch {
+      showToast('Could not upload photo');
+    }
   };
 
   /* Field save handlers — all persist to context */
