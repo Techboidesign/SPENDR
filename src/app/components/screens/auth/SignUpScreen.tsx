@@ -4,6 +4,9 @@ import { ArrowLeft, Eye, EyeSlash } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
 import { FormInput } from '../../shared/FormFields';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import { AuthScreenShell } from '../../auth/AuthScreenShell';
+import { AUTH_THEME, ONBOARDING_FIRST_STEP } from '../../../theme/authTheme';
+
 export default function SignUpScreen() {
   const navigate = useNavigate();
   const { signUpWithEmail } = useOnboarding();
@@ -43,7 +46,7 @@ export default function SignUpScreen() {
         setEmailSent(true);
         return;
       }
-      navigate('/onboarding/name-basics');
+      navigate(`/onboarding/${ONBOARDING_FIRST_STEP}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
     } finally {
@@ -51,236 +54,240 @@ export default function SignUpScreen() {
     }
   };
 
-  const handleSocialSignUp = (_method: 'google' | 'apple') => {
-    setError('Social sign-in coming soon. Use email for now.');
-  };
-
   if (emailSent) {
     return (
-      <div style={{
-        height: '100%', backgroundColor: '#F5F5FA', padding: 20,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', margin: '0 0 12px' }}>
-          Confirm your email
-        </h1>
-        <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5, margin: '0 0 24px' }}>
-          We sent a link to <strong>{email}</strong>. After confirming, log in to continue setup.
-        </p>
-        <Button onClick={() => navigate('/login')} style={{ width: '100%', height: 52, borderRadius: 20 }}>
-          Go to Log In
-        </Button>
-      </div>
+      <AuthScreenShell>
+        <div
+          style={{
+            flex: 1,
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>Confirm your email</h1>
+          <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5, margin: '0 0 24px' }}>
+            We sent a link to <strong style={{ color: AUTH_THEME.textPrimary }}>{email}</strong>.
+            After confirming, log in to continue setup.
+          </p>
+          <Button
+            onClick={() => navigate('/login')}
+            style={{
+              width: '100%',
+              height: 52,
+              borderRadius: 20,
+              backgroundColor: AUTH_THEME.buttonPrimary,
+              color: AUTH_THEME.buttonPrimaryText,
+            }}
+          >
+            Go to Log In
+          </Button>
+        </div>
+      </AuthScreenShell>
     );
   }
 
   return (
-    <div style={{
-      height: '100%',
-      backgroundColor: '#F5F5FA',
-      padding: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Header */}
-      <button
-        onClick={() => navigate('/welcome')}
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 20,
-          backgroundColor: '#FFFFFF',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          marginBottom: 24,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        }}
-      >
-        <ArrowLeft size={20} color="#1A1A2E" weight="light" />
-      </button>
-
-      <div style={{ width: '100%' }}>
-        {/* Title */}
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: -0.5, margin: '0 0 8px' }}>
-          Create your account
-        </h1>
-        <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5, margin: '0 0 32px' }}>
-          Start tracking your expenses in minutes
-        </p>
-
-        {/* Error */}
-        {error && (
-          <div style={{
-            backgroundColor: '#FEE2E2',
-            border: '1px solid #EF4444',
-            borderRadius: 14,
-            padding: '12px 16px',
-            marginBottom: 20,
-            fontSize: 14,
-            color: '#EF4444',
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Email */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
-            Email
-          </label>
-          <FormInput
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
-        </div>
-
-        {/* Password */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
-            Password
-          </label>
-          <div style={{ position: 'relative' }}>
-            <FormInput
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              style={{ paddingRight: 48 }}
-            />
-            <button
-              onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 8,
-              }}
-            >
-              {showPassword ? <EyeSlash size={20} color="#9CA3AF" /> : <Eye size={20} color="#9CA3AF" />}
-            </button>
-          </div>
-
-          {/* Password strength indicator */}
-          {password && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                {[1, 2, 3, 4].map(level => (
-                  <div
-                    key={level}
-                    style={{
-                      flex: 1,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: level <= passwordStrength.score ? passwordStrength.color : '#E5E7EB',
-                    }}
-                  />
-                ))}
-              </div>
-              <p style={{ fontSize: 12, color: passwordStrength.color, margin: 0 }}>
-                {passwordStrength.label}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Terms checkbox */}
-        <label style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 12,
-          marginBottom: 24,
-          cursor: 'pointer',
-        }}>
-          <input
-            type="checkbox"
-            checked={termsAccepted}
-            onChange={(e) => setTermsAccepted(e.target.checked)}
-            style={{ width: 20, height: 20, cursor: 'pointer', marginTop: 2 }}
-          />
-          <span style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
-            I agree to the{' '}
-            <a href="/settings/privacy" style={{ color: '#3E37FF', textDecoration: 'none' }}>
-              Terms of Service
-            </a>
-            {' '}and{' '}
-            <a href="/settings/privacy" style={{ color: '#3E37FF', textDecoration: 'none' }}>
-              Privacy Policy
-            </a>
-          </span>
-        </label>
-
-        {/* Sign up button */}
-        <Button
-          onClick={handleSignUp}
-          style={{
-            width: '100%',
-            height: 52,
-            fontSize: 16,
-            fontWeight: 700,
-            backgroundColor: '#3E37FF',
-            color: '#FFFFFF',
-            borderRadius: 20,
-            boxShadow: '0 4px 14px rgba(62,55,255,0.30)',
-            marginBottom: 20,
-          }}
-        >
-          Sign Up
-        </Button>
-
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-          <div style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
-          <span style={{ fontSize: 14, color: '#9CA3AF' }}>or continue with</span>
-          <div style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
-        </div>
-
-        {/* Social buttons */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          <Button
-            variant="outline"
-            onClick={() => handleSocialSignUp('google')}
-            style={{ flex: 1, height: 52, fontSize: 16, fontWeight: 700, borderRadius: 20 }}
-          >
-            Google
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleSocialSignUp('apple')}
-            style={{ flex: 1, height: 52, fontSize: 16, fontWeight: 700, borderRadius: 20 }}
-          >
-            Apple
-          </Button>
-        </div>
-
-        {/* Log in link */}
-        <p style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', margin: 0 }}>
-          Already have an account?{' '}
-          <button
-            onClick={() => navigate('/login')}
+    <AuthScreenShell>
+          <div
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#3E37FF',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontFamily: 'inherit',
+              flex: 1,
+              padding: '24px 20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
             }}
           >
-            Log In
-          </button>
-        </p>
-      </div>
-    </div>
+            <button
+              type="button"
+              onClick={() => navigate('/welcome')}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 20,
+                backgroundColor: AUTH_THEME.buttonGhost,
+                border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                marginBottom: 20,
+                flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={20} color={AUTH_THEME.textPrimary} weight="light" />
+            </button>
+
+            <h1
+              style={{
+                fontSize: 26,
+                fontWeight: 800,
+                letterSpacing: -0.5,
+                margin: '0 0 8px',
+              }}
+            >
+              Create your account
+            </h1>
+            <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5, margin: '0 0 28px' }}>
+              Start tracking your expenses in minutes
+            </p>
+
+            {error && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  borderRadius: 14,
+                  padding: '12px 16px',
+                  marginBottom: 20,
+                  fontSize: 14,
+                  color: '#FCA5A5',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                Email
+              </label>
+              <FormInput
+                type="email"
+                tone="dark"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <FormInput
+                  type={showPassword ? 'text' : 'password'}
+                  tone="dark"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  style={{ paddingRight: 48 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 8,
+                  }}
+                >
+                  {showPassword ? (
+                    <EyeSlash size={20} color={AUTH_THEME.textMuted} />
+                  ) : (
+                    <Eye size={20} color={AUTH_THEME.textMuted} />
+                  )}
+                </button>
+              </div>
+
+              {password && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                    {[1, 2, 3, 4].map(level => (
+                      <div
+                        key={level}
+                        style={{
+                          flex: 1,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor:
+                            level <= passwordStrength.score
+                              ? passwordStrength.color
+                              : AUTH_THEME.progressTrack,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 12, color: passwordStrength.color, margin: 0 }}>
+                    {passwordStrength.label}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12,
+                marginBottom: 24,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={e => setTermsAccepted(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer', marginTop: 2 }}
+              />
+              <span style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5 }}>
+                I agree to the{' '}
+                <a href="/settings/privacy" style={{ color: AUTH_THEME.accentMint, textDecoration: 'none' }}>
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="/settings/privacy" style={{ color: AUTH_THEME.accentMint, textDecoration: 'none' }}>
+                  Privacy Policy
+                </a>
+              </span>
+            </label>
+
+            <Button
+              onClick={handleSignUp}
+              disabled={loading}
+              style={{
+                width: '100%',
+                height: 52,
+                fontSize: 16,
+                fontWeight: 700,
+                backgroundColor: AUTH_THEME.buttonPrimary,
+                color: AUTH_THEME.buttonPrimaryText,
+                borderRadius: 20,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+                marginBottom: 24,
+              }}
+            >
+              {loading ? 'Creating account…' : 'Sign Up'}
+            </Button>
+
+            <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, textAlign: 'center', margin: 0 }}>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: AUTH_THEME.accentMint,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontFamily: 'inherit',
+                }}
+              >
+                Log In
+              </button>
+            </p>
+          </div>
+    </AuthScreenShell>
   );
 }
 

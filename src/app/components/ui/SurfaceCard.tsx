@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { useAppColors } from '../../context/AppearanceContext';
 
 /**
- * Single white surface for chart/list content.
+ * Single surface for chart/list content.
  * Do not wrap stacks of item cards — use one SurfaceCard OR many item cards, not both.
  */
 export function SurfaceCard({
@@ -13,13 +14,14 @@ export function SurfaceCard({
   style?: CSSProperties;
   padding?: number | string;
 }) {
+  const c = useAppColors();
   return (
     <div
       style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         borderRadius: 16,
         padding,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+        boxShadow: c.shadowCard,
         ...style,
       }}
     >

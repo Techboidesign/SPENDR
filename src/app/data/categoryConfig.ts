@@ -154,7 +154,7 @@ export const CATEGORY_COLOR_PRESETS = [
   { id: 'pink', color: '#DB2777', bg: '#FCE7F3', iconColor: '#BE185D' },
   { id: 'rose', color: '#E11D48', bg: '#FFE4E6', iconColor: '#BE123C' },
   { id: 'slate', color: '#475569', bg: '#F1F5F9', iconColor: '#334155' },
-  { id: 'charcoal', color: '#1A1A2E', bg: '#E8E8EB', iconColor: '#0D0D17' },
+  { id: 'charcoal', color: '#4A4A58', bg: '#E8E8EB', iconColor: '#3F3F48' },
 ] as const;
 
 function hexToHue(hex: string): number {

@@ -34,6 +34,19 @@ export interface CustomCategory {
   iconKey: string;
 }
 
+/** User-facing light/dark for the main app shell. */
+export type AppearanceMode = 'light' | 'dark';
+
+/** In-app banner alert toggles (onboarding + Settings). */
+export interface NotificationPreferences {
+  budgetAlerts: boolean;
+  weeklySummary: boolean;
+  billReminders: boolean;
+  goalMilestones: boolean;
+  /** Recurring / bill-style reminders (Settings label). */
+  recurringReminders: boolean;
+}
+
 export interface AppState {
   expenses: Expense[];
   income: number;
@@ -43,11 +56,12 @@ export interface AppState {
   userName: string;
   userFullName: string;
   userEmail: string;
-  userUsername: string;
   userPhone: string;
   userAvatar: string; // base64 data URL or empty string
   categoryCustomizations: Record<string, CategoryCustomization>;
   customCategories: CustomCategory[];
+  notificationPreferences: NotificationPreferences;
+  appearance: AppearanceMode;
 }
 
 export type Action =
@@ -59,15 +73,16 @@ export type Action =
   | { type: 'DELETE_EXPENSE'; id: string }
   | { type: 'DELETE_EXPENSES'; ids: string[] }
   | { type: 'SET_INCOME'; amount: number }
-  | { type: 'SET_BUDGET'; amount: number }
+  | { type: 'SET_BUDGET'; amount: number; categoryIds?: string[] }
   | { type: 'SET_CATEGORY_BUDGET'; categoryId: string; amount: number }
   | { type: 'SET_CURRENCY'; currency: string }
   | { type: 'SET_USER_NAME'; name: string }
   | { type: 'SET_USER_FULL_NAME'; fullName: string }
   | { type: 'SET_USER_EMAIL'; email: string }
-  | { type: 'SET_USER_USERNAME'; username: string }
   | { type: 'SET_USER_PHONE'; phone: string }
   | { type: 'SET_USER_AVATAR'; avatar: string }
   | { type: 'SET_CATEGORY_CUSTOMIZATION'; categoryId: string; customization: CategoryCustomization }
   | { type: 'ADD_CUSTOM_CATEGORY'; category: CustomCategory }
-  | { type: 'UPDATE_CUSTOM_CATEGORY'; category: CustomCategory };
+  | { type: 'UPDATE_CUSTOM_CATEGORY'; category: CustomCategory }
+  | { type: 'SET_NOTIFICATION_PREFERENCES'; preferences: NotificationPreferences }
+  | { type: 'SET_APPEARANCE'; mode: AppearanceMode };

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowUp, ArrowDown, ArrowRight, CaretRight, PiggyBank, Wallet } from '@phosphor-icons/react';
+import { ArrowUp, ArrowDown, ArrowRight, CaretRight, PiggyBank, Wallet, Package } from '@phosphor-icons/react';
 import { useApp, getCategoryTotals } from '../../context/AppContext';
 import type { HomeRange } from '../../utils/periods';
 import { CURRENT_MONTH_KEY, YEAR_MONTH_BARS } from '../../utils/periods';
@@ -14,6 +14,11 @@ import { RecentTransactionsList } from '../home/RecentTransactionsCard';
 import { SectionTitle } from '../ui/SectionTitle';
 import { SurfaceCard } from '../ui/SurfaceCard';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { budgetRingTrackColor, chartTooltipStyle } from '../../theme/darkModeUi';
+import { categoryChartColor } from '../../theme/categoryDisplayColor';
+import { CATEGORY_ICON_MAP, type CategoryIconKey } from '../../data/categoryConfig';
+import { AppIconChip } from '../ui/AppIconChip';
 
 /* ─── SVG donut constants ─────────────────────────────── */
 const SVG_W   = 362;   // full card width
@@ -43,6 +48,7 @@ function HeroDonutBudgetRing({
   /** Changes on month/year/range — retriggers a smooth fill from 0 */
   animationKey: string;
 }) {
+  const c = useAppColors();
   const target = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : 0;
   const [displayPercent, setDisplayPercent] = useState(0);
   const circumference = 2 * Math.PI * BUDGET_RING_R;
@@ -66,7 +72,7 @@ function HeroDonutBudgetRing({
 
   return (
     <>
-      <circle cx={CX} cy={CY} r={FROST_R} fill="#FFFFFF" fillOpacity={0.96} />
+      <circle cx={CX} cy={CY} r={FROST_R} fill={c.surface} fillOpacity={0.96} />
       <circle
         cx={CX}
         cy={CY}
@@ -91,6 +97,46 @@ function HeroDonutBudgetRing({
   );
 }
 
+function DonutSegmentGlyph({
+  categoryId,
+  x,
+  y,
+  sweepDeg,
+  dimmed,
+}: {
+  categoryId: string;
+  x: number;
+  y: number;
+  sweepDeg: number;
+  dimmed: boolean;
+}) {
+  const { getCategory } = useApp();
+  if (sweepDeg < 18) return null;
+
+  const iconSize = sweepDeg < 32 ? 11 : sweepDeg < 50 ? 13 : 15;
+  const category = getCategory(categoryId);
+  const IconComp =
+    CATEGORY_ICON_MAP[category.iconKey as CategoryIconKey] ?? Package;
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+        opacity: dimmed ? 0.45 : 0.92,
+        transition: 'opacity 0.2s ease',
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.28))',
+      }}
+    >
+      <IconComp size={iconSize} weight="fill" color="#FFFFFF" />
+    </div>
+  );
+}
+
 /* ─── SVG Donut component ────────────────────────────── */
 function DonutChart({
   segments,
@@ -99,14 +145,17 @@ function DonutChart({
   budgetColor,
   budgetBg,
   budgetRingKey,
+  isDark,
 }: {
-  segments: { fill: string; amount: number; name: string }[];
+  segments: { id: string; fill: string; amount: number; name: string }[];
   formatCurrency: (n: number) => string;
   budgetPercent: number;
   budgetColor: string;
   budgetBg: string;
   budgetRingKey: string;
+  isDark: boolean;
 }) {
+  const c = useAppColors();
   const [hoveredIdx, setHoveredIdx] = React.useState<number | null>(null);
   const total = segments.reduce((s, c) => s + c.amount, 0);
   if (total === 0) return null;
@@ -122,7 +171,14 @@ function DonutChart({
   const cornerRadius = 6;
 
   // Build donut wedges (annular sectors) with gaps and rounded corners
-  const wedges: { d: string; fill: string; centerX: number; centerY: number }[] = [];
+  const wedges: {
+    d: string;
+    fill: string;
+    centerX: number;
+    centerY: number;
+    categoryId: string;
+    sweepDeg: number;
+  }[] = [];
   let startAngle = -90; // start at 12 o'clock
 
   segments.forEach(seg => {
@@ -191,7 +247,14 @@ function DonutChart({
       'Z'
     ].join(' ');
 
-    wedges.push({ d, fill: seg.fill, centerX, centerY });
+    wedges.push({
+      d,
+      fill: seg.fill,
+      centerX,
+      centerY,
+      categoryId: seg.id,
+      sweepDeg: fullSweep,
+    });
     startAngle += fullSweep; // advance by full sweep including gap
   });
 
@@ -201,13 +264,15 @@ function DonutChart({
   return (
     <div style={{ position: 'relative' }}>
       <svg width={SVG_W} height={SVG_H} style={{ display: 'block' }}>
-        {/* Background ring */}
+        {/* Background ring — segments only; no fill track */}
+        {!isDark && (
         <circle
           cx={CX} cy={CY} r={R}
           fill="none"
-          stroke="#F0EFFE"
+          stroke="transparent"
           strokeWidth={SW}
         />
+        )}
 
         {/* Segmented donut wedges */}
         {wedges.map((w, i) => (
@@ -240,6 +305,17 @@ function DonutChart({
         />
       </svg>
 
+      {wedges.map((w, i) => (
+        <DonutSegmentGlyph
+          key={`glyph-${w.categoryId}-${i}`}
+          categoryId={w.categoryId}
+          x={w.centerX}
+          y={w.centerY}
+          sweepDeg={w.sweepDeg}
+          dimmed={hoveredIdx !== null && hoveredIdx !== i}
+        />
+      ))}
+
       {/* Tooltip positioned at segment center */}
       {hoveredSegment && hoveredWedge && (
         <div style={{
@@ -247,22 +323,21 @@ function DonutChart({
           left: hoveredWedge.centerX,
           top: hoveredWedge.centerY,
           transform: 'translate(-50%, -50%)',
-          backgroundColor: '#1A1A2E',
-          color: '#FFFFFF',
+          backgroundColor: chartTooltipStyle().backgroundColor,
           padding: '8px 14px',
           borderRadius: 10,
           fontSize: 12,
           fontWeight: 600,
           whiteSpace: 'nowrap',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          boxShadow: chartTooltipStyle().boxShadow,
           zIndex: 100,
           pointerEvents: 'none',
           animation: 'fadeIn 0.2s ease-out',
         }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 2 }}>
+          <div style={{ fontSize: 11, color: chartTooltipStyle().labelColor, marginBottom: 2 }}>
             {hoveredSegment.name}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>
+          <div className="font-figure" style={{ fontSize: 14, color: chartTooltipStyle().valueColor }}>
             {formatCurrency(hoveredSegment.amount)}
           </div>
         </div>
@@ -273,6 +348,8 @@ function DonutChart({
 
 /* ═══════════════════════════════════════════════════════ */
 export default function HomeScreen() {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const { state, formatCurrency, categories } = useApp();
   const navigate = useNavigate();
   const [range, setRange] = useState<HomeRange>('month');
@@ -336,6 +413,7 @@ export default function HomeScreen() {
 
   const budgetColor = budgetPct < 60 ? '#10B981' : budgetPct < 85 ? '#F59E0B' : '#EF4444';
   const budgetBg    = budgetPct < 60 ? '#D1FAE5' : budgetPct < 85 ? '#FEF3C7' : '#FEE2E2';
+  const budgetBadgeBg = isDark ? budgetRingTrackColor(budgetBg, isDark, c) : budgetBg;
   const budgetRingKey = `${range}-${selectedMonthKey}`;
 
   const insightCards = useHomeInsightCards(formatCurrency, insights.monthlyBarData);
@@ -355,22 +433,23 @@ export default function HomeScreen() {
     {
       label: 'Income',
       value: formatCurrency(state.income),
-      icon: <ArrowUp size={13} weight="light" color="#3E37FF" />,
-      bg: '#EDEDFF',
+      Icon: ArrowUp,
+      accentColor: '#3E37FF',
+      lightBg: '#EDEDFF',
     },
     {
       label: 'Remaining',
       value: formatCurrency(Math.abs(remaining)),
-      icon: remaining >= 0
-        ? <Wallet    size={13} weight="light" color="#10B981" />
-        : <ArrowDown size={13} weight="light" color="#EF4444" />,
-      bg: remaining >= 0 ? '#D1FAE5' : '#FEE2E2',
+      Icon: remaining >= 0 ? Wallet : ArrowDown,
+      accentColor: remaining >= 0 ? '#10B981' : '#EF4444',
+      lightBg: remaining >= 0 ? '#D1FAE5' : '#FEE2E2',
     },
     {
       label: 'Saved',
       value: `${savingsRate}%`,
-      icon: <PiggyBank size={13} weight="light" color="#7C3AED" />,
-      bg: '#F3E8FF',
+      Icon: PiggyBank,
+      accentColor: '#7C3AED',
+      lightBg: '#F3E8FF',
     },
   ];
 
@@ -385,7 +464,7 @@ export default function HomeScreen() {
           height: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',
-          backgroundColor: '#F5F5FA',
+          backgroundColor: c.canvasHome,
           paddingBottom: TAB_BAR_CLEARANCE,
           overscrollBehaviorX: 'none',
         }}
@@ -396,12 +475,13 @@ export default function HomeScreen() {
             ╚══════════════════════════╝ */}
         <div style={{
           position: 'relative',
-          overflow: 'hidden',
-          background: 'linear-gradient(168deg,#ECEAFF 0%,#E5E2FF 22%,#EEF0FF 52%,#F3F2FF 85%,#F5F5FA 100%)',
-          paddingBottom: 16,
-          marginBottom: 16,
+          overflow: 'visible',
+          background: c.heroGradient,
+          paddingBottom: 28,
+          marginBottom: 8,
           boxSizing: 'content-box',
         }}>
+          <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
           {/* Bottom fade into page background */}
           <div
             aria-hidden
@@ -413,7 +493,7 @@ export default function HomeScreen() {
               height: 72,
               pointerEvents: 'none',
               zIndex: 4,
-              background: 'linear-gradient(to bottom, rgba(245,245,250,0) 0%, #F5F5FA 88%)',
+              background: `linear-gradient(to bottom, transparent 0%, ${c.canvasHome} 88%)`,
             }}
           />
           {/* Decorative blobs */}
@@ -426,6 +506,7 @@ export default function HomeScreen() {
           <div style={{ position:'absolute', width:130, height:130, borderRadius:'50%',
             background:'radial-gradient(circle,rgba(139,92,246,0.08) 0%,transparent 70%)',
             bottom:80, right:20, pointerEvents:'none' }} />
+          </div>
 
           {/* Top row — period toggle (left) + avatar (right) */}
           <div style={{
@@ -481,9 +562,9 @@ export default function HomeScreen() {
           {/* ── White card ── */}
           <div style={{
             margin: '0 14px',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: c.surface,
             borderRadius: 22,
-            boxShadow: '0 6px 28px rgba(62,55,255,0.11), 0 2px 8px rgba(0,0,0,0.05)',
+            boxShadow: c.shadow,
             overflow: 'hidden',
             position: 'relative',
             zIndex: 5,
@@ -498,28 +579,30 @@ export default function HomeScreen() {
                   <circle
                     cx={CX} cy={CY} r={R}
                     fill="none"
-                    stroke="#F0EFFE"
+                    stroke="transparent"
                     strokeWidth={SW}
                   />
                   <HeroDonutBudgetRing
                     percent={budgetPct}
                     color={budgetColor}
-                    bg={budgetBg}
+                    bg={budgetBadgeBg}
                     animationKey={budgetRingKey}
                   />
                 </svg>
               ) : (
                 <DonutChart
                   segments={topCategories.map(cat => ({
-                    fill: cat.color,
+                    id: cat.id,
+                    fill: categoryChartColor(cat, isDark),
                     amount: cat.amount,
-                    name: cat.name
+                    name: cat.name,
                   }))}
                   formatCurrency={formatCurrency}
                   budgetPercent={budgetPct}
                   budgetColor={budgetColor}
-                  budgetBg={budgetBg}
+                  budgetBg={budgetBadgeBg}
                   budgetRingKey={budgetRingKey}
+                  isDark={isDark}
                 />
               )}
 
@@ -548,14 +631,16 @@ export default function HomeScreen() {
                   }}>
                     {spentLabel}
                   </span>
-                  <span style={{
-                    display: 'block',
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: '#1A1A2E',
-                    letterSpacing: -1.2,
-                    lineHeight: 1,
-                  }}>
+                  <span
+                    className="font-figure"
+                    style={{
+                      display: 'block',
+                      fontSize: 28,
+                      color: c.text,
+                      letterSpacing: -1.2,
+                      lineHeight: 1,
+                    }}
+                  >
                     {formatCurrency(animatedSpent)}
                   </span>
                   <button
@@ -565,7 +650,7 @@ export default function HomeScreen() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 3,
-                      backgroundColor: budgetBg,
+                      backgroundColor: budgetBadgeBg,
                       borderRadius: 12,
                       padding: '4px 6px 4px 10px',
                       border: `1px solid ${budgetColor}40`,
@@ -598,22 +683,24 @@ export default function HomeScreen() {
             </div>
 
             {/* Stats strip */}
-            <div style={{ display:'flex', borderTop:'1px solid #F3F4F6' }}>
+            <div style={{ display:'flex', borderTop:`1px solid ${c.divider}` }}>
               {stats.map((s, i) => (
                 <div key={s.label} style={{
                   flex:1, padding:'13px 8px 14px', textAlign:'center',
-                  borderRight: i < 2 ? '1px solid #F3F4F6' : 'none',
+                  borderRight: i < 2 ? `1px solid ${c.divider}` : 'none',
                   animation: `fadeIn 0.6s ease-out ${0.7 + i * 0.1}s both`,
                 }}>
-                  <div style={{ width:30, height:30, borderRadius:9, backgroundColor:s.bg,
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    margin:'0 auto 7px' }}>
-                    {s.icon}
+                  <div style={{ margin:'0 auto 7px', display:'flex', justifyContent:'center' }}>
+                    <AppIconChip icon={s.Icon} accentColor={s.accentColor} lightBg={s.lightBg} size={30} iconSize={13} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-                    <p style={{ fontSize:13, fontWeight:800, color:'#1A1A2E',
-                      margin:0, letterSpacing:-0.3, lineHeight:1.1 }}>{s.value}</p>
-                    <p style={{ fontSize:10, color:'#9CA3AF', margin:0, fontWeight:500, lineHeight:1.1 }}>{s.label}</p>
+                    <p
+                      className="font-figure"
+                      style={{ fontSize: 13, color: c.text, margin: 0, letterSpacing: -0.3, lineHeight: 1.1 }}
+                    >
+                      {s.value}
+                    </p>
+                    <p style={{ fontSize:10, color: c.textFaint, margin:0, fontWeight:500, lineHeight:1.1 }}>{s.label}</p>
                   </div>
                 </div>
               ))}
@@ -634,7 +721,7 @@ export default function HomeScreen() {
           )}
 
           {range === 'month' && (
-            <section>
+            <section style={{ overflow: 'visible' }}>
               <SectionTitle>Top expenses</SectionTitle>
               <TopExpensesCard
                 items={insights.topExpenses}
@@ -653,18 +740,18 @@ export default function HomeScreen() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
-                    backgroundColor: '#EDEDFF',
+                    backgroundColor: c.accentSoft,
                     border: 'none',
                     borderRadius: 20,
                     padding: '5px 10px',
                     cursor: 'pointer',
                     fontSize: 11,
                     fontWeight: 600,
-                    color: '#3E37FF',
+                    color: c.accent,
                     fontFamily: 'inherit',
                   }}
                 >
-                  See all <ArrowRight size={11} weight="light" color="#3E37FF" />
+                  See all <ArrowRight size={11} weight="light" color={c.accent} />
                 </button>
               }
             >

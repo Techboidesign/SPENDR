@@ -1,0 +1,61 @@
+---
+description: Standard section titles and list row labels — uppercase gray headers, bold row text
+globs: "src/app/**/*.tsx"
+alwaysApply: false
+---
+
+# Section titles & list row labels
+
+## Section titles (outside cards)
+
+Use `SectionTitle` from `src/app/components/ui/SectionTitle.tsx` for every block heading above a card or list:
+
+- Home: Insights, Top expenses, Recent transactions, Spending trend
+- Budget: Categories budget limit
+- Expenses: date groups (19th of May, …)
+- Settings: use `sectionTitleStyle()` via `SettingsSection` (same visual)
+
+**Do not** use ad-hoc `fontSize: 16`, `fontWeight: 700`, or sentence-case headings for these.
+
+### Tokens (`src/app/theme/typography.ts`)
+
+- `sectionTitleStyle(c)` — 11px, 600, `c.textFaint`, `letterSpacing: 0.8`, **uppercase**
+- Change appearance in **one place** only (`typography.ts`)
+
+```tsx
+import { SectionTitle } from '../ui/SectionTitle';
+
+<SectionTitle>Top expenses</SectionTitle>
+<SurfaceCard>...</SurfaceCard>
+```
+
+String children are uppercased automatically. Non-string children are rendered as-is.
+
+Optional `inset` prop for list screens with horizontal gutter padding (Expenses date headers).
+
+## List row labels (inside cards / settings rows)
+
+Use `listRowLabelStyle(c)` from `src/app/theme/typography.ts` for:
+
+- Settings: Currency, Dark mode, Categories, Export/Import, notification toggles, Log out, Help, Privacy
+- Budget featured cards: Monthly income, Monthly budget
+- Category budget row titles on Budget & Goals
+
+```tsx
+const c = useAppColors();
+<span style={listRowLabelStyle(c)}>Currency</span>
+```
+
+**Tokens:** 15px, Mona Sans **`'wdth' 125, 'wght' 700`**, `fontStretch: 125%`, `c.text` (same expanded face as `.font-figure`, slightly lighter weight than hero numerals).
+
+Do not use `fontWeight: 500` / `fontSize: 14` for these labels.
+
+## Category budget cards (Budget & Goals)
+
+- **Section** above the list: `SectionTitle` only (e.g. “Categories budget limit” → `CATEGORIES BUDGET LIMIT`).
+- **Row titles** (Rent/Housing, Groceries, …): **14px / 700 / `c.text`** — not `listRowLabelStyle` (no expanded Mona).
+- **Card fill:** `c.surface` (white in light, `surface` in dark) — not `surfaceMuted`.
+
+## Layout (unchanged)
+
+Section title **above** the card; no title inside a wrapper card that contains other cards. See `section-cards.mdc`.

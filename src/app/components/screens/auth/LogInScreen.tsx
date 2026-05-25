@@ -6,6 +6,8 @@ import { FormInput } from '../../shared/FormFields';
 import { useOnboarding, type OnboardingState } from '../../../context/OnboardingContext';
 import { fetchOnboarding } from '../../../services/onboardingService';
 import { getSupabase, isSupabaseConfigured } from '../../../../lib/supabase';
+import { AuthScreenShell } from '../../auth/AuthScreenShell';
+import { AUTH_THEME } from '../../../theme/authTheme';
 
 export default function LogInScreen() {
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ export default function LogInScreen() {
     } else if (o.status === 'in_progress' && o.lastStepId) {
       navigate(`/onboarding/${o.lastStepId}`);
     } else {
-      navigate('/onboarding/name-basics');
+      navigate('/onboarding/goal');
     }
   };
 
@@ -54,91 +56,79 @@ export default function LogInScreen() {
     }
   };
 
-  const handleSocialLogIn = (_method: 'google' | 'apple') => {
-    setError('Social sign-in coming soon. Use email for now.');
-  };
-
   return (
-    <div style={{
-      height: '100%',
-      backgroundColor: '#F5F5FA',
-      padding: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* Header */}
-      <button
-        onClick={() => navigate('/welcome')}
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 20,
-          backgroundColor: '#FFFFFF',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          marginBottom: 24,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        }}
-      >
-        <ArrowLeft size={20} color="#1A1A2E" weight="light" />
-      </button>
+    <AuthScreenShell>
+      <div style={{ flex: 1, padding: '24px 20px 24px', display: 'flex', flexDirection: 'column' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/welcome')}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 20,
+            backgroundColor: AUTH_THEME.buttonGhost,
+            border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            marginBottom: 24,
+          }}
+        >
+          <ArrowLeft size={20} color={AUTH_THEME.textPrimary} weight="light" />
+        </button>
 
-      <div style={{ width: '100%' }}>
-        {/* Title */}
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: -0.5, margin: '0 0 8px' }}>
+        <div style={{ width: '100%' }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5, margin: '0 0 8px' }}>
           Welcome back
         </h1>
-        <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5, margin: '0 0 32px' }}>
+        <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5, margin: '0 0 32px' }}>
           Log in to your account to continue
         </p>
 
-        {/* Error */}
         {error && (
-          <div style={{
-            backgroundColor: '#FEE2E2',
-            border: '1px solid #EF4444',
-            borderRadius: 14,
-            padding: '12px 16px',
-            marginBottom: 20,
-            fontSize: 14,
-            color: '#EF4444',
-          }}>
+          <div
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.5)',
+              borderRadius: 14,
+              padding: '12px 16px',
+              marginBottom: 20,
+              fontSize: 14,
+              color: '#FCA5A5',
+            }}
+          >
             {error}
           </div>
         )}
 
         {/* Email */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
-            Email
-          </label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Email</label>
           <FormInput
             type="email"
+            tone="dark"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
-            
           />
         </div>
 
-        {/* Password */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>
-            Password
-          </label>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Password</label>
           <div style={{ position: 'relative' }}>
             <FormInput
               type={showPassword ? 'text' : 'password'}
+              tone="dark"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Enter your password"
               style={{ paddingRight: 48 }}
             />
             <button
-              onClick={() => setShowPassword(!showPassword)}
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               style={{
                 position: 'absolute',
                 right: 12,
@@ -150,7 +140,11 @@ export default function LogInScreen() {
                 padding: 8,
               }}
             >
-              {showPassword ? <EyeSlash size={20} color="#9CA3AF" /> : <Eye size={20} color="#9CA3AF" />}
+              {showPassword ? (
+                <EyeSlash size={20} color={AUTH_THEME.textMuted} />
+              ) : (
+                <Eye size={20} color={AUTH_THEME.textMuted} />
+              )}
             </button>
           </div>
         </div>
@@ -158,11 +152,12 @@ export default function LogInScreen() {
         {/* Forgot password */}
         <div style={{ textAlign: 'right', marginBottom: 24 }}>
           <button
+            type="button"
             onClick={() => navigate('/forgot-password')}
             style={{
               background: 'none',
               border: 'none',
-              color: '#3E37FF',
+              color: AUTH_THEME.accentMint,
               fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',
@@ -176,55 +171,31 @@ export default function LogInScreen() {
         {/* Log in button */}
         <Button
           onClick={handleLogIn}
+          disabled={loading}
           style={{
             width: '100%',
             height: 52,
             fontSize: 16,
             fontWeight: 700,
-            backgroundColor: '#3E37FF',
-            color: '#FFFFFF',
+            backgroundColor: AUTH_THEME.buttonPrimary,
+            color: AUTH_THEME.buttonPrimaryText,
             borderRadius: 20,
-            boxShadow: '0 4px 14px rgba(62,55,255,0.30)',
-            marginBottom: 20,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+            marginBottom: 24,
           }}
         >
-          Log In
+          {loading ? 'Logging in…' : 'Log In'}
         </Button>
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-          <div style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
-          <span style={{ fontSize: 14, color: '#9CA3AF' }}>or continue with</span>
-          <div style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
-        </div>
-
-        {/* Social buttons */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          <Button
-            variant="outline"
-            onClick={() => handleSocialLogIn('google')}
-            style={{ flex: 1, height: 52, fontSize: 16, fontWeight: 700, borderRadius: 20 }}
-          >
-            Google
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleSocialLogIn('apple')}
-            style={{ flex: 1, height: 52, fontSize: 16, fontWeight: 700, borderRadius: 20 }}
-          >
-            Apple
-          </Button>
-        </div>
-
-        {/* Sign up link */}
-        <p style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', margin: 0 }}>
-          Don't have an account?{' '}
+        <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, textAlign: 'center', margin: 0 }}>
+          Don&apos;t have an account?{' '}
           <button
+            type="button"
             onClick={() => navigate('/signup')}
             style={{
               background: 'none',
               border: 'none',
-              color: '#3E37FF',
+              color: AUTH_THEME.accentMint,
               fontWeight: 600,
               cursor: 'pointer',
               fontSize: 14,
@@ -234,7 +205,8 @@ export default function LogInScreen() {
             Sign Up
           </button>
         </p>
+        </div>
       </div>
-    </div>
+    </AuthScreenShell>
   );
 }

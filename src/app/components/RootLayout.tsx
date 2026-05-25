@@ -1,9 +1,11 @@
 import { Outlet } from 'react-router';
 import { BottomTabBar } from './BottomTabBar';
+import { MODAL_OVERLAY_Z } from './BottomSheetModal';
 import { AddExpenseModal } from './AddExpenseModal';
 import { ReceiptParseOverlay } from './ReceiptParseOverlay';
 import { useApp } from '../context/AppContext';
 import DeviceShell from './DeviceShell';
+import { NotificationAlertRunner } from './NotificationAlertRunner';
 
 export default function RootLayout() {
   const { showAddModal, isParsingReceipt, parseStatusMessage } = useApp();
@@ -15,7 +17,7 @@ export default function RootLayout() {
           <BottomTabBar />
           <div
             id="app-modal-host"
-            style={{ position: 'absolute', inset: 0, zIndex: 200, pointerEvents: 'none' }}
+            style={{ position: 'absolute', inset: 0, zIndex: MODAL_OVERLAY_Z, pointerEvents: 'none' }}
           />
         </>
       }
@@ -26,6 +28,7 @@ export default function RootLayout() {
         </>
       }
     >
+      <NotificationAlertRunner />
       <Outlet />
     </DeviceShell>
   );

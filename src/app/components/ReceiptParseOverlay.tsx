@@ -1,7 +1,10 @@
 import { motion } from 'motion/react';
 import { Sparkle } from '@phosphor-icons/react';
+import { useAppColors } from '../context/AppearanceContext';
 
 export function ReceiptParseOverlay({ message }: { message: string }) {
+  const c = useAppColors();
+
   return (
     <div
       style={{
@@ -11,7 +14,7 @@ export function ReceiptParseOverlay({ message }: { message: string }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        backgroundColor: c.overlay,
         pointerEvents: 'auto',
       }}
     >
@@ -20,12 +23,12 @@ export function ReceiptParseOverlay({ message }: { message: string }) {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 480, damping: 28 }}
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: c.modalSheet,
           borderRadius: 20,
           padding: '28px 32px',
           maxWidth: 280,
           textAlign: 'center',
-          boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
+          boxShadow: c.shadow,
         }}
       >
         <motion.div
@@ -35,19 +38,19 @@ export function ReceiptParseOverlay({ message }: { message: string }) {
             width: 52,
             height: 52,
             borderRadius: 16,
-            backgroundColor: '#EDEDFF',
+            backgroundColor: c.accentSoft,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 14px',
           }}
         >
-          <Sparkle size={28} weight="fill" color="#3E37FF" />
+          <Sparkle size={28} weight="fill" color={c.accent} />
         </motion.div>
-        <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: '0 0 6px' }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: c.text, margin: '0 0 6px' }}>
           Reading with AI
         </p>
-        <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>
+        <p style={{ fontSize: 13, color: c.textMuted, margin: 0, lineHeight: 1.45 }}>
           {message}
         </p>
       </motion.div>

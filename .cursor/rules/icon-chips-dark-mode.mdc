@@ -1,0 +1,49 @@
+---
+description: Icon chip styling — pastel tile in light mode, gradient tile in dark mode
+alwaysApply: true
+---
+
+# Icon chips (Settings, Profile, Home stats, Budget)
+
+## Required pattern
+
+Use **`AppIconChip`** or **`uiIconChipStyle(accentColor, isDark, lightBg?)`** from `src/app/theme/darkModeUi.ts` for every small UI icon in a rounded square (settings rows, profile fields, home stat strip, currency picker, notifications, data export, etc.).
+
+```tsx
+import { AppIconChip } from '../ui/AppIconChip';
+
+<AppIconChip icon={ChartBar} accentColor="#EF4444" lightBg="#FEE2E2" />
+```
+
+## Light mode
+
+- Container uses a **pastel background** — pass explicit `lightBg` (e.g. `#EDEDFF`, `#D1FAE5`) or rely on `hexToRgba(accentColor, 0.14)`.
+- Icon glyph uses the **accent color** directly.
+
+## Dark mode
+
+- Container uses **`onboardingIconGradient(accentColor)`** (dark accent gradient, same as Budget & Goals feature cards).
+- Icon glyph is **white / `#FFFFFF`** (`ONBOARDING_CHIP_ICON`).
+
+## Category icons
+
+Use **`CategoryIcon`** with default `tone="auto"` — pastel `category.bg` in light mode, gradient dark.
+
+**Exception:** Settings category **pills** use `tone="light"` — no chip background inside the pill (icon only).
+
+## Feature cards
+
+Use **`FeatureCardIcon`** / **`featureIconTile`** — light mode uses `accentBg` pastel tile + accent glyph; dark mode uses gradient + white glyph.
+
+## Do not
+
+- Leave icon containers transparent in light mode on main app screens.
+- Use dark tinted surfaces (`mixTowardBlack`) for light-mode feature card icons.
+
+## Chart tooltips
+
+Use **`chartTooltipStyle()`** — dark background `#14141E`, light label/value text. Never `c.text` as tooltip bg in dark mode.
+
+## Active pills (List / Insights toggle, Month / Year)
+
+When the active tab has a **light** background in dark mode (`tabActiveBg`), foreground must be **`tabActiveIcon`** (dark ink), not `onAccent`.

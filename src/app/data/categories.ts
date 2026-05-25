@@ -15,7 +15,7 @@ export const CATEGORIES: Category[] = [
   { id: 'entertainment',  name: 'Entertainment',     color: '#4B13E8', bg: '#EEEAFD' },
   { id: 'health',         name: 'Health & Fitness',  color: '#F7A54D', bg: '#FEF5EC', iconColor: '#C66F1A' },
   { id: 'shopping',       name: 'Shopping',          color: '#A065FF', bg: '#F7F0FF' },
-  { id: 'utilities',      name: 'Utilities',         color: '#0D0D17', bg: '#E8E8EB' },
+  { id: 'utilities',      name: 'Utilities',         color: '#4A4A58', bg: '#E8E8EB', iconColor: '#3F3F48' },
   { id: 'other',          name: 'Other',             color: '#8B8D9E', bg: '#F2F2F5', iconColor: '#5A5B6B' },
 ];
 

@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { hexToRgba, chartTooltipStyle } from '../../theme/darkModeUi';
 import { PieChart, Pie } from 'recharts';
 import { TrendUp, TrendDown, ChartPieSlice } from '@phosphor-icons/react';
 import { useApp, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
@@ -34,6 +36,8 @@ function getMonthsForRange(range: Range) {
 
 /* ── Pure CSS bar chart ── */
 function CssBarChart({ data }: { data: { month: string; total: number; isLast: boolean }[] }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const [hovered, setHovered] = useState<number | null>(null);
   const maxVal = Math.max(...data.map(d => d.total), 1);
 
@@ -56,11 +60,11 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
                 <div style={{
                   position: 'absolute', bottom: barH + 8, left: '50%',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#1A1A2E', borderRadius: 8, padding: '6px 10px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap', zIndex: 10,
+                  backgroundColor: chartTooltipStyle().backgroundColor, borderRadius: 8, padding: '6px 10px',
+                  boxShadow: chartTooltipStyle().boxShadow, whiteSpace: 'nowrap', zIndex: 10,
                 }}>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 1px' }}>{d.month}</p>
-                  <p style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 700, margin: 0 }}>€{d.total.toFixed(0)}</p>
+                  <p style={{ fontSize: 11, color: chartTooltipStyle().labelColor, margin: '0 0 1px' }}>{d.month}</p>
+                  <p style={{ fontSize: 13, color: chartTooltipStyle().valueColor, fontWeight: 700, margin: 0 }}>€{d.total.toFixed(0)}</p>
                 </div>
               )}
               {isEmpty ? (
@@ -68,9 +72,11 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
                 <div style={{
                   width: '100%', height: emptyBarH,
                   borderRadius: '5px 5px 0 0',
-                  border: '1.5px dashed #D1D5DB',
-                  backgroundColor: '#FAFAFA',
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #E5E7EB 6px, #E5E7EB 8px)',
+                  border: `1.5px dashed ${c.borderSubtle}`,
+                  backgroundColor: c.surfaceInset,
+                  backgroundImage: isDark
+                    ? undefined
+                    : 'repeating-linear-gradient(45deg, transparent, transparent 6px, #E5E7EB 6px, #E5E7EB 8px)',
                   cursor: 'default',
                   transformOrigin: 'bottom',
                   animation: `barGrow 0.6s ease-out ${i * 0.05}s both`,
@@ -78,7 +84,7 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
               ) : (
                 <div style={{
                   width: '100%', height: barH,
-                  backgroundColor: d.isLast ? '#3E37FF' : '#EDEDFF',
+                  backgroundColor: d.isLast ? c.accent : c.accentSoft,
                   borderRadius: '5px 5px 0 0',
                   cursor: 'default',
                   transformOrigin: 'bottom',
@@ -93,17 +99,17 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
       {/* Y-axis labels */}
       <div style={{ position: 'absolute', top: 0, left: 0, height: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
         {[1, 0.5, 0].map((frac, i) => (
-          <span key={i} style={{ fontSize: 9, color: '#9CA3AF' }}>€{Math.round(maxVal * frac)}</span>
+          <span key={i} style={{ fontSize: 9, color: c.textFaint }}>€{Math.round(maxVal * frac)}</span>
         ))}
       </div>
 
-      <div style={{ marginLeft: 36, height: 1, backgroundColor: '#F3F4F6' }} />
+      <div style={{ marginLeft: 36, height: 1, backgroundColor: c.surfaceInset }} />
 
       {/* X-axis labels */}
       <div style={{ display: 'flex', gap: 4, paddingLeft: 36, marginTop: 6 }}>
         {data.map((d, i) => (
           <div key={`label-${i}`} style={{ flex: 1, textAlign: 'center' }}>
-            <span style={{ fontSize: 9, color: d.isLast ? '#3E37FF' : '#9CA3AF', fontWeight: d.isLast ? 600 : 400 }}>{d.month}</span>
+            <span style={{ fontSize: 9, color: d.isLast ? c.accent : c.textFaint, fontWeight: d.isLast ? 600 : 400 }}>{d.month}</span>
           </div>
         ))}
       </div>
@@ -119,6 +125,7 @@ function MonthlyStackedBar({
   segments: Array<{ id: string; name: string; color: string; amount: number }>;
   formatCurrency: (n: number) => string;
 }) {
+  const c = useAppColors();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const BAR_H = 120;
   const maxVal = Math.max(...segments.map(s => s.amount), 1);
@@ -142,11 +149,13 @@ function MonthlyStackedBar({
                 <div style={{
                   position: 'absolute', bottom: barH + 8, left: '50%',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#1A1A2E', borderRadius: 8, padding: '6px 10px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', whiteSpace: 'nowrap', zIndex: 10,
+                  backgroundColor: chartTooltipStyle().backgroundColor, borderRadius: 8, padding: '6px 10px',
+                  boxShadow: chartTooltipStyle().boxShadow, whiteSpace: 'nowrap', zIndex: 10,
                 }}>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 1px' }}>{seg.name}</p>
-                  <p style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 700, margin: 0 }}>{formatCurrency(seg.amount)}</p>
+                  <p style={{ fontSize: 11, color: chartTooltipStyle().labelColor, margin: '0 0 1px' }}>{seg.name}</p>
+                  <p className="font-figure" style={{ fontSize: 13, color: chartTooltipStyle().valueColor, margin: 0 }}>
+                    {formatCurrency(seg.amount)}
+                  </p>
                 </div>
               )}
               <div style={{
@@ -167,11 +176,11 @@ function MonthlyStackedBar({
       {/* Y-axis labels — scaled to largest category */}
       <div style={{ position: 'absolute', top: 0, left: 0, height: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
         {[1, 0.5, 0].map((frac, i) => (
-          <span key={i} style={{ fontSize: 9, color: '#9CA3AF' }}>€{Math.round(maxVal * frac)}</span>
+          <span key={i} style={{ fontSize: 9, color: c.textFaint }}>€{Math.round(maxVal * frac)}</span>
         ))}
       </div>
 
-      <div style={{ marginLeft: 36, height: 1, backgroundColor: '#F3F4F6' }} />
+      <div style={{ marginLeft: 36, height: 1, backgroundColor: c.surfaceInset }} />
 
       {/* X-axis — category icons, left = highest spend */}
       <div style={{ display: 'flex', gap: 4, paddingLeft: 36, marginTop: 6, alignItems: 'flex-end' }}>
@@ -186,6 +195,8 @@ function MonthlyStackedBar({
 }
 
 export default function InsightsScreen() {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const { state, formatCurrency } = useApp();
   const [range, setRange] = useState<Range>('6m');
 
@@ -231,7 +242,7 @@ export default function InsightsScreen() {
       }
     }
     return [
-      { name: 'Recurring', value: recurring, color: '#3E37FF', fill: '#3E37FF' },
+      { name: 'Recurring', value: recurring, color: c.accent, fill: '#3E37FF' },
       { name: 'One-time', value: oneTime, color: '#06B6D4', fill: '#06B6D4' },
     ];
   }, [state.expenses, months]);
@@ -295,12 +306,12 @@ export default function InsightsScreen() {
   );
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: 24 }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: 24 }}>
       {/* Header */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: '20px 20px 16px', borderBottom: '1px solid #F0F0F5',
+      <div style={{ backgroundColor: c.surface, padding: '20px 20px 16px', borderBottom: `1px solid ${c.border}`,
         animation: 'fadeIn 0.5s ease-out both' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: '0 0 14px' }}>Insights</h1>
-        <div style={{ display: 'flex', backgroundColor: '#F7F7FA', borderRadius: 12, padding: 4, gap: 4 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Insights</h1>
+        <div style={{ display: 'flex', backgroundColor: c.canvas, borderRadius: 12, padding: 4, gap: 4 }}>
           {(Object.keys(RANGE_LABELS) as Range[]).map((r, i) => (
             <button
               key={r}
@@ -311,9 +322,9 @@ export default function InsightsScreen() {
                 flex: 1, padding: '8px 0',
                 borderRadius: 9, border: 'none', cursor: 'pointer',
                 fontSize: 12, fontWeight: range === r ? 600 : 400,
-                backgroundColor: range === r ? '#FFFFFF' : 'transparent',
-                color: range === r ? '#3E37FF' : '#6B7280',
-                boxShadow: range === r ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                backgroundColor: range === r ? c.surface : 'transparent',
+                color: range === r ? c.accent : c.textMuted,
+                boxShadow: range === r ? c.shadowSm : 'none',
                 transition: 'all 0.2s',
                 fontFamily: 'inherit',
                 animation: `fadeIn 0.4s ease-out ${0.1 + i * 0.05}s both`,
@@ -327,11 +338,11 @@ export default function InsightsScreen() {
 
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Spending Trend */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
           animation: 'fadeSlideUp 0.6s ease-out 0.1s both' }}>
           <div style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: '0 0 2px' }}>Spending Trend</p>
-            <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 2px' }}>Spending Trend</p>
+            <p style={{ fontSize: 12, color: c.textFaint, margin: 0 }}>
               {range === '1m' ? 'This month' : range === '6m' ? 'Last 6 months' : 'Last 12 months'}
             </p>
           </div>
@@ -342,17 +353,20 @@ export default function InsightsScreen() {
                 <div style={{ padding: '32px 16px', textAlign: 'center' }}>
                   <div style={{
                     width: 64, height: 64, borderRadius: 32,
-                    backgroundColor: '#FAFAFA', margin: '0 auto 12px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '2px dashed #D1D5DB',
-                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 8px, #F3F4F6 8px, #F3F4F6 10px)',
+                  backgroundColor: isDark ? c.surfaceInset : '#FAFAFA',
+                  margin: '0 auto 12px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: `2px dashed ${c.borderSubtle}`,
+                  backgroundImage: isDark
+                    ? undefined
+                    : 'repeating-linear-gradient(45deg, transparent, transparent 8px, #F3F4F6 8px, #F3F4F6 10px)',
                   }}>
-                    <ChartPieSlice size={28} weight="light" color="#9CA3AF" />
+                    <ChartPieSlice size={28} weight="light" color={c.textFaint} />
                   </div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#6B7280', margin: '0 0 4px' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: c.textMuted, margin: '0 0 4px' }}>
                     No spending data yet
                   </p>
-                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
+                  <p style={{ fontSize: 11, color: c.textFaint, margin: 0 }}>
                     Add expenses to see this month's breakdown
                   </p>
                 </div>
@@ -366,12 +380,12 @@ export default function InsightsScreen() {
         </div>
 
         {/* Category Breakdown */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
           animation: 'fadeSlideUp 0.6s ease-out 0.2s both' }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: '0 0 14px' }}>Category Breakdown</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Category Breakdown</p>
           {categoryTotals.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+              <p style={{ fontSize: 13, color: c.textFaint, margin: 0 }}>
                 No category data for this period
               </p>
             </div>
@@ -383,11 +397,13 @@ export default function InsightsScreen() {
                   <div key={`${cat.id}-${range}`} style={{ animation: `fadeSlideUp 0.5s ease-out ${idx * 0.05}s both` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                       <CategoryIcon categoryId={cat.id} size="xs" />
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#1A1A2E' }}>{cat.name}</span>
-                      <span style={{ fontSize: 12, color: '#9CA3AF' }}>{share}%</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{formatCurrency(cat.amount)}</span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: c.text }}>{cat.name}</span>
+                      <span style={{ fontSize: 12, color: c.textFaint }}>{share}%</span>
+                      <span className="font-figure" style={{ fontSize: 13, color: c.text }}>
+                        {formatCurrency(cat.amount)}
+                      </span>
                     </div>
-                    <div style={{ height: 6, backgroundColor: '#F3F4F6', borderRadius: 3 }}>
+                    <div style={{ height: 6, backgroundColor: c.surfaceInset, borderRadius: 3 }}>
                       <div style={{
                         height: '100%', width: `${cat.pct}%`,
                         backgroundColor: cat.color, borderRadius: 3,
@@ -402,12 +418,12 @@ export default function InsightsScreen() {
         </div>
 
         {/* Recurring vs One-time */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
           animation: 'fadeSlideUp 0.6s ease-out 0.3s both' }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: '0 0 14px' }}>Recurring vs One-time</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Recurring vs One-time</p>
           {grandTotal === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+              <p style={{ fontSize: 13, color: c.textFaint, margin: 0 }}>
                 No expense data for this period
               </p>
             </div>
@@ -434,8 +450,10 @@ export default function InsightsScreen() {
                   pointerEvents: 'none',
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 800, color: '#1A1A2E', margin: 0 }}>{recurringPct}%</p>
-                    <p style={{ fontSize: 8, color: '#9CA3AF', margin: 0, letterSpacing: 0.3 }}>FIXED</p>
+                    <p className="font-figure" style={{ fontSize: 14, color: c.text, margin: 0 }}>
+                      {recurringPct}%
+                    </p>
+                    <p style={{ fontSize: 8, color: c.textFaint, margin: 0, letterSpacing: 0.3 }}>FIXED</p>
                   </div>
                 </div>
               </div>
@@ -445,11 +463,13 @@ export default function InsightsScreen() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: d.color, display: 'inline-block' }} />
-                        <span style={{ fontSize: 12, color: '#6B7280' }}>{d.name}</span>
+                        <span style={{ fontSize: 12, color: c.textMuted }}>{d.name}</span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{formatCurrency(d.value)}</span>
+                      <span className="font-figure" style={{ fontSize: 13, color: c.text }}>
+                        {formatCurrency(d.value)}
+                      </span>
                     </div>
-                    <div style={{ height: 4, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
+                    <div style={{ height: 4, backgroundColor: c.surfaceInset, borderRadius: 2 }}>
                       <div style={{
                         height: '100%',
                         width: grandTotal > 0 ? `${(d.value / grandTotal) * 100}%` : '0%',
@@ -465,29 +485,33 @@ export default function InsightsScreen() {
         </div>
 
         {/* Top Single Expenses */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
           animation: 'fadeSlideUp 0.6s ease-out 0.4s both' }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: '0 0 14px' }}>Top Single Expenses</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Top Single Expenses</p>
           {top3Expenses.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '16px 0' }}>No one-time expenses in this period</p>
+            <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '16px 0' }}>No one-time expenses in this period</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {top3Expenses.map((exp, i) => (
                 <div key={`${exp.id}-${range}`} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 12px', borderRadius: 12,
-                  backgroundColor: i === 0 ? '#EDEDFF' : '#F7F7FA',
+                  backgroundColor: i === 0
+                    ? (isDark ? hexToRgba('#3E37FF', 0.14) : '#EDEDFF')
+                    : c.surfaceMuted,
                   animation: `fadeSlideUp 0.5s ease-out ${i * 0.1}s both`,
                 }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: i === 0 ? '#3E37FF' : '#9CA3AF', width: 20 }}>#{i + 1}</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: i === 0 ? c.accent : c.textFaint, width: 20 }}>#{i + 1}</span>
                   <CategoryIcon categoryId={exp.categoryId} size="xs" />
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1A1A2E', margin: 0 }}>{exp.name}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3AF', margin: '1px 0 0' }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: c.text, margin: 0 }}>{exp.name}</p>
+                    <p style={{ fontSize: 11, color: c.textFaint, margin: '1px 0 0' }}>
                       {new Date(exp.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#1A1A2E' }}>{formatCurrency(exp.amount)}</span>
+                  <span className="font-figure" style={{ fontSize: 15, color: c.text }}>
+                    {formatCurrency(exp.amount)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -495,11 +519,11 @@ export default function InsightsScreen() {
         </div>
 
         {/* Month-over-Month */}
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
           animation: 'fadeSlideUp 0.6s ease-out 0.5s both' }}>
           <div style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', margin: '0 0 2px' }}>Month-over-Month</p>
-            <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>{momLabel}</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 2px' }}>Month-over-Month</p>
+            <p style={{ fontSize: 12, color: c.textFaint, margin: 0 }}>{momLabel}</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {momInsights.map((ins, idx) => {
@@ -510,14 +534,18 @@ export default function InsightsScreen() {
                 <div key={ins.cat} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 12px', borderRadius: 12,
-                  backgroundColor: isUp ? '#FEF2F2' : '#F0FDF4',
-                  border: `1px solid ${isUp ? '#FEE2E2' : '#D1FAE5'}`,
+                  backgroundColor: isUp
+                    ? (isDark ? hexToRgba('#EF4444', 0.12) : '#FEF2F2')
+                    : (isDark ? hexToRgba('#10B981', 0.12) : '#F0FDF4'),
+                  border: `1px solid ${isUp
+                    ? (isDark ? hexToRgba('#EF4444', 0.22) : '#FEE2E2')
+                    : (isDark ? hexToRgba('#10B981', 0.22) : '#D1FAE5')}`,
                   animation: `fadeSlideUp 0.5s ease-out ${idx * 0.1}s both`,
                 }}>
                   <CategoryIcon categoryId={ins.cat} size="xs" />
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E', margin: 0 }}>{cat.name}</p>
-                    <p style={{ fontSize: 11, color: '#6B7280', margin: '1px 0 0' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: c.text, margin: 0 }}>{cat.name}</p>
+                    <p className="font-figure" style={{ fontSize: 11, color: c.textMuted, margin: '1px 0 0' }}>
                       {formatCurrency(ins.prevAmt)} → {formatCurrency(ins.curAmt)}
                     </p>
                   </div>

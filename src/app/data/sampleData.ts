@@ -1,3 +1,4 @@
+import { DEFAULT_NOTIFICATION_PREFERENCES } from './notificationPreferences';
 import { Expense, BudgetGoal, AppState } from './types';
 
 export const INITIAL_EXPENSES: Expense[] = [
@@ -159,10 +160,11 @@ export const INITIAL_APP_STATE: AppState = {
   currency: 'EUR',
   userName: 'Alex',
   userFullName: 'Alejandro Alvarez',
-  userEmail: 'alejandro@spendr.app',
-  userUsername: '@techboi_design',
+  userEmail: 'hello@techboi.design',
   userPhone: '+34 600 123 456',
   userAvatar: '',
   categoryCustomizations: {},
   customCategories: [],
+  notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
+  appearance: 'light',
 };

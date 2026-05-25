@@ -1,20 +1,31 @@
 import { useState } from 'react';
+import { useReducedMotion } from 'motion/react';
+import { useAppColors } from '../../context/AppearanceContext';
+import { chartTooltipStyle } from '../../theme/darkModeUi';
 import { CategoryIcon } from '../CategoryIcon';
 
 export function CategorySpendingChart({
   segments,
   formatCurrency,
+  animationKey,
+  animateEntry = true,
 }: {
   segments: Array<{ id: string; name: string; color: string; amount: number }>;
   formatCurrency: (n: number) => string;
+  /** Changes retrigger bar grow-in (e.g. month + view mode on Expenses insights). */
+  animationKey?: string;
+  /** When false, columns render at full height immediately (no grow-in). */
+  animateEntry?: boolean;
 }) {
+  const c = useAppColors();
+  const reduceMotion = useReducedMotion();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const BAR_H = 120;
   const maxVal = Math.max(...segments.map(s => s.amount), 1);
 
   if (segments.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '24px 0' }}>
+      <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '24px 0' }}>
         No spending in this month yet
       </p>
     );
@@ -50,31 +61,38 @@ export function CategorySpendingChart({
                   bottom: barH + 8,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#1A1A2E',
+                  backgroundColor: chartTooltipStyle().backgroundColor,
                   borderRadius: 8,
                   padding: '6px 10px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  boxShadow: chartTooltipStyle().boxShadow,
                   whiteSpace: 'nowrap',
                   zIndex: 10,
                 }}>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 1px' }}>{seg.name}</p>
-                  <p style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 700, margin: 0 }}>
+                  <p style={{ fontSize: 11, color: chartTooltipStyle().labelColor, margin: '0 0 1px' }}>{seg.name}</p>
+                  <p className="font-figure" style={{ fontSize: 13, color: chartTooltipStyle().valueColor, margin: 0 }}>
                     {formatCurrency(seg.amount)}
                   </p>
                 </div>
               )}
               <div
+                key={animateEntry && animationKey ? `${animationKey}-${seg.id}` : seg.id}
+                className={animateEntry && !reduceMotion ? 'spendr-chart-bar-grow' : undefined}
                 style={{
                   width: '100%',
                   height: barH,
                   backgroundColor: seg.color,
                   borderRadius: '5px 5px 0 0',
                   cursor: 'pointer',
-                  transformOrigin: 'bottom',
-                  animation: `barGrow 0.6s ease-out ${i * 0.04}s both`,
+                  transformOrigin: 'bottom center',
                   opacity: dimmed ? 0.45 : 1,
-                  transform: isHovered ? 'scaleX(1.06)' : 'scaleX(1)',
+                  transform:
+                    animateEntry && !reduceMotion
+                      ? isHovered
+                        ? 'scaleX(1.06)'
+                        : 'scaleX(1)'
+                      : 'scaleY(0)',
                   transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  ['--bar-delay' as string]: `${i * 40}ms`,
                 }}
               />
             </div>
@@ -93,13 +111,13 @@ export function CategorySpendingChart({
         pointerEvents: 'none',
       }}>
         {[1, 0.5, 0].map((frac, i) => (
-          <span key={i} style={{ fontSize: 9, color: '#9CA3AF' }}>
+          <span key={i} style={{ fontSize: 9, color: c.textFaint }}>
             €{Math.round(maxVal * frac)}
           </span>
         ))}
       </div>
 
-      <div style={{ marginLeft: 36, height: 1, backgroundColor: '#F3F4F6' }} />
+      <div style={{ marginLeft: 36, height: 1, backgroundColor: c.surfaceInset }} />
 
       <div style={{ display: 'flex', gap: 4, paddingLeft: 36, marginTop: 6, alignItems: 'flex-end' }}>
         {segments.map(seg => {

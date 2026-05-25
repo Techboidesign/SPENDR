@@ -2,9 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Camera, Plus, UploadSimple, X } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
-
-const BRAND = '#3E37FF';
-const BRAND_ACTIVE = '#524BFF';
+import { useAppColors } from '../context/AppearanceContext';
 export const FAB_SIZE = 68;
 const FAB_BORDER = 2;
 const SAT_SIZE = 52;
@@ -51,6 +49,9 @@ function slotIndexFromX(dx: number): number {
 export function FabExpenseLauncher() {
   const { openAddModal, showAddModal, scanReceiptFromCamera, uploadReceiptDocuments, isParsingReceipt } =
     useApp();
+  const c = useAppColors();
+  const brand = c.fab;
+  const brandActive = c.accent;
 
   const [open, setOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
@@ -272,7 +273,7 @@ export function FabExpenseLauncher() {
                     height: SAT_SIZE,
                     borderRadius: '50%',
                     border: `2px solid ${isHover ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
-                    backgroundColor: isHover ? BRAND_ACTIVE : BRAND,
+                    backgroundColor: isHover ? brandActive : brand,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -314,7 +315,7 @@ export function FabExpenseLauncher() {
           disabled={isParsingReceipt}
           animate={{
             scale: open ? 0.92 : 1,
-            backgroundColor: open ? '#FFFFFF' : BRAND,
+            backgroundColor: open ? c.surface : brand,
             boxShadow: open
               ? '0 4px 16px rgba(0, 0, 0, 0.12)'
               : '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)',
@@ -369,7 +370,7 @@ export function FabExpenseLauncher() {
                     justifyContent: 'center',
                   }}
                 >
-                  <X size={28} weight="bold" color={BRAND} />
+                  <X size={28} weight="bold" color={brand} />
                 </motion.span>
               ) : (
                 <motion.span

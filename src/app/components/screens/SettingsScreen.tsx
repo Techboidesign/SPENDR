@@ -1,17 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  DownloadSimple, UploadSimple,
+  DownloadSimple, UploadSimple, Trash,
   Tag, Bell, Question, CaretRight, Check, X, Plus,
-  Wallet, Receipt, ShieldCheck, Info, SignOut,
+  ChartBar, Receipt, ShieldCheck, Info, SignOut, Target, Moon, Sun,
 } from '@phosphor-icons/react';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import type { NotificationPreferences } from '../../data/types';
+import { mergeNotificationPreferences } from '../../data/notificationPreferences';
 import { useApp } from '../../context/AppContext';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { CategoryIcon } from '../CategoryIcon';
 import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModal';
+import { EraseAllDataModal } from '../settings/EraseAllDataModal';
 import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
-import { FEATURE_CARD, featureCardSurface } from '../ui/featureCard';
+import { SpendrLogo } from '../auth/SpendrLogo';
+import { getFeatureCardTokens, featureCardSurface } from '../ui/featureCard';
+import { AppIconChip } from '../ui/AppIconChip';
+import { categoryPillStyle, rowHoverBg } from '../../theme/darkModeUi';
+import { listRowLabelStyle, sectionTitleStyle } from '../../theme/typography';
 import { generateId } from '../../utils/id';
 
 const PROFILE_FEATURE = { accentColor: '#3E37FF', accentBg: '#EDEDFF' };
@@ -35,12 +43,13 @@ function badgeHoverHandlers(baseShadow: string) {
 }
 
 function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const c = useAppColors();
   return (
     <div style={{ marginBottom: 8 }}>
-      <p style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', letterSpacing: 0.8, padding: '12px 20px 6px', margin: 0 }}>
+      <p style={{ ...sectionTitleStyle(c), padding: '12px 20px 6px' }}>
         {title.toUpperCase()}
       </p>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ backgroundColor: c.surface, borderRadius: 16, overflow: 'hidden', boxShadow: c.shadowCard }}>
         {children}
       </div>
     </div>
@@ -59,6 +68,8 @@ function SettingsRow({
   danger?: boolean;
   last?: boolean;
 }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   return (
     <button
       onClick={onClick}
@@ -66,31 +77,26 @@ function SettingsRow({
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '13px 16px',
         width: '100%', border: 'none', background: 'none', cursor: onClick ? 'pointer' : 'default',
-        borderBottom: last ? 'none' : '1px solid #F7F7FA',
+        borderBottom: last ? 'none' : `1px solid ${c.divider}`,
         textAlign: 'left', fontFamily: 'inherit',
       }}
     >
-      <div style={{
-        width: 34, height: 34, borderRadius: 9,
-        backgroundColor: iconBg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Icon size={16} weight="light" color={danger ? '#EF4444' : iconColor} />
-      </div>
-      <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: danger ? '#EF4444' : '#1A1A2E' }}>{label}</span>
-      {value && <span style={{ fontSize: 13, color: '#9CA3AF' }}>{value}</span>}
-      {onClick && <CaretRight size={15} weight="light" color="#D1D5DB" />}
+      <AppIconChip icon={Icon} accentColor={danger ? c.danger : iconColor} lightBg={iconBg} />
+      <span style={{ flex: 1, ...listRowLabelStyle(c), color: danger ? c.danger : c.text }}>{label}</span>
+      {value && <span style={{ fontSize: 13, color: c.textFaint }}>{value}</span>}
+      {onClick && <CaretRight size={15} weight="light" color={c.textFaint} />}
     </button>
   );
 }
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  const c = useAppColors();
   return (
     <button
       onClick={() => onChange(!value)}
       style={{
         width: 44, height: 26, borderRadius: 13,
-        backgroundColor: value ? '#3E37FF' : '#D1D5DB',
+        backgroundColor: value ? c.accent : c.surfaceInset,
         border: 'none', cursor: 'pointer', position: 'relative',
         transition: 'background-color 0.2s', flexShrink: 0,
       }}
@@ -98,7 +104,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       <div style={{
         position: 'absolute', top: 3, left: value ? 21 : 3,
         width: 20, height: 20, borderRadius: 10,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
         transition: 'left 0.2s',
       }} />
@@ -118,6 +124,8 @@ function InlineEditRow({
   onSave: (v: number) => void;
   last?: boolean;
 }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(String(amount));
 
@@ -140,25 +148,23 @@ function InlineEditRow({
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '13px 16px', width: '100%',
           border: 'none', background: 'none', cursor: 'pointer',
-          borderBottom: (!last && !open) ? '1px solid #F7F7FA' : 'none',
+          borderBottom: (!last && !open) ? `1px solid ${c.divider}` : 'none',
           textAlign: 'left', fontFamily: 'inherit',
         }}
       >
-        <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon size={16} weight="light" color={iconColor} />
-        </div>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>{label}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: open ? '#3E37FF' : '#9CA3AF' }}>€{amount.toLocaleString()}</span>
+        <AppIconChip icon={Icon} accentColor={iconColor} lightBg={iconBg} />
+        <span style={{ flex: 1, ...listRowLabelStyle(c) }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: open ? c.accent : c.textFaint }}>€{amount.toLocaleString()}</span>
         <div style={{
           width: 22, height: 22, borderRadius: 11,
-          backgroundColor: open ? '#3E37FF' : '#F3F4F6',
+          backgroundColor: open ? c.accent : c.surfaceInset,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           marginLeft: 2,
           transition: 'background-color 0.2s',
         }}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
             style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-            <path d="M2 3.5l3 3 3-3" stroke={open ? '#FFFFFF' : '#9CA3AF'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 3.5l3 3 3-3" stroke={open ? c.onAccent : c.textFaint} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       </button>
@@ -166,18 +172,18 @@ function InlineEditRow({
       {open && (
         <div style={{
           padding: '10px 16px 14px',
-          backgroundColor: '#F7F7FA',
-          borderBottom: last ? 'none' : '1px solid #F0F0F5',
-          borderTop: '1px solid #F0F0F5',
+          backgroundColor: c.canvas,
+          borderBottom: last ? 'none' : `1px solid ${c.border}`,
+          borderTop: `1px solid ${c.border}`,
         }}>
-          <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 8px', fontWeight: 500 }}>
+          <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 8px', fontWeight: 500 }}>
             Enter new {label.toLowerCase()}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <span style={{
                 position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                fontSize: 16, fontWeight: 600, color: '#9CA3AF',
+                fontSize: 16, fontWeight: 600, color: c.textFaint,
               }}>€</span>
               <input
                 autoFocus
@@ -189,9 +195,9 @@ function InlineEditRow({
                 onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setOpen(false); }}
                 style={{
                   width: '100%', height: 44, paddingLeft: 28, paddingRight: 12,
-                  borderRadius: 10, border: '2px solid #3E37FF',
-                  fontSize: 16, fontWeight: 700, color: '#1A1A2E',
-                  outline: 'none', background: '#FFFFFF',
+                  borderRadius: 10, border: `2px solid ${c.accent}`,
+                  fontSize: 16, fontWeight: 700, color: c.text,
+                  outline: 'none', background: c.surface,
                   fontFamily: 'inherit', boxSizing: 'border-box',
                 }}
               />
@@ -200,7 +206,7 @@ function InlineEditRow({
               onClick={handleSave}
               style={{
                 width: 44, height: 44, borderRadius: 10, border: 'none',
-                backgroundColor: '#3E37FF', cursor: 'pointer',
+                backgroundColor: c.accent, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}
             >
@@ -210,7 +216,7 @@ function InlineEditRow({
               onClick={() => setOpen(false)}
               style={{
                 width: 44, height: 44, borderRadius: 10, border: 'none',
-                backgroundColor: '#F0F0F5', cursor: 'pointer',
+                backgroundColor: c.border, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}
             >
@@ -225,7 +231,11 @@ function InlineEditRow({
 
 /* ── Main Screen ── */
 export default function SettingsScreen() {
-  const { state, dispatch, categories } = useApp();
+  const c = useAppColors();
+  const fc = getFeatureCardTokens(c);
+  const { isDark, setAppearance } = useAppearance();
+  const { state, dispatch, categories, eraseAllData } = useApp();
+  const prefs = mergeNotificationPreferences(state.notificationPreferences);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useOnboarding();
@@ -235,11 +245,17 @@ export default function SettingsScreen() {
     navigate('/login', { replace: true });
   };
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [budgetAlerts, setBudgetAlerts] = useState(true);
-  const [recurringReminders, setRecurringReminders] = useState(true);
   const [exportToast, setExportToast] = useState('');
+  const [showEraseModal, setShowEraseModal] = useState(false);
 
-  const handleExportCSV = () => {
+  const setNotificationPref = (key: keyof NotificationPreferences, value: boolean) => {
+    dispatch({
+      type: 'SET_NOTIFICATION_PREFERENCES',
+      preferences: { ...prefs, [key]: value },
+    });
+  };
+
+  const handleExportCSV = (): boolean => {
     try {
       // Create CSV header
       const headers = ['Date', 'Name', 'Amount', 'Category', 'Type'];
@@ -275,9 +291,23 @@ export default function SettingsScreen() {
 
       setExportToast(`✓ Exported ${state.expenses.length} expenses as CSV`);
       setTimeout(() => setExportToast(''), 2500);
-    } catch (error) {
+      return true;
+    } catch {
       setExportToast('✗ Export failed');
       setTimeout(() => setExportToast(''), 2500);
+      return false;
+    }
+  };
+
+  const handleConfirmErase = async () => {
+    try {
+      await eraseAllData();
+      setExportToast('✓ All data erased');
+      setTimeout(() => setExportToast(''), 2500);
+    } catch {
+      setExportToast('✗ Could not erase data — try again');
+      setTimeout(() => setExportToast(''), 2500);
+      throw new Error('erase failed');
     }
   };
 
@@ -343,17 +373,17 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE }}>
       {/* Header */}
-      <div style={{ backgroundColor: '#FFFFFF', padding: '20px 20px 16px', borderBottom: '1px solid #F0F0F5' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Settings</h1>
+      <div style={{ backgroundColor: c.surface, padding: '20px 20px 16px', borderBottom: `1px solid ${c.border}` }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Settings</h1>
       </div>
 
       {/* Toast */}
       {exportToast && (
         <div style={{
           position: 'absolute', top: 80, left: 16, right: 16,
-          backgroundColor: '#1A1A2E', color: '#FFFFFF',
+          backgroundColor: c.text, color: c.onAccent,
           borderRadius: 12, padding: '12px 16px',
           fontSize: 13, fontWeight: 500,
           zIndex: 300, textAlign: 'center',
@@ -379,9 +409,10 @@ export default function SettingsScreen() {
               display: 'flex',
               alignItems: 'center',
               gap: 12,
-              ...featureCardSurface(PROFILE_FEATURE.accentBg, {
-                radius: FEATURE_CARD.radiusLg,
-                padding: FEATURE_CARD.paddingLg,
+              ...featureCardSurface(PROFILE_FEATURE.accentBg, c, {
+                radius: fc.radiusLg,
+                padding: fc.paddingLg,
+                isDark,
               }),
             }}
           >
@@ -415,10 +446,10 @@ export default function SettingsScreen() {
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, ...FEATURE_CARD.eyebrow }}>Profile</p>
-              <p style={{ margin: '2px 0 0', ...FEATURE_CARD.headline }}>{state.userFullName}</p>
-              <p style={{ margin: '2px 0 0', ...FEATURE_CARD.detail }}>
-                {state.userUsername} · Personal
+              <p style={{ margin: 0, ...fc.eyebrow }}>Profile</p>
+              <p style={{ margin: '2px 0 0', ...fc.headline }}>{state.userFullName}</p>
+              <p style={{ margin: '2px 0 0', ...fc.detail }}>
+                {state.userEmail} · Personal
               </p>
             </div>
             <CaretRight size={18} weight="light" color={PROFILE_FEATURE.accentColor} aria-hidden />
@@ -440,30 +471,30 @@ export default function SettingsScreen() {
                 border: 'none',
                 background: 'none',
                 cursor: 'pointer',
-                borderBottom: showCurrencyPicker ? 'none' : '1px solid #F7F7FA',
+                borderBottom: showCurrencyPicker ? 'none' : `1px solid ${c.divider}`,
                 textAlign: 'left',
                 fontFamily: 'inherit',
                 transition: 'background-color 0.15s ease',
               }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FAFAFC'; }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = rowHoverBg(isDark, c); }}
               onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
               <AnimatedCurrencyIcon currency={state.currency} />
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>Currency</span>
-              <span style={{ fontSize: 13, color: '#9CA3AF' }}>{state.currency}</span>
-              <CaretRight size={15} weight="light" color="#D1D5DB" />
+              <span style={{ flex: 1, ...listRowLabelStyle(c) }}>Currency</span>
+              <span style={{ fontSize: 13, color: c.textFaint }}>{state.currency}</span>
+              <CaretRight size={15} weight="light" color={c.textFaint} />
             </button>
             {showCurrencyPicker && (
-              <div style={{ backgroundColor: '#F7F7FA', borderRadius: '0 0 16px 16px', padding: '8px 16px 12px', borderTop: '1px solid #F0F0F5' }}>
+              <div style={{ backgroundColor: c.canvas, borderRadius: '0 0 16px 16px', padding: '8px 16px 12px', borderTop: `1px solid ${c.border}` }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CURRENCIES.map(c => {
-                    const selected = state.currency === c;
-                    const shadow = selected ? '0 0 0 2px #3E37FF' : '0 1px 4px rgba(0,0,0,0.08)';
+                  {CURRENCIES.map(code => {
+                    const selected = state.currency === code;
+                    const shadow = selected ? `0 0 0 2px ${c.accent}` : c.shadowSm;
                     return (
                       <button
-                        key={c}
+                        key={code}
                         type="button"
-                        onClick={() => { dispatch({ type: 'SET_CURRENCY', currency: c }); setShowCurrencyPicker(false); }}
+                        onClick={() => { dispatch({ type: 'SET_CURRENCY', currency: code }); setShowCurrencyPicker(false); }}
                         style={{
                           padding: '7px 14px',
                           borderRadius: 20,
@@ -471,15 +502,15 @@ export default function SettingsScreen() {
                           cursor: 'pointer',
                           fontSize: 13,
                           fontWeight: 600,
-                          backgroundColor: selected ? '#EDEDFF' : '#FFFFFF',
-                          color: selected ? '#3E37FF' : '#6B7280',
+                          backgroundColor: selected ? c.chipSelectedBg : c.surface,
+                          color: selected ? c.chipSelectedText : c.textMuted,
                           boxShadow: shadow,
                           fontFamily: 'inherit',
                           transition: BADGE_TRANSITION,
                         }}
                         {...badgeHoverHandlers(shadow)}
                       >
-                        {c}
+                        {code}
                       </button>
                     );
                   })}
@@ -488,8 +519,25 @@ export default function SettingsScreen() {
             )}
           </div>
 
+          <div
+            style={{
+              padding: '13px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              borderBottom: `1px solid ${c.divider}`,
+            }}
+          >
+            <AppIconChip icon={isDark ? Moon : Sun} accentColor={c.accent} lightBg={c.accentSoft} />
+            <span style={{ flex: 1, ...listRowLabelStyle(c) }}>Dark mode</span>
+            <Toggle
+              value={isDark}
+              onChange={next => setAppearance(next ? 'dark' : 'light')}
+            />
+          </div>
+
           {/* Categories */}
-          <div style={{ borderTop: '1px solid #F7F7FA' }}>
+          <div>
             <div style={{ padding: '12px 16px 14px' }}>
               <div
                 style={{
@@ -499,17 +547,15 @@ export default function SettingsScreen() {
                   marginBottom: 12,
                 }}
               >
-                <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FCE7F3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Tag size={16} weight="light" color="#EC4899" />
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A2E', flex: 1, minWidth: 0 }}>
+                <AppIconChip icon={Tag} accentColor="#EC4899" lightBg="#FCE7F3" />
+                <span style={{ ...listRowLabelStyle(c), flex: 1, minWidth: 0 }}>
                   Categories
                 </span>
                 <span
                   style={{
                     fontSize: 10,
                     fontWeight: 600,
-                    color: '#9CA3AF',
+                    color: c.textFaint,
                     letterSpacing: 0.2,
                     flexShrink: 0,
                   }}
@@ -519,8 +565,8 @@ export default function SettingsScreen() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {categories.map(cat => {
-                  const displayColor = cat.iconColor || cat.color;
-                  const pillShadow = `0 1px 3px ${displayColor}18`;
+                  const pillStyle = categoryPillStyle(cat, isDark, c);
+                  const pillShadow = isDark ? 'none' : `0 1px 3px ${(cat.iconColor || cat.color)}18`;
                   return (
                     <button
                       key={cat.id}
@@ -532,17 +578,16 @@ export default function SettingsScreen() {
                         gap: 5,
                         padding: '2px 14px 2px 4px',
                         borderRadius: 20,
-                        backgroundColor: cat.bg,
-                        border: `1px solid ${displayColor}20`,
                         cursor: 'pointer',
                         fontFamily: 'inherit',
-                        boxShadow: pillShadow,
                         transition: BADGE_TRANSITION,
+                        ...pillStyle,
+                        boxShadow: pillShadow,
                       }}
                       {...badgeHoverHandlers(pillShadow)}
                     >
-                      <CategoryIcon categoryId={cat.id} size="xs" />
-                      <span style={{ fontSize: 11, fontWeight: 500, color: displayColor }}>
+                      <CategoryIcon categoryId={cat.id} size="xs" tone="light" />
+                      <span style={{ fontSize: 11, fontWeight: 500, color: pillStyle.color }}>
                         {cat.name.split('/')[0].split(' & ')[0]}
                       </span>
                     </button>
@@ -559,7 +604,7 @@ export default function SettingsScreen() {
                   marginTop: 10,
                   padding: '6px 12px 6px 8px',
                   borderRadius: 20,
-                  border: '1px dashed #D1D5DB',
+                  border: `1px dashed ${c.borderSubtle}`,
                   backgroundColor: 'transparent',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
@@ -567,17 +612,17 @@ export default function SettingsScreen() {
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
-                  e.currentTarget.style.borderColor = '#3E37FF';
-                  e.currentTarget.style.backgroundColor = '#EDEDFF';
+                  e.currentTarget.style.borderColor = c.accentBorder;
+                  e.currentTarget.style.backgroundColor = isDark ? c.accentSoft : '#EDEDFF';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = '';
-                  e.currentTarget.style.borderColor = '#D1D5DB';
+                  e.currentTarget.style.borderColor = c.borderSubtle;
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <Plus size={14} weight="bold" color="#3E37FF" />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#3E37FF' }}>Add Category</span>
+                <Plus size={14} weight="bold" color={c.accent} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: c.accent }}>Add Category</span>
               </button>
             </div>
           </div>
@@ -586,25 +631,49 @@ export default function SettingsScreen() {
         {/* ── Data management ── */}
         <SettingsSection title="Data">
           <SettingsRow icon={DownloadSimple} iconBg="#D1FAE5" iconColor="#10B981" label="Export as CSV" onClick={handleExportCSV} />
-          <SettingsRow icon={UploadSimple} iconBg="#FEF3C7" iconColor="#D97706" label="Import from CSV" onClick={handleImportCSV} last />
+          <SettingsRow icon={UploadSimple} iconBg="#FEF3C7" iconColor="#D97706" label="Import from CSV" onClick={handleImportCSV} />
+          <SettingsRow
+            icon={Trash}
+            iconBg="#FEE2E2"
+            iconColor="#EF4444"
+            label="Erase all data"
+            onClick={() => setShowEraseModal(true)}
+            danger
+            last
+          />
         </SettingsSection>
 
-        {/* ── Notifications ── */}
+        {/* ── Notifications (in-app banners — see Settings → same toggles as onboarding) ── */}
         <SettingsSection title="Notifications">
-          <div style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #F7F7FA' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell size={16} weight="light" color="#EF4444" />
-            </div>
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>Budget Alerts</span>
-            <Toggle value={budgetAlerts} onChange={setBudgetAlerts} />
-          </div>
-          <div style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell size={16} weight="light" color="#D97706" />
-            </div>
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E' }}>Recurring Reminders</span>
-            <Toggle value={recurringReminders} onChange={setRecurringReminders} />
-          </div>
+          {(
+            [
+              { key: 'budgetAlerts' as const, label: 'Budget alerts', icon: ChartBar, bg: '#FEE2E2', color: '#EF4444' },
+              { key: 'weeklySummary' as const, label: 'Weekly summary', icon: Bell, bg: '#FEF3C7', color: '#D97706' },
+              { key: 'billReminders' as const, label: 'Bill reminders', icon: Receipt, bg: '#D1FAE5', color: '#059669' },
+              { key: 'goalMilestones' as const, label: 'Goal milestones', icon: Target, bg: '#EDE9FE', color: '#7C3AED' },
+            ] as const
+          ).map((row, index, arr) => {
+            const Icon = row.icon;
+            return (
+              <div
+                key={row.key}
+                style={{
+                  padding: '13px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  borderBottom: index < arr.length - 1 ? `1px solid ${c.divider}` : undefined,
+                }}
+              >
+                <AppIconChip icon={Icon} accentColor={row.color} lightBg={row.bg} />
+                <span style={{ flex: 1, ...listRowLabelStyle(c) }}>{row.label}</span>
+                <Toggle
+                  value={prefs[row.key]}
+                  onChange={v => setNotificationPref(row.key, v)}
+                />
+              </div>
+            );
+          })}
         </SettingsSection>
 
         {/* ── Account ── */}
@@ -624,7 +693,7 @@ export default function SettingsScreen() {
         <SettingsSection title="About">
           <SettingsRow
             icon={Question} iconBg="#F0FDF4" iconColor="#16A34A"
-            label="Help & Support"
+            label="FAQ"
             onClick={() => navigate('/settings/help')}
           />
           <SettingsRow
@@ -637,9 +706,9 @@ export default function SettingsScreen() {
 
         {/* ── App branding ── */}
         <div style={{
-          backgroundColor: '#FFFFFF', borderRadius: 16,
+          backgroundColor: c.surface, borderRadius: 16,
           padding: '16px', marginBottom: 8,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: c.shadowCard,
           display: 'flex', alignItems: 'center', gap: 14,
         }}>
           <div style={{
@@ -648,20 +717,20 @@ export default function SettingsScreen() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 12px rgba(62,55,255,0.25)',
           }}>
-            <Wallet size={22} weight="light" color="#FFFFFF" />
+            <SpendrLogo size={36} style={{ borderRadius: 10 }} />
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 16, fontWeight: 800, color: '#1A1A2E', margin: 0 }}>Spendr</p>
-            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>
-              By Alejandro Alvarez · <a href="https://www.techboi.design" target="_blank" rel="noopener noreferrer" style={{ color: '#3E37FF', fontWeight: 600, textDecoration: 'none' }}>www.techboi.design</a>
+            <p style={{ fontSize: 16, fontWeight: 800, color: c.text, margin: 0 }}>Spendr</p>
+            <p style={{ fontSize: 11, color: c.textFaint, margin: '2px 0 0' }}>
+              By Alejandro Alvarez · <a href="https://www.techboi.design" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600, textDecoration: 'none' }}>www.techboi.design</a>
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{
-              backgroundColor: '#F7F7FA', borderRadius: 8,
+              backgroundColor: c.canvas, borderRadius: 8,
               padding: '4px 10px',
             }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF' }}>v1.0.0</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: c.textFaint }}>v1.0.0</span>
             </div>
           </div>
         </div>
@@ -680,6 +749,16 @@ export default function SettingsScreen() {
         open={editingCategoryId !== null}
         categoryId={editingCategoryId}
         onClose={() => setEditingCategoryId(null)}
+      />
+
+      <EraseAllDataModal
+        open={showEraseModal}
+        onClose={() => setShowEraseModal(false)}
+        onExport={handleExportCSV}
+        onConfirmErase={handleConfirmErase}
+        expenseCount={state.expenses.length}
+        customCategoryCount={state.customCategories.length}
+        customizationCount={Object.keys(state.categoryCustomizations).length}
       />
     </div>
   );

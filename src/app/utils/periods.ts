@@ -41,6 +41,15 @@ export function getPreviousMonthKey(yearMonth: string): string {
   return toYearMonthKey(date);
 }
 
+export function getNextMonthKey(yearMonth: string): string {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const date = new Date(y, m, 1);
+  return toYearMonthKey(date);
+}
+
+export const MONTH_PICKER_MIN_KEY = MONTH_OPTIONS[0].key;
+export const MONTH_PICKER_MAX_KEY = MONTH_OPTIONS[MONTH_OPTIONS.length - 1].key;
+
 export function monthLabel(yearMonth: string): string {
   const [y, m] = yearMonth.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('en-US', {

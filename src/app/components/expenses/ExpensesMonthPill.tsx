@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { CalendarBlank, CaretDown } from '@phosphor-icons/react';
-import { monthPickerLabel } from '../../utils/periods';
+import { CalendarBlank, CaretDown, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { useAppearance, useAppColors } from '../../context/AppearanceContext';
+import {
+  getNextMonthKey,
+  getPreviousMonthKey,
+  monthPickerLabel,
+  MONTH_PICKER_MAX_KEY,
+  MONTH_PICKER_MIN_KEY,
+} from '../../utils/periods';
 import { MonthYearPickerDropdown } from '../shared/MonthYearPickerDropdown';
 
 const BRAND = '#3E37FF';
-const TOTAL_GREEN = '#D1FAE5';
-const TOTAL_GREEN_TEXT = '#166534';
+/** Light-mode month total pill */
+const TOTAL_GREEN_BG = '#D1FAE5';
+const TOTAL_GREEN_FG = '#166534';
+/** Dark-mode month total pill background */
+const TOTAL_GREEN_BG_DARK = 'rgba(8, 38, 22, 1)';
 
 const pillBase: CSSProperties = {
   flexShrink: 0,
@@ -32,8 +42,11 @@ export function AnimatedMonthTotal({
   value: number;
   formatCurrency: (amount: number) => string;
 }) {
+  const { isDark } = useAppearance();
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
+  const pillBg = isDark ? TOTAL_GREEN_BG_DARK : TOTAL_GREEN_BG;
+  const pillFg = isDark ? TOTAL_GREEN_BG : TOTAL_GREEN_FG;
 
   useEffect(() => {
     const from = fromRef.current;
@@ -67,16 +80,53 @@ export function AnimatedMonthTotal({
     <span
       style={{
         ...pillBase,
-        backgroundColor: TOTAL_GREEN,
-        color: TOTAL_GREEN_TEXT,
+        backgroundColor: pillBg,
+        color: pillFg,
         boxShadow: 'none',
         fontWeight: 500,
         gap: 4,
       }}
     >
       <span>Month&apos;s total:</span>
-      <span style={{ fontWeight: 700 }}>{formatted}</span>
+      <span className="font-figure">{formatted}</span>
     </span>
+  );
+}
+
+function MonthNavButton({
+  onClick,
+  disabled,
+  ariaLabel,
+  children,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  const c = useAppColors();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      style={{
+        ...pillBase,
+        width: 32,
+        minWidth: 32,
+        padding: 0,
+        justifyContent: 'center',
+        cursor: disabled ? 'default' : 'pointer',
+        backgroundColor: disabled ? c.surfaceInset : c.canvas,
+        color: disabled ? c.textFaint : c.text,
+        border: `1px solid ${c.borderSubtle}`,
+        boxShadow: 'none',
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -96,6 +146,22 @@ export function ExpensesMonthPill({
   const monthBtnRef = useRef<HTMLButtonElement>(null);
 
   const monthDisplay = monthPickerLabel(monthKey);
+  const canGoPrev = monthKey > MONTH_PICKER_MIN_KEY;
+  const canGoNext = monthKey < MONTH_PICKER_MAX_KEY;
+
+  const goPrev = () => {
+    if (!disabled && canGoPrev) {
+      onMonthChange(getPreviousMonthKey(monthKey));
+      setDropdownOpen(false);
+    }
+  };
+
+  const goNext = () => {
+    if (!disabled && canGoNext) {
+      onMonthChange(getNextMonthKey(monthKey));
+      setDropdownOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (disabled) setDropdownOpen(false);
@@ -122,7 +188,14 @@ export function ExpensesMonthPill({
           gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <MonthNavButton
+            onClick={goPrev}
+            disabled={disabled || !canGoPrev}
+            ariaLabel="Previous month"
+          >
+            <CaretLeft size={16} weight="bold" aria-hidden />
+          </MonthNavButton>
           <button
             ref={monthBtnRef}
             type="button"
@@ -142,6 +215,13 @@ export function ExpensesMonthPill({
             <span>{monthDisplay}</span>
             <CaretDown size={12} weight="bold" color="#FFFFFF" aria-hidden />
           </button>
+          <MonthNavButton
+            onClick={goNext}
+            disabled={disabled || !canGoNext}
+            ariaLabel="Next month"
+          >
+            <CaretRight size={16} weight="bold" aria-hidden />
+          </MonthNavButton>
         </div>
 
         {trailingSlot != null && (

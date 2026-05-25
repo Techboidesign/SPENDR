@@ -1,4 +1,5 @@
 import type { AppState } from '../data/types';
+type StoredAuth = { userId: string | null };
 import { getItem, removeItem } from '../utils/storage';
 import { replaceAppStateOnServer } from './appDataService';
 import { getSupabase } from '../../lib/supabase';
@@ -14,14 +15,21 @@ export async function migrateLocalStorageIfNeeded(userId: string): Promise<AppSt
   if (error) throw error;
   if (profile?.has_migrated) return null;
 
+  const localAuth = getItem<StoredAuth>('auth');
   const local = getItem<AppState>('appState');
-  if (!local) {
+
+  // Only migrate demo/local data for the same user — never attach old data to a new account.
+  if (!local || localAuth?.userId !== userId) {
     await supabase.from('profiles').update({ has_migrated: true }).eq('id', userId);
+    if (local && localAuth?.userId !== userId) {
+      removeItem('appState');
+    }
     return null;
   }
 
   await replaceAppStateOnServer(userId, local);
   removeItem('appState');
+  removeItem('auth');
   return local;
 }
 

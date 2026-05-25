@@ -1,16 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CheckCircle } from '@phosphor-icons/react';
+import { ArrowLeft, CheckCircle } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { useApp } from '../../../context/AppContext';
 import { Button } from '../../ui/button';
+import { SpendrLogo } from '../../auth/SpendrLogo';
+import { AUTH_THEME } from '../../../theme/authTheme';
 
 export default function Step7Complete() {
   const navigate = useNavigate();
-  const { complete, onboarding } = useOnboarding();
+  const { complete, back, onboarding } = useOnboarding();
   const { completeOnboardingAndSync } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleBack = () => {
+    back();
+    navigate('/onboarding/name-basics');
+  };
 
   const handleLaunch = async () => {
     setLoading(true);
@@ -32,58 +39,95 @@ export default function Step7Complete() {
   const selectedCategories = onboarding.data.selectedCategories || [];
 
   return (
-    <div style={{
-      height: '100%',
-      backgroundColor: '#F5F5FA',
-      padding: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-        <div style={{
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          background: 'linear-gradient(135deg, #3E37FF 0%, #7C3AED 100%)',
+    <div
+      style={{
+        height: '100%',
+        background: AUTH_THEME.bgGradient,
+        color: AUTH_THEME.textPrimary,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div style={{ padding: '12px 20px 8px', flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label="Back"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 20,
+            backgroundColor: AUTH_THEME.buttonGhost,
+            border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <ArrowLeft size={18} color={AUTH_THEME.textPrimary} weight="light" />
+        </button>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          padding: '0 20px 20px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 24px',
-          boxShadow: '0 2px 12px rgba(62,55,255,0.18)',
-        }}>
-          <CheckCircle size={48} color="#FFFFFF" weight="fill" />
+          overflowY: 'auto',
+        }}
+      >
+      <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+        <div style={{ margin: '0 auto 24px', position: 'relative', width: 88, height: 88 }}>
+          <SpendrLogo size={88} />
+          <div
+            style={{
+              position: 'absolute',
+              right: -4,
+              bottom: -4,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: AUTH_THEME.accentMint,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CheckCircle size={20} color={AUTH_THEME.bgSolid} weight="fill" />
+          </div>
         </div>
 
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: -0.5, margin: '0 0 12px' }}>
-          You're all set, {firstName}!
+        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5, margin: '0 0 20px' }}>
+          You&apos;re all set, {firstName}!
         </h1>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 }}>
-          Your account is ready to go
-        </p>
 
         {error && (
           <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 12 }}>{error}</p>
         )}
 
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
-          textAlign: 'left',
-          border: '1px solid #E5E7EB',
-        }}>
+        <div
+          style={{
+            backgroundColor: AUTH_THEME.surface,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20,
+            textAlign: 'left',
+            border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+          }}
+        >
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Currency</div>
-            <div style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>{currency}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Currency</div>
+            <div style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5 }}>{currency}</div>
           </div>
 
           {monthlyBudget != null && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>Monthly budget</div>
-              <div style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Monthly budget</div>
+              <div style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5 }}>
                 {currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'}
                 {monthlyBudget.toLocaleString()}
               </div>
@@ -92,7 +136,7 @@ export default function Step7Complete() {
 
           {selectedCategories.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
                 {selectedCategories.length} categories selected
               </div>
             </div>
@@ -107,18 +151,19 @@ export default function Step7Complete() {
             height: 50,
             fontSize: 14,
             fontWeight: 700,
-            backgroundColor: '#3E37FF',
-            color: '#FFFFFF',
-            borderRadius: 14,
+            backgroundColor: AUTH_THEME.buttonPrimary,
+            color: AUTH_THEME.buttonPrimaryText,
+            borderRadius: 20,
             opacity: loading ? 0.7 : 1,
           }}
         >
           {loading ? 'Saving…' : 'Launch Spendr'}
         </Button>
 
-        <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 12, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: AUTH_THEME.textFaint, marginTop: 12, lineHeight: 1.5 }}>
           You can change these later in Settings
         </p>
+      </div>
       </div>
     </div>
   );

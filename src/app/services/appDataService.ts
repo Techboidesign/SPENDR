@@ -7,24 +7,80 @@ import type {
   DbCustomCategory,
   DbUserPreferences,
 } from '../data/database.types';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../data/notificationPreferences';
 import { getSupabase } from '../../lib/supabase';
 import { recurringSeriesKey } from '../utils/recurringExpense';
+import type { NotificationPreferences } from '../data/types';
 
-const EMPTY_APP_STATE: AppState = {
-  expenses: [],
-  income: 0,
-  monthlyBudget: 0,
-  budgetGoals: [],
-  currency: 'EUR',
-  userName: '',
-  userFullName: '',
-  userEmail: '',
-  userUsername: '',
-  userPhone: '',
-  userAvatar: '',
-  categoryCustomizations: {},
-  customCategories: [],
-};
+/** Clears financial data; keeps profile, currency, appearance, and notification prefs. */
+export function buildErasedAppState(current: AppState): AppState {
+  return createEmptyAppState({
+    userName: current.userName,
+    userFullName: current.userFullName,
+    userEmail: current.userEmail,
+    userPhone: current.userPhone,
+    userAvatar: current.userAvatar,
+    currency: current.currency,
+    appearance: current.appearance,
+    notificationPreferences: current.notificationPreferences,
+  });
+}
+
+export async function eraseAllAppDataOnServer(
+  userId: string,
+  current: AppState,
+): Promise<AppState> {
+  const wiped = buildErasedAppState(current);
+  await replaceAppStateOnServer(userId, wiped);
+  return wiped;
+}
+
+export function createEmptyAppState(overrides?: Partial<AppState>): AppState {
+  return {
+    expenses: [],
+    income: 0,
+    monthlyBudget: 0,
+    budgetGoals: [],
+    currency: 'EUR',
+    userName: '',
+    userFullName: '',
+    userEmail: '',
+    userPhone: '',
+    userAvatar: '',
+    categoryCustomizations: {},
+    customCategories: [],
+    notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
+    appearance: 'light',
+    ...overrides,
+  };
+}
+
+export function dbPrefsToNotificationPreferences(
+  prefs: DbUserPreferences | null,
+): NotificationPreferences {
+  if (!prefs) return DEFAULT_NOTIFICATION_PREFERENCES;
+  return {
+    budgetAlerts: prefs.budget_alerts,
+    weeklySummary: prefs.weekly_summary,
+    billReminders: prefs.bill_reminders,
+    goalMilestones: prefs.goal_milestones,
+    recurringReminders: prefs.recurring_reminders,
+  };
+}
+
+export function notificationPreferencesToDb(
+  prefs: NotificationPreferences,
+): Omit<DbUserPreferences, 'user_id'> {
+  return {
+    budget_alerts: prefs.budgetAlerts,
+    weekly_summary: prefs.weeklySummary,
+    bill_reminders: prefs.billReminders,
+    goal_milestones: prefs.goalMilestones,
+    recurring_reminders: prefs.recurringReminders,
+  };
+}
+
+const EMPTY_APP_STATE = createEmptyAppState();
 
 function rowToExpense(row: DbExpense): Expense {
   return {
@@ -60,7 +116,6 @@ export function profileToAppFields(profile: DbProfile): Pick<
   | 'userName'
   | 'userFullName'
   | 'userEmail'
-  | 'userUsername'
   | 'userPhone'
   | 'userAvatar'
   | 'currency'
@@ -71,7 +126,6 @@ export function profileToAppFields(profile: DbProfile): Pick<
     userName: profile.display_name || profile.full_name.split(' ')[0] || '',
     userFullName: profile.full_name,
     userEmail: profile.email ?? '',
-    userUsername: profile.username ?? '',
     userPhone: profile.phone ?? '',
     userAvatar: profile.avatar_url ?? '',
     currency: profile.currency,
@@ -84,12 +138,13 @@ export function profileToAppFields(profile: DbProfile): Pick<
 export async function fetchAppState(userId: string): Promise<AppState> {
   const supabase = getSupabase();
 
-  const [profileRes, expensesRes, goalsRes, customRes, customCatRes] = await Promise.all([
+  const [profileRes, expensesRes, goalsRes, customRes, customCatRes, prefsRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('expenses').select('*').eq('user_id', userId).order('date', { ascending: false }),
     supabase.from('budget_goals').select('*').eq('user_id', userId),
     supabase.from('category_customizations').select('*').eq('user_id', userId),
     supabase.from('custom_categories').select('*').eq('user_id', userId),
+    supabase.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
   ]);
 
   if (profileRes.error) throw profileRes.error;
@@ -97,6 +152,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
   if (goalsRes.error) throw goalsRes.error;
   if (customRes.error) throw customRes.error;
   if (customCatRes.error) throw customCatRes.error;
+  if (prefsRes.error && prefsRes.error.code !== 'PGRST116') throw prefsRes.error;
 
   const profile = profileRes.data as DbProfile;
   const categoryCustomizations: Record<string, CategoryCustomization> = {};
@@ -131,6 +187,9 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     })),
     categoryCustomizations,
     customCategories,
+    notificationPreferences: dbPrefsToNotificationPreferences(
+      prefsRes.data as DbUserPreferences | null,
+    ),
   };
 }
 
@@ -190,20 +249,46 @@ export async function syncActionToSupabase(
       break;
     }
     case 'SET_BUDGET': {
-      const { error } = await supabase
+      const { error: profileErr } = await supabase
         .from('profiles')
         .update({ monthly_budget: action.amount })
         .eq('id', userId);
-      if (error) throw error;
+      if (profileErr) throw profileErr;
+      const { error: deleteErr } = await supabase.from('budget_goals').delete().eq('user_id', userId);
+      if (deleteErr) throw deleteErr;
+      if (state.budgetGoals.length > 0) {
+        const { error: insertErr } = await supabase.from('budget_goals').insert(
+          state.budgetGoals.map(g => ({
+            user_id: userId,
+            category_id: g.categoryId,
+            amount: g.amount,
+          })),
+        );
+        if (insertErr) throw insertErr;
+      }
       break;
     }
     case 'SET_CATEGORY_BUDGET': {
-      const { error } = await supabase.from('budget_goals').upsert({
-        user_id: userId,
-        category_id: action.categoryId,
-        amount: action.amount,
-      });
-      if (error) throw error;
+      if (action.amount <= 0) {
+        const { error } = await supabase
+          .from('budget_goals')
+          .delete()
+          .eq('user_id', userId)
+          .eq('category_id', action.categoryId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('budget_goals').upsert({
+          user_id: userId,
+          category_id: action.categoryId,
+          amount: action.amount,
+        });
+        if (error) throw error;
+      }
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ monthly_budget: state.monthlyBudget })
+        .eq('id', userId);
+      if (profileErr) throw profileErr;
       break;
     }
     case 'SET_CURRENCY': {
@@ -229,11 +314,6 @@ export async function syncActionToSupabase(
     }
     case 'SET_USER_EMAIL': {
       const { error } = await supabase.from('profiles').update({ email: action.email }).eq('id', userId);
-      if (error) throw error;
-      break;
-    }
-    case 'SET_USER_USERNAME': {
-      const { error } = await supabase.from('profiles').update({ username: action.username }).eq('id', userId);
       if (error) throw error;
       break;
     }
@@ -293,6 +373,14 @@ export async function syncActionToSupabase(
       if (error) throw error;
       break;
     }
+    case 'SET_NOTIFICATION_PREFERENCES': {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update(notificationPreferencesToDb(action.preferences))
+        .eq('user_id', userId);
+      if (error) throw error;
+      break;
+    }
     case 'HYDRATE_STATE':
     case 'RESET_STATE':
       break;
@@ -309,7 +397,6 @@ export async function replaceAppStateOnServer(userId: string, state: AppState): 
     full_name: state.userFullName,
     display_name: state.userName,
     email: state.userEmail,
-    username: state.userUsername,
     phone: state.userPhone,
     avatar_url: state.userAvatar.startsWith('http') ? state.userAvatar : null,
     currency: state.currency,

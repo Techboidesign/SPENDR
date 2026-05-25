@@ -1,4 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { figureTextStyle } from '../../theme/typography';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { progressTrackColor } from '../../theme/darkModeUi';
+import {
+  getBudgetProgressColor,
+  getBudgetRingFillPercent,
+} from '../../utils/budgetProgress';
 
 const EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -8,22 +15,29 @@ export function CircularProgress({
   size = 52,
   animationDelay = 0,
   children,
-  trackColor = '#E8EAEF',
+  trackColor,
   strokeWidth = 4,
 }: {
   percent: number;
-  color: string;
+  color?: string;
   size?: number;
   animationDelay?: number;
   children?: ReactNode;
   trackColor?: string;
   strokeWidth?: number;
 }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const clamped = Math.min(Math.max(percent, 0), 100);
-  const targetOffset = circumference - (clamped / 100) * circumference;
+  const displayPercent = Math.max(0, Math.round(percent));
+  const ringFillPercent = getBudgetRingFillPercent(percent);
+  const strokeColor = color ?? getBudgetProgressColor(percent);
+  const targetOffset = circumference - (ringFillPercent / 100) * circumference;
   const center = size / 2;
+  const isOver = percent > 100;
+  const track = trackColor ?? progressTrackColor(c, isDark);
+  const overTrack = isDark ? 'rgba(248, 113, 113, 0.18)' : '#FEE2E2';
 
   const [dashOffset, setDashOffset] = useState(circumference);
   const [labelPct, setLabelPct] = useState(0);
@@ -33,10 +47,10 @@ export function CircularProgress({
     setLabelPct(0);
     const start = window.setTimeout(() => {
       setDashOffset(targetOffset);
-      setLabelPct(clamped);
+      setLabelPct(displayPercent);
     }, animationDelay + 40);
     return () => window.clearTimeout(start);
-  }, [circumference, targetOffset, clamped, animationDelay]);
+  }, [circumference, targetOffset, displayPercent, animationDelay]);
 
   const ring = (
     <svg width={size} height={size} style={{ display: 'block', flexShrink: 0 }}>
@@ -45,7 +59,7 @@ export function CircularProgress({
         cy={center}
         r={radius}
         fill="none"
-        stroke={trackColor}
+        stroke={isOver ? overTrack : track}
         strokeWidth={strokeWidth}
       />
       <circle
@@ -53,14 +67,14 @@ export function CircularProgress({
         cy={center}
         r={radius}
         fill="none"
-        stroke={color}
+        stroke={strokeColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={dashOffset}
         transform={`rotate(-90 ${center} ${center})`}
         style={{
-          transition: `stroke-dashoffset 0.85s cubic-bezier(${EASE.join(',')})`,
+          transition: `stroke-dashoffset 0.85s cubic-bezier(${EASE.join(',')}), stroke 0.25s ease`,
         }}
       />
       {!children && (
@@ -69,16 +83,16 @@ export function CircularProgress({
           y={center}
           textAnchor="middle"
           dominantBaseline="central"
-          fill={color}
+          fill={strokeColor}
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            fontFamily: 'inherit',
-            transition: 'opacity 0.3s ease',
+            ...figureTextStyle,
+            fontSize: displayPercent >= 100 ? 9 : 10,
+            fill: strokeColor,
+            transition: 'opacity 0.3s ease, fill 0.25s ease',
             opacity: labelPct > 0 ? 1 : 0,
           }}
         >
-          {Math.round(labelPct)}%
+          {labelPct}%
         </text>
       )}
     </svg>

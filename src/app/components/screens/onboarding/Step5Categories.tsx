@@ -4,11 +4,16 @@ import { Check } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { CATEGORIES } from '../../../data/categories';
 import { CategoryIcon } from '../../CategoryIcon';
-import OnboardingLayout from './OnboardingLayout';
+import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+
+/** Short label — matches Settings category pills */
+function categoryPillLabel(name: string): string {
+  return name.split('/')[0].split(' & ')[0];
+}
 
 export default function Step5Categories() {
   const navigate = useNavigate();
-  const { updateData, next, back, skip, skipAll, onboarding } = useOnboarding();
+  const { updateData, next, back, skipAll, onboarding } = useOnboarding();
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     onboarding.data.selectedCategories || CATEGORIES.map(c => c.name)
@@ -30,11 +35,6 @@ export default function Step5Categories() {
     navigate('/onboarding/notifications');
   };
 
-  const handleSkipStep = () => {
-    skip('categories');
-    navigate('/onboarding/notifications');
-  };
-
   const handleBack = () => {
     back();
     navigate('/onboarding/budget');
@@ -47,59 +47,63 @@ export default function Step5Categories() {
 
   return (
     <OnboardingLayout
-      currentStep={5}
+      currentStep={4}
       totalSteps={7}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}
       nextLabel="Continue"
     >
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1A1A2E', letterSpacing: -0.5, margin: '0 0 8px' }}>
-        Choose categories
-      </h1>
-      <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 16px', lineHeight: 1.5 }}>
-        Tap to select categories to track
-      </p>
+      <h1 style={onboardingTitleStyle}>Choose categories</h1>
 
-      {/* Categories list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {CATEGORIES.map(cat => {
           const isSelected = selectedCategories.includes(cat.name);
+          const displayColor = cat.iconColor || cat.color;
+          const pillShadow = `0 1px 3px ${displayColor}18`;
+
           return (
             <button
               key={cat.name}
+              type="button"
               onClick={() => toggleCategory(cat.name)}
               style={{
-                position: 'relative',
-                padding: '10px 12px',
-                borderRadius: 14,
-                border: `2px solid ${isSelected ? '#3E37FF' : '#E5E7EB'}`,
-                backgroundColor: isSelected ? '#F5F3FF' : '#FFFFFF',
-                cursor: 'pointer',
-                textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
-                transition: 'all 0.2s ease',
-                boxShadow: isSelected ? '0 2px 12px rgba(62,55,255,0.18)' : 'none',
+                gap: 5,
+                padding: isSelected ? '2px 8px 2px 4px' : '2px 14px 2px 4px',
+                borderRadius: 20,
+                backgroundColor: cat.bg,
+                border: isSelected
+                  ? `2px solid ${displayColor}`
+                  : `1px solid ${displayColor}20`,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                boxShadow: pillShadow,
+                opacity: isSelected ? 1 : 0.55,
+                transition: 'opacity 0.15s ease, border-color 0.15s ease, transform 0.15s ease',
               }}
             >
-              <CategoryIcon categoryId={cat.id} size="sm" />
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E', flex: 1 }}>
-                {cat.name}
+              <CategoryIcon categoryId={cat.id} size="xs" />
+              <span style={{ fontSize: 11, fontWeight: 500, color: displayColor }}>
+                {categoryPillLabel(cat.name)}
               </span>
               {isSelected && (
-                <div style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  backgroundColor: '#3E37FF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Check size={14} color="#FFFFFF" weight="bold" />
-                </div>
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    backgroundColor: displayColor,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden
+                >
+                  <Check size={11} color="#FFFFFF" weight="bold" />
+                </span>
               )}
             </button>
           );

@@ -1,24 +1,28 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ArrowLeft, Camera, User, At, EnvelopeSimple, Phone,
+  ArrowLeft, Camera, User, EnvelopeSimple, Phone,
   Lock, ShieldCheck, CalendarBlank, Crown, SignOut,
   Check, X, CaretRight, Eye, EyeSlash,
 } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
+import { AppIconChip } from '../ui/AppIconChip';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { isSupabaseConfigured } from '../../../lib/supabase';
 import { uploadAvatar } from '../../services/appDataService';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 import { AvatarCropModal } from '../AvatarCropModal';
+import { BottomSheetModal } from '../BottomSheetModal';
 
 /* ─────────── Shared sub-components ─────────── */
 
 function SectionLabel({ title }: { title: string }) {
+  const c = useAppColors();
   return (
     <p style={{
-      fontSize: 11, fontWeight: 600, color: '#9CA3AF',
+      fontSize: 11, fontWeight: 600, color: c.textFaint,
       letterSpacing: 0.8, padding: '14px 20px 6px', margin: 0,
     }}>
       {title.toUpperCase()}
@@ -27,10 +31,11 @@ function SectionLabel({ title }: { title: string }) {
 }
 
 function ProfileCard({ children }: { children: React.ReactNode }) {
+  const c = useAppColors();
   return (
     <div style={{
-      backgroundColor: '#FFFFFF', borderRadius: 16,
-      overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      backgroundColor: c.surface, borderRadius: 16,
+      overflow: 'hidden', boxShadow: c.shadowCard,
     }}>
       {children}
     </div>
@@ -54,6 +59,8 @@ function FieldRow({
   icon: Icon, iconBg, iconColor, label, value,
   last, inputType = 'text', onSave, readOnly = false,
 }: FieldRowProps) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,33 +85,28 @@ function FieldRow({
           padding: '13px 16px', width: '100%',
           border: 'none', background: 'none',
           cursor: readOnly ? 'default' : 'pointer',
-          borderBottom: (!last && !editing) ? '1px solid #F7F7FA' : 'none',
+          borderBottom: (!last && !editing) ? `1px solid ${c.divider}` : 'none',
           textAlign: 'left', fontFamily: 'inherit',
         }}
       >
-        <div style={{
-          width: 34, height: 34, borderRadius: 9, backgroundColor: iconBg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          <Icon size={16} weight="light" color={iconColor} />
-        </div>
+        <AppIconChip icon={Icon} accentColor={iconColor} lightBg={iconBg} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 1px', fontWeight: 500 }}>{label}</p>
+          <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 1px', fontWeight: 500 }}>{label}</p>
           <p style={{
-            fontSize: 14, fontWeight: 500, color: '#1A1A2E', margin: 0,
+            fontSize: 14, fontWeight: 500, color: c.text, margin: 0,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{value || '—'}</p>
         </div>
-        {!readOnly && <CaretRight size={15} weight="light" color="#D1D5DB" />}
+        {!readOnly && <CaretRight size={15} weight="light" color={c.textFaint} />}
       </button>
 
       {editing && (
         <div style={{
           padding: '10px 16px 14px',
-          backgroundColor: '#F7F7FA',
-          borderBottom: last ? 'none' : '1px solid #F0F0F5',
+          backgroundColor: c.canvas,
+          borderBottom: last ? 'none' : `1px solid ${c.border}`,
         }}>
-          <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 6px', fontWeight: 500 }}>{label}</p>
+          <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 6px', fontWeight: 500 }}>{label}</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               ref={inputRef}
@@ -115,15 +117,15 @@ function FieldRow({
               style={{
                 flex: 1, height: 40, padding: '0 12px',
                 borderRadius: 10, border: '2px solid #3E37FF',
-                fontSize: 14, color: '#1A1A2E',
-                outline: 'none', background: '#FFFFFF',
+                fontSize: 14, color: c.text,
+                outline: 'none', background: c.surface,
                 fontFamily: 'inherit',
               }}
             />
             <button onClick={confirm} style={{ width: 40, height: 40, borderRadius: 10, border: 'none', backgroundColor: '#3E37FF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Check size={16} weight="light" color="#FFFFFF" />
             </button>
-            <button onClick={cancel} style={{ width: 40, height: 40, borderRadius: 10, border: 'none', backgroundColor: '#F0F0F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <button onClick={cancel} style={{ width: 40, height: 40, borderRadius: 10, border: 'none', backgroundColor: c.border, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <X size={16} weight="light" color="#9CA3AF" />
             </button>
           </div>
@@ -134,15 +136,98 @@ function FieldRow({
 }
 
 /* ─────────── Password change bottom sheet ─────────── */
-function PasswordSheet({ onClose }: { onClose: () => void }) {
+function PasswordField({
+  label,
+  value,
+  onChange,
+  show,
+  onToggle,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+}) {
+  const c = useAppColors();
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 6px', fontWeight: 500 }}>{label}</p>
+      <div style={{ position: 'relative' }}>
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="••••••••"
+          autoComplete={label.includes('Current') ? 'current-password' : 'new-password'}
+          style={{
+            width: '100%',
+            height: 44,
+            padding: '0 44px 0 14px',
+            borderRadius: 12,
+            border: '1.5px solid #E5E7EB',
+            fontSize: 14,
+            color: c.text,
+            outline: 'none',
+            background: c.inputBg,
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+          }}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={show ? 'Hide password' : 'Show password'}
+          style={{
+            position: 'absolute',
+            right: 8,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 2,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {show ? (
+            <EyeSlash size={16} weight="light" color="#9CA3AF" />
+          ) : (
+            <Eye size={16} weight="light" color="#9CA3AF" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PasswordSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const c = useAppColors();
   const { updatePassword } = useOnboarding();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) {
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+      setShowCurrent(false);
+      setShowNext(false);
+      setShowConfirm(false);
+      setSuccess(false);
+      setError('');
+    }
+  }, [open]);
 
   const save = async () => {
     if (!current) { setError('Enter your current password.'); return; }
@@ -158,75 +243,75 @@ function PasswordSheet({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const PwField = ({ label, value, onChange, show, toggle }: {
-    label: string; value: string; onChange: (v: string) => void; show: boolean; toggle: () => void;
-  }) => (
-    <div style={{ marginBottom: 14 }}>
-      <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 6px', fontWeight: 500 }}>{label}</p>
-      <div style={{ position: 'relative' }}>
-        <input
-          type={show ? 'text' : 'password'} value={value}
-          onChange={e => onChange(e.target.value)} placeholder="••••••••"
-          style={{
-            width: '100%', height: 44, padding: '0 44px 0 14px',
-            borderRadius: 12, border: '1.5px solid #E5E7EB',
-            fontSize: 14, color: '#1A1A2E', outline: 'none',
-            background: '#F7F7FA', fontFamily: 'inherit', boxSizing: 'border-box',
-          }}
-        />
-        <button onClick={toggle} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-          {show ? <EyeSlash size={16} weight="light" color="#9CA3AF" /> : <Eye size={16} weight="light" color="#9CA3AF" />}
+  return (
+    <BottomSheetModal
+      open={open}
+      onClose={onClose}
+      sheetStyle={{
+        backgroundColor: c.surface,
+        borderRadius: '24px 24px 0 0',
+        padding: '8px 20px max(32px, env(safe-area-inset-bottom, 0px))',
+        boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 20px' }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB' }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: c.text, margin: 0 }}>Change Password</h3>
+        <button type="button" onClick={onClose} style={{ background: c.inputBg, border: 'none', borderRadius: 20, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <X size={16} weight="light" color="#6B7280" />
         </button>
       </div>
-    </div>
-  );
-
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(26,26,46,0.4)', zIndex: 200 }} />
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        backgroundColor: '#FFFFFF', borderRadius: '24px 24px 0 0',
-        padding: '8px 20px 32px', zIndex: 201,
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 20px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB' }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Change Password</h3>
-          <button onClick={onClose} style={{ background: '#F7F7FA', border: 'none', borderRadius: 20, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={16} weight="light" color="#6B7280" />
-          </button>
-        </div>
-        {success ? (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <div style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <Check size={24} weight="light" color="#10B981" />
-            </div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#1A1A2E', margin: 0 }}>Password updated!</p>
+      {success ? (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+            <Check size={24} weight="light" color="#10B981" />
           </div>
-        ) : (
-          <>
-            <PwField label="Current Password" value={current} onChange={setCurrent} show={showCurrent} toggle={() => setShowCurrent(v => !v)} />
-            <PwField label="New Password" value={next} onChange={setNext} show={showNext} toggle={() => setShowNext(v => !v)} />
-            <PwField label="Confirm New Password" value={confirm} onChange={setConfirm} show={showNext} toggle={() => setShowNext(v => !v)} />
-            {error && <p style={{ fontSize: 12, color: '#EF4444', margin: '-6px 0 12px' }}>{error}</p>}
-            <button
-              onClick={save}
-              style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: '#3E37FF', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              Update Password
-            </button>
-          </>
-        )}
-      </div>
-    </>
+          <p style={{ fontSize: 15, fontWeight: 600, color: c.text, margin: 0 }}>Password updated!</p>
+        </div>
+      ) : (
+        <>
+          <PasswordField
+            label="Current Password"
+            value={current}
+            onChange={setCurrent}
+            show={showCurrent}
+            onToggle={() => setShowCurrent(v => !v)}
+          />
+          <PasswordField
+            label="New Password"
+            value={next}
+            onChange={setNext}
+            show={showNext}
+            onToggle={() => setShowNext(v => !v)}
+          />
+          <PasswordField
+            label="Confirm New Password"
+            value={confirm}
+            onChange={setConfirm}
+            show={showConfirm}
+            onToggle={() => setShowConfirm(v => !v)}
+          />
+          {error && <p style={{ fontSize: 12, color: '#EF4444', margin: '-6px 0 12px' }}>{error}</p>}
+          <button
+            type="button"
+            onClick={save}
+            style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: '#3E37FF', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Update Password
+          </button>
+        </>
+      )}
+    </BottomSheetModal>
   );
 }
 
 /* ─────────── Main screen ─────────── */
 export default function UserProfileScreen() {
+  const c = useAppColors();
   const { state, dispatch } = useApp();
   const { exit } = useSubPageNav();
   const navigate = useNavigate();
@@ -281,16 +366,11 @@ export default function UserProfileScreen() {
     dispatch({ type: 'SET_USER_NAME', name: v.split(' ')[0] });
     showToast('Name updated');
   };
-  const saveUsername = (v: string) => {
-    const clean = v.startsWith('@') ? v : `@${v}`;
-    dispatch({ type: 'SET_USER_USERNAME', username: clean });
-    showToast('Username updated');
-  };
   const saveEmail = (v: string) => { dispatch({ type: 'SET_USER_EMAIL', email: v }); showToast('Email updated'); };
   const savePhone = (v: string) => { dispatch({ type: 'SET_USER_PHONE', phone: v }); showToast('Phone updated'); };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
 
       {/* Hidden file input */}
       <input
@@ -314,8 +394,8 @@ export default function UserProfileScreen() {
 
       {/* Nav header */}
       <div style={{
-        backgroundColor: '#FFFFFF', padding: '14px 20px 16px',
-        borderBottom: '1px solid #F0F0F5',
+        backgroundColor: c.surface, padding: '14px 20px 16px',
+        borderBottom: `1px solid ${c.border}`,
         display: 'flex', alignItems: 'center',
         position: 'relative',
       }}>
@@ -327,19 +407,19 @@ export default function UserProfileScreen() {
           }}
         >
           <ArrowLeft size={18} weight="light" color="#3E37FF" />
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#3E37FF' }}>Settings</span>
+          <span style={{ fontSize: 15, fontWeight: 500, color: c.accent }}>Settings</span>
         </button>
         <h2 style={{
-          fontSize: 17, fontWeight: 700, color: '#1A1A2E',
+          fontSize: 17, fontWeight: 700, color: c.text,
           margin: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)',
         }}>Profile</h2>
       </div>
 
       {/* Avatar hero */}
       <div style={{
-        backgroundColor: '#FFFFFF', padding: '28px 20px 24px',
+        backgroundColor: c.surface, padding: '28px 20px 24px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        borderBottom: '1px solid #F0F0F5',
+        borderBottom: `1px solid ${c.border}`,
       }}>
         <div style={{ position: 'relative', marginBottom: 14 }}>
           {/* Avatar — photo or gradient initial */}
@@ -369,7 +449,7 @@ export default function UserProfileScreen() {
             style={{
               position: 'absolute', bottom: -2, right: -2,
               width: 28, height: 28, borderRadius: 14,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: c.surface,
               border: '2px solid #F7F7FA',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
@@ -379,10 +459,10 @@ export default function UserProfileScreen() {
           </button>
         </div>
 
-        <p style={{ fontSize: 19, fontWeight: 800, color: '#1A1A2E', margin: '0 0 3px' }}>{state.userFullName}</p>
-        <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 8px' }}>{state.userUsername}</p>
-        <div style={{ padding: '4px 12px', borderRadius: 20, backgroundColor: '#EDEDFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#3E37FF' }}>Personal · Free</span>
+        <p style={{ fontSize: 19, fontWeight: 800, color: c.text, margin: '0 0 3px' }}>{state.userFullName}</p>
+        <p style={{ fontSize: 13, color: c.textFaint, margin: '0 0 8px' }}>{state.userEmail}</p>
+        <div style={{ padding: '4px 12px', borderRadius: 20, backgroundColor: c.chipSelectedBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: c.accent }}>Personal · Free</span>
         </div>
       </div>
 
@@ -392,7 +472,6 @@ export default function UserProfileScreen() {
         <SectionLabel title="Account" />
         <ProfileCard>
           <FieldRow icon={User}           iconBg="#EDEDFF" iconColor="#3E37FF"  label="Full Name" value={state.userFullName}  onSave={saveName} />
-          <FieldRow icon={At}             iconBg="#F3E8FF" iconColor="#7C3AED"  label="Username"  value={state.userUsername}  onSave={saveUsername} />
           <FieldRow icon={EnvelopeSimple} iconBg="#D1FAE5" iconColor="#10B981"  label="Email"     value={state.userEmail}     inputType="email" onSave={saveEmail} />
           <FieldRow icon={Phone}          iconBg="#FEF3C7" iconColor="#D97706"  label="Phone"     value={state.userPhone}     inputType="tel"   onSave={savePhone} last />
         </ProfileCard>
@@ -406,28 +485,24 @@ export default function UserProfileScreen() {
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '13px 16px', width: '100%',
               border: 'none', background: 'none', cursor: 'pointer',
-              borderBottom: '1px solid #F7F7FA', textAlign: 'left', fontFamily: 'inherit',
+              borderBottom: `1px solid ${c.divider}`, textAlign: 'left', fontFamily: 'inherit',
             }}
           >
-            <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Lock size={16} weight="light" color="#EF4444" />
-            </div>
+            <AppIconChip icon={Lock} accentColor="#EF4444" lightBg="#FEE2E2" />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 1px', fontWeight: 500 }}>Password</p>
-              <p style={{ fontSize: 14, fontWeight: 500, color: '#1A1A2E', margin: 0, letterSpacing: 2 }}>••••••••</p>
+              <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 1px', fontWeight: 500 }}>Password</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: c.text, margin: 0, letterSpacing: 2 }}>••••••••</p>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#3E37FF', marginRight: 4 }}>Change</span>
-            <CaretRight size={15} weight="light" color="#D1D5DB" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.accent, marginRight: 4 }}>Change</span>
+            <CaretRight size={15} weight="light" color={c.textFaint} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <ShieldCheck size={16} weight="light" color="#16A34A" />
-            </div>
+            <AppIconChip icon={ShieldCheck} accentColor="#16A34A" lightBg="#F0FDF4" />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 1px', fontWeight: 500 }}>Two-Factor Auth</p>
-              <p style={{ fontSize: 13, fontWeight: 500, color: '#9CA3AF', margin: 0 }}>Coming soon</p>
+              <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 1px', fontWeight: 500 }}>Two-Factor Auth</p>
+              <p style={{ fontSize: 13, fontWeight: 500, color: c.textFaint, margin: 0 }}>Coming soon</p>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', backgroundColor: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>OFF</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: c.textFaint, backgroundColor: c.surfaceInset, borderRadius: 20, padding: '3px 10px' }}>OFF</span>
           </div>
         </ProfileCard>
 
@@ -448,9 +523,7 @@ export default function UserProfileScreen() {
               width: '100%', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
             }}
           >
-            <div style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <SignOut size={16} weight="light" color="#F97316" />
-            </div>
+            <AppIconChip icon={SignOut} accentColor="#F97316" lightBg="#FFF7ED" />
             <span style={{ fontSize: 14, fontWeight: 500, color: '#F97316' }}>Sign Out</span>
           </button>
         </ProfileCard>
@@ -466,7 +539,7 @@ export default function UserProfileScreen() {
       )}
 
       {/* Password sheet */}
-      {showPasswordSheet && <PasswordSheet onClose={() => setShowPasswordSheet(false)} />}
+      <PasswordSheet open={showPasswordSheet} onClose={() => setShowPasswordSheet(false)} />
 
       {/* Sign out confirm */}
       {showSignOutConfirm && (
@@ -474,7 +547,7 @@ export default function UserProfileScreen() {
           <div onClick={() => setShowSignOutConfirm(false)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(26,26,46,0.4)', zIndex: 200 }} />
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
-            backgroundColor: '#FFFFFF', borderRadius: '24px 24px 0 0',
+            backgroundColor: c.surface, borderRadius: '24px 24px 0 0',
             padding: '24px 20px 32px', zIndex: 201, boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
@@ -483,14 +556,14 @@ export default function UserProfileScreen() {
             <div style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
               <SignOut size={24} weight="light" color="#F97316" />
             </div>
-            <p style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', textAlign: 'center', margin: '0 0 6px' }}>Sign Out?</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '0 0 24px' }}>Your data is saved locally and will be here when you return.</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: c.text, textAlign: 'center', margin: '0 0 6px' }}>Sign Out?</p>
+            <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '0 0 24px' }}>Your data is saved locally and will be here when you return.</p>
             <button onClick={handleSignOut}
               style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: '#F97316', color: '#FFFFFF', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 }}>
               Sign Out
             </button>
             <button onClick={() => setShowSignOutConfirm(false)}
-              style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: '#F7F7FA', color: '#6B7280', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', height: 50, borderRadius: 14, border: 'none', backgroundColor: c.canvas, color: c.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               Cancel
             </button>
           </div>

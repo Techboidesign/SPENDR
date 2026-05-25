@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { expenseTypeBadge } from '../../theme/darkModeUi';
 import { motion, useReducedMotion } from 'motion/react';
 import { CaretRight, CheckSquare, Square, Trash } from '@phosphor-icons/react';
 import { CategoryIcon } from '../CategoryIcon';
@@ -71,6 +73,8 @@ export function ExpenseSwipeRow({
   onRequestDelete,
   formatCurrency,
 }: ExpenseSwipeRowProps) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const reduceMotion = useReducedMotion();
   const cat = getCategoryById(expense.categoryId);
   const [offset, setOffset] = useState(0);
@@ -238,8 +242,8 @@ export function ExpenseSwipeRow({
         position: 'relative',
         width: '100%',
         overflow: 'hidden',
-        backgroundColor: '#FFFFFF',
-        borderBottom: '1px solid #F0F0F5',
+        backgroundColor: c.surface,
+        borderBottom: `1px solid ${c.border}`,
       }}
     >
       <div
@@ -319,7 +323,7 @@ export function ExpenseSwipeRow({
         animate={{
           x: displayX,
           opacity: rowOpacity,
-          backgroundColor: pressed ? '#F3F4F8' : '#FFFFFF',
+          backgroundColor: pressed ? c.surfaceMuted : c.surface,
         }}
         transition={
           isExiting
@@ -362,7 +366,7 @@ export function ExpenseSwipeRow({
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: '#1A1A2E',
+              color: c.text,
               margin: 0,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -371,32 +375,35 @@ export function ExpenseSwipeRow({
           >
             {expense.name}
           </p>
-          <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>{cat.name}</p>
+          <p style={{ fontSize: 11, color: c.textFaint, margin: '2px 0 0' }}>{cat.name}</p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+            <p className="font-figure" style={{ fontSize: 15, color: c.text, margin: 0 }}>
               -{formatCurrency(expense.amount)}
             </p>
-            {expense.type !== 'one-time' && (
+            {expense.type !== 'one-time' && (() => {
+              const badge = expenseTypeBadge(expense.type, c, isDark);
+              return (
               <span
                 style={{
                   display: 'inline-block',
                   marginTop: 2,
                   fontSize: 9,
                   fontWeight: 600,
-                  color: expense.type === 'monthly' ? '#D97706' : '#7C3AED',
-                  backgroundColor: expense.type === 'monthly' ? '#FEF3C7' : '#EDE9FE',
+                  color: badge.color,
+                  backgroundColor: badge.bg,
                   padding: '2px 6px',
                   borderRadius: 4,
                 }}
               >
                 {expense.type === 'monthly' ? 'Monthly' : 'Yearly'}
               </span>
-            )}
+              );
+            })()}
           </div>
-          <CaretRight size={16} weight="bold" color="#D1D5DB" aria-hidden />
+          <CaretRight size={16} weight="bold" color={c.textFaint} aria-hidden />
         </div>
       </motion.div>
 

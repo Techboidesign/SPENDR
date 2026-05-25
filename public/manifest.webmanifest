@@ -1,24 +1,30 @@
 {
   "name": "Spendr",
   "short_name": "Spendr",
-  "description": "Personal expense tracking",
+  "description": "Smart expense tracker",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F5F5FA",
-  "theme_color": "#3E37FF",
+  "background_color": "#1a1830",
+  "theme_color": "#1a1830",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/spendr-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/spendr-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/spendr-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]

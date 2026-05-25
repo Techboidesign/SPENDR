@@ -3,8 +3,7 @@ import { CalendarBlank, CaretDown } from '@phosphor-icons/react';
 import type { HomeRange } from '../../utils/periods';
 import { monthPickerLabel } from '../../utils/periods';
 import { MonthYearPickerDropdown } from '../shared/MonthYearPickerDropdown';
-
-const BRAND = '#3E37FF';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 
 const tabBtnBase: CSSProperties = {
   flex: 1,
@@ -22,23 +21,6 @@ const tabBtnBase: CSSProperties = {
   minWidth: 0,
 };
 
-function activeTabStyle(isActive: boolean): CSSProperties {
-  if (isActive) {
-    return {
-      fontWeight: 600,
-      backgroundColor: BRAND,
-      color: '#FFFFFF',
-      boxShadow: '0 2px 10px rgba(62, 55, 255, 0.35)',
-    };
-  }
-  return {
-    fontWeight: 500,
-    backgroundColor: 'transparent',
-    color: '#6B7280',
-    boxShadow: 'none',
-  };
-}
-
 export function RangeToggle({
   range,
   onChange,
@@ -52,10 +34,29 @@ export function RangeToggle({
   onMonthChange: (key: string) => void;
   compact?: boolean;
 }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const monthBtnRef = useRef<HTMLButtonElement>(null);
 
   const monthDisplay = monthPickerLabel(monthKey);
+
+  const activeTabStyle = (isActive: boolean): CSSProperties => {
+    if (isActive) {
+      return {
+        fontWeight: 600,
+        backgroundColor: c.accent,
+        color: c.onAccent,
+        boxShadow: '0 2px 10px rgba(62, 55, 255, 0.35)',
+      };
+    }
+    return {
+      fontWeight: 500,
+      backgroundColor: 'transparent',
+      color: c.textMuted,
+      boxShadow: 'none',
+    };
+  };
 
   const handleMonthClick = () => {
     if (range === 'year') {
@@ -81,13 +82,26 @@ export function RangeToggle({
         style={{
           display: compact ? 'inline-flex' : 'flex',
           width: compact ? 'fit-content' : undefined,
-          backgroundColor: compact ? 'rgba(255,255,255,0.78)' : '#F7F7FA',
+          backgroundColor: compact
+            ? isDark
+              ? c.surfaceElevated
+              : c.surface
+            : isDark
+              ? c.surfaceElevated
+              : c.chipBg,
           borderRadius: 9999,
           padding: 4,
           gap: 4,
-          backdropFilter: compact ? 'blur(12px)' : undefined,
-          WebkitBackdropFilter: compact ? 'blur(12px)' : undefined,
-          boxShadow: compact ? '0 2px 10px rgba(62,55,255,0.08)' : undefined,
+          backdropFilter: compact && isDark ? 'blur(12px)' : undefined,
+          WebkitBackdropFilter: compact && isDark ? 'blur(12px)' : undefined,
+          boxShadow: compact ? (isDark ? c.shadowSm : '0 2px 10px rgba(15, 23, 42, 0.08)') : undefined,
+          border: compact
+            ? isDark
+              ? `1px solid ${c.borderSubtle}`
+              : `1px solid ${c.border}`
+            : isDark
+              ? `1px solid ${c.borderSubtle}`
+              : undefined,
         }}
       >
         <button
@@ -105,10 +119,10 @@ export function RangeToggle({
           }}
         >
           {monthActive && (
-            <CalendarBlank size={15} weight="regular" color="#FFFFFF" aria-hidden />
+            <CalendarBlank size={15} weight="regular" color={c.onAccent} aria-hidden />
           )}
           <span>{monthActive ? monthDisplay : 'Month'}</span>
-          {monthActive && <CaretDown size={12} weight="bold" color="#FFFFFF" aria-hidden />}
+          {monthActive && <CaretDown size={12} weight="bold" color={c.onAccent} aria-hidden />}
         </button>
 
         <button

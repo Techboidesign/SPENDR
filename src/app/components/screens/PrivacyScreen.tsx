@@ -1,4 +1,5 @@
 import { ArrowLeft, ShieldCheck } from '@phosphor-icons/react';
+import { useAppColors } from '../../context/AppearanceContext';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 
@@ -42,16 +43,17 @@ const SECTIONS = [
 ];
 
 export default function PrivacyScreen() {
+  const c = useAppColors();
   const { exit } = useSubPageNav();
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE }}>
 
       {/* Header */}
       <div style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         padding: '14px 20px 16px',
-        borderBottom: '1px solid #F0F0F5',
+        borderBottom: `1px solid ${c.border}`,
         display: 'flex', alignItems: 'center',
         position: 'relative',
       }}>
@@ -64,10 +66,10 @@ export default function PrivacyScreen() {
           }}
         >
           <ArrowLeft size={18} weight="light" color="#3E37FF" />
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#3E37FF' }}>Settings</span>
+          <span style={{ fontSize: 15, fontWeight: 500, color: c.accent }}>Settings</span>
         </button>
         <h2 style={{
-          fontSize: 17, fontWeight: 700, color: '#1A1A2E',
+          fontSize: 17, fontWeight: 700, color: c.text,
           margin: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)',
         }}>
           Privacy Policy
@@ -76,9 +78,9 @@ export default function PrivacyScreen() {
 
       {/* Hero */}
       <div style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         padding: '24px 20px',
-        borderBottom: '1px solid #F0F0F5',
+        borderBottom: `1px solid ${c.border}`,
         textAlign: 'center',
       }}>
         <div style={{
@@ -90,8 +92,8 @@ export default function PrivacyScreen() {
         }}>
           <ShieldCheck size={26} weight="light" color="#FFFFFF" />
         </div>
-        <p style={{ fontSize: 17, fontWeight: 700, color: '#1A1A2E', margin: '0 0 4px' }}>Your privacy matters</p>
-        <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 10px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 17, fontWeight: 700, color: c.text, margin: '0 0 4px' }}>Your privacy matters</p>
+        <p style={{ fontSize: 13, color: c.textFaint, margin: '0 0 10px', lineHeight: 1.5 }}>
           Spendr is built on a simple principle: your financial data is yours.
         </p>
         <div style={{
@@ -109,20 +111,20 @@ export default function PrivacyScreen() {
           <div
             key={i}
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: c.surface,
               borderRadius: 16,
               padding: '16px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              boxShadow: c.shadowCard,
             }}
           >
             <p style={{
-              fontSize: 14, fontWeight: 700, color: '#1A1A2E',
+              fontSize: 14, fontWeight: 700, color: c.text,
               margin: '0 0 8px',
             }}>
               {section.title}
             </p>
             <p style={{
-              fontSize: 13, color: '#6B7280',
+              fontSize: 13, color: c.textMuted,
               margin: 0, lineHeight: 1.65,
               whiteSpace: 'pre-line',
             }}>
@@ -131,7 +133,7 @@ export default function PrivacyScreen() {
           </div>
         ))}
 
-        <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: c.textFaint, textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
           Spendr v1.0.0 · © 2026 Alejandro Alvarez · @techboi_design
         </p>
       </div>

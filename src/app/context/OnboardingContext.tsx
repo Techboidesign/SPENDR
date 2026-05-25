@@ -6,11 +6,14 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
+import { useLocation } from 'react-router';
+import { ONBOARDING_STEPS } from '../theme/onboardingSteps';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase, getSiteUrl, isSupabaseConfigured } from '../../lib/supabase';
 import { getItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
 import { clearLocalUserData } from '../services/migrateLocalStorage';
+import { createEmptyAppState } from '../services/appDataService';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
 
@@ -59,6 +62,7 @@ interface OnboardingContextType {
   currentStep: string | null;
   updateData: (data: Partial<OnboardingData>) => void;
   next: (stepId: string) => void;
+  goToStep: (stepId: string) => void;
   back: () => void;
   skip: (stepId: string) => void;
   skipAll: () => void;
@@ -104,6 +108,8 @@ function sessionToAuth(session: Session | null): AuthState {
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
   const [onboarding, setOnboarding] = useState<OnboardingState>(() => {
     if (!isSupabaseConfigured) {
       return getItem<OnboardingState>('onboarding') ?? INITIAL_ONBOARDING;
@@ -121,6 +127,17 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
   const onboardingRef = useRef(onboarding);
   onboardingRef.current = onboarding;
+
+  // Keep lastStepId in sync when user taps the stepper (or deep-links)
+  useEffect(() => {
+    const step = ONBOARDING_STEPS.find((s) => location.pathname === s.route);
+    if (!step) return;
+    setOnboarding((prev) =>
+      prev.lastStepId === step.id
+        ? prev
+        : { ...prev, lastStepId: step.id, status: 'in_progress' },
+    );
+  }, [location.pathname]);
 
   const loadOnboardingForUser = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured) return;
@@ -200,6 +217,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }));
   }, []);
 
+  const goToStep = useCallback((stepId: string) => {
+    setOnboarding((prev) => ({
+      ...prev,
+      status: 'in_progress',
+      lastStepId: stepId,
+    }));
+  }, []);
+
   const back = useCallback(() => {
     setOnboarding(prev => {
       const steps = prev.completedSteps;
@@ -246,15 +271,24 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
+      clearLocalUserData();
       const userId = 'user_' + Math.random().toString(36).slice(2);
-      setAuthState({ isAuthenticated: true, userId, method: 'email', email });
+      const nextAuth: AuthState = { isAuthenticated: true, userId, method: 'email', email };
+      setAuthState(nextAuth);
+      setOnboarding(INITIAL_ONBOARDING);
+      setItem('auth', nextAuth);
+      setItem('appState', createEmptyAppState({ userEmail: email }));
       return { needsEmailConfirmation: false };
     }
+    removeItem('appState');
+    removeItem('auth');
+    removeItem('onboarding');
     const { data, error } = await getSupabase().auth.signUp({ email, password });
     if (error) throw error;
     const needsEmailConfirmation = !data.session;
     if (data.session) {
       setAuthState(sessionToAuth(data.session));
+      setOnboarding(INITIAL_ONBOARDING);
     }
     return { needsEmailConfirmation };
   }, []);
@@ -302,6 +336,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         currentStep: onboarding.lastStepId,
         updateData,
         next,
+        goToStep,
         back,
         skip,
         skipAll,
@@ -328,13 +363,7 @@ export function useOnboarding() {
 
 export function getOnboardingRoute(auth: AuthState, onboarding: OnboardingState): string {
   if (!auth.isAuthenticated) {
-    if (onboarding.status === 'not_started') {
-      return '/welcome';
-    }
-  }
-
-  if (!auth.isAuthenticated) {
-    return '/login';
+    return '/welcome';
   }
 
   if (onboarding.status === 'completed' || onboarding.status === 'skipped') {
@@ -345,5 +374,5 @@ export function getOnboardingRoute(auth: AuthState, onboarding: OnboardingState)
     return `/onboarding/${onboarding.lastStepId}`;
   }
 
-  return '/onboarding/name-basics';
+  return '/onboarding/goal';
 }

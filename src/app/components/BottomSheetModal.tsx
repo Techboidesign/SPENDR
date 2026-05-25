@@ -12,6 +12,9 @@ export const MODAL_TRANSITION = {
 
 export const MODAL_HOST_ID = 'app-modal-host';
 
+/** Above tab bar (50), FAB (52), and pickers (400). */
+export const MODAL_OVERLAY_Z = 1000;
+
 export function BottomSheetModal({
   open,
   onClose,
@@ -35,6 +38,10 @@ export function BottomSheetModal({
   useEffect(() => {
     setHost(document.getElementById(MODAL_HOST_ID));
   }, []);
+
+  useEffect(() => {
+    if (open) setHost(document.getElementById(MODAL_HOST_ID));
+  }, [open]);
 
   useEffect(() => {
     const el = backdropRef.current;

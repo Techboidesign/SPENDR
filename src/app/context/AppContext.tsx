@@ -12,16 +12,32 @@ import { AppState, Action, Expense, CategoryCustomization } from '../data/types'
 import { resolveCategories, resolveCategory } from '../data/categoryConfig';
 import { getCategoryById as getDefaultCategoryById, type Category } from '../data/categories';
 import type { CategoryIconKey } from '../data/categoryConfig';
+import {
+  mergeNotificationPreferences,
+  normalizeAppState,
+} from '../data/notificationPreferences';
+import {
+  buildBudgetGoalsForMonthlyBudget,
+  DEFAULT_CATEGORY_BUDGET_WEIGHTS,
+  getDefaultCategoryIds,
+  sumBudgetGoals,
+} from '../utils/budgetAllocation';
 import { INITIAL_APP_STATE } from '../data/sampleData';
 import { getItem, setItem } from '../utils/storage';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import { useOnboarding } from './OnboardingContext';
+import type { AuthState, OnboardingState } from './OnboardingContext';
 import {
   fetchAppState,
   syncActionToSupabase,
+  createEmptyAppState,
+  buildErasedAppState,
+  eraseAllAppDataOnServer,
 } from '../services/appDataService';
 import { migrateLocalStorageIfNeeded } from '../services/migrateLocalStorage';
-import { completeOnboardingOnServer } from '../services/completeOnboarding';
+import {
+  completeOnboardingOnServer,
+  mergeOnboardingIntoAppState,
+} from '../services/completeOnboarding';
 import { parseReceiptFiles, parseReceiptImage } from '../services/receiptParseService';
 import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { generateId } from '../utils/id';
@@ -34,9 +50,9 @@ import {
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE_STATE':
-      return action.state;
+      return normalizeAppState(action.state);
     case 'RESET_STATE':
-      return { ...INITIAL_APP_STATE, expenses: [], budgetGoals: [], customCategories: [] };
+      return createEmptyAppState();
     case 'ADD_EXPENSE':
       return { ...state, expenses: [action.expense, ...state.expenses] };
     case 'ADD_EXPENSES':
@@ -52,21 +68,36 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, expenses: state.expenses.filter(e => !action.ids.includes(e.id)) };
     case 'SET_INCOME':
       return { ...state, income: action.amount };
-    case 'SET_BUDGET':
-      return { ...state, monthlyBudget: action.amount };
+    case 'SET_BUDGET': {
+      const monthlyBudget = action.amount;
+      const categoryIds = action.categoryIds ?? getDefaultCategoryIds();
+      const budgetGoals =
+        monthlyBudget > 0
+          ? buildBudgetGoalsForMonthlyBudget(
+              monthlyBudget,
+              categoryIds,
+              DEFAULT_CATEGORY_BUDGET_WEIGHTS,
+              state.budgetGoals,
+            )
+          : state.budgetGoals;
+      return { ...state, monthlyBudget, budgetGoals };
+    }
     case 'SET_CATEGORY_BUDGET': {
-      const existing = state.budgetGoals.find(g => g.categoryId === action.categoryId);
-      if (existing) {
-        return {
-          ...state,
-          budgetGoals: state.budgetGoals.map(g =>
-            g.categoryId === action.categoryId ? { ...g, amount: action.amount } : g,
-          ),
-        };
-      }
+      const budgetGoals =
+        action.amount <= 0
+          ? state.budgetGoals.filter(g => g.categoryId !== action.categoryId)
+          : state.budgetGoals.some(g => g.categoryId === action.categoryId)
+            ? state.budgetGoals.map(g =>
+                g.categoryId === action.categoryId ? { ...g, amount: action.amount } : g,
+              )
+            : [
+                ...state.budgetGoals,
+                { categoryId: action.categoryId, amount: action.amount },
+              ];
       return {
         ...state,
-        budgetGoals: [...state.budgetGoals, { categoryId: action.categoryId, amount: action.amount }],
+        budgetGoals,
+        monthlyBudget: sumBudgetGoals(budgetGoals),
       };
     }
     case 'SET_CURRENCY':
@@ -77,8 +108,6 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, userFullName: action.fullName };
     case 'SET_USER_EMAIL':
       return { ...state, userEmail: action.email };
-    case 'SET_USER_USERNAME':
-      return { ...state, userUsername: action.username };
     case 'SET_USER_PHONE':
       return { ...state, userPhone: action.phone };
     case 'SET_USER_AVATAR':
@@ -103,6 +132,13 @@ function reducer(state: AppState, action: Action): AppState {
           c.id === action.category.id ? action.category : c,
         ),
       };
+    case 'SET_NOTIFICATION_PREFERENCES':
+      return {
+        ...state,
+        notificationPreferences: mergeNotificationPreferences(action.preferences),
+      };
+    case 'SET_APPEARANCE':
+      return { ...state, appearance: action.mode };
     default:
       return state;
   }
@@ -129,21 +165,29 @@ interface AppContextType {
   scanReceiptFromCamera: (file: File) => Promise<void>;
   uploadReceiptDocuments: (files: File[]) => Promise<void>;
   completeOnboardingAndSync: () => Promise<void>;
+  eraseAllData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { auth, onboarding } = useOnboarding();
+export function AppProvider({
+  children,
+  auth,
+  onboarding,
+}: {
+  children: React.ReactNode;
+  auth: AuthState;
+  onboarding: OnboardingState;
+}) {
   const userId = auth.userId;
   const useCloud = isSupabaseConfigured && auth.isAuthenticated && Boolean(userId);
 
   const [state, baseDispatch] = useReducer(reducer, undefined, () => {
     if (!isSupabaseConfigured) {
       const saved = getItem<AppState>('appState');
-      return saved ?? INITIAL_APP_STATE;
+      return saved ? normalizeAppState(saved) : createEmptyAppState();
     }
-    return { ...INITIAL_APP_STATE, expenses: [], budgetGoals: [] };
+    return createEmptyAppState();
   });
 
   const [isDataLoading, setIsDataLoading] = useState(useCloud);
@@ -161,6 +205,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setItem('appState', state);
     }
   }, [state, useCloud]);
+
+  // Offline: reload per-user app state when account changes
+  useEffect(() => {
+    if (useCloud) return;
+    if (!auth.isAuthenticated) {
+      baseDispatch({ type: 'RESET_STATE' });
+      return;
+    }
+    const saved = getItem<AppState>('appState');
+    baseDispatch({
+      type: 'HYDRATE_STATE',
+      state: saved ?? createEmptyAppState({ userEmail: auth.email ?? '' }),
+    });
+  }, [useCloud, auth.userId, auth.isAuthenticated, auth.email]);
 
   // Load cloud data when user signs in
   useEffect(() => {
@@ -193,7 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Reset when logged out
   useEffect(() => {
-    if (!auth.isAuthenticated && isSupabaseConfigured) {
+    if (!auth.isAuthenticated) {
       baseDispatch({ type: 'RESET_STATE' });
     }
   }, [auth.isAuthenticated]);
@@ -215,10 +273,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completeOnboardingAndSync = useCallback(async () => {
-    if (!userId) return;
-    const merged = await completeOnboardingOnServer(userId, onboarding, stateRef.current);
+    if (useCloud && userId) {
+      const merged = await completeOnboardingOnServer(userId, onboarding, stateRef.current);
+      baseDispatch({ type: 'HYDRATE_STATE', state: merged });
+      return;
+    }
+
+    const merged = mergeOnboardingIntoAppState(stateRef.current, onboarding.data);
     baseDispatch({ type: 'HYDRATE_STATE', state: merged });
-  }, [userId, onboarding]);
+  }, [useCloud, userId, onboarding]);
+
+  const eraseAllData = useCallback(async () => {
+    const current = stateRef.current;
+    const wiped =
+      useCloud && userId
+        ? await eraseAllAppDataOnServer(userId, current)
+        : buildErasedAppState(current);
+
+    baseDispatch({ type: 'HYDRATE_STATE', state: wiped });
+    if (!useCloud) {
+      setItem('appState', wiped);
+    }
+  }, [useCloud, userId]);
 
   const openAddModal = (expense?: Expense, draft?: ExpenseFormDraft) => {
     setEditingExpense(expense ?? null);
@@ -355,6 +431,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         scanReceiptFromCamera,
         uploadReceiptDocuments,
         completeOnboardingAndSync,
+        eraseAllData,
       }}
     >
       {children}

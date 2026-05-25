@@ -4,8 +4,7 @@ import { getMonthExpenses } from '../../context/AppContext';
 import { getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
 import type { HomeRange } from '../../utils/periods';
-
-const TRANSACTION_CARD_SHADOW = '0 2px 10px rgba(0,0,0,0.05)';
+import { useAppColors } from '../../context/AppearanceContext';
 
 function TransactionCard({
   expense,
@@ -14,6 +13,7 @@ function TransactionCard({
   expense: Expense;
   formatCurrency: (n: number) => string;
 }) {
+  const c = useAppColors();
   const cat = getCategoryById(expense.categoryId);
 
   return (
@@ -23,9 +23,9 @@ function TransactionCard({
         alignItems: 'center',
         gap: 12,
         padding: '14px 16px',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         borderRadius: 16,
-        boxShadow: TRANSACTION_CARD_SHADOW,
+        boxShadow: c.shadowCard,
       }}
     >
       <CategoryIcon categoryId={expense.categoryId} size="sm" />
@@ -34,7 +34,7 @@ function TransactionCard({
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: '#1A1A2E',
+            color: c.text,
             margin: 0,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -43,10 +43,10 @@ function TransactionCard({
         >
           {expense.name}
         </p>
-        <p style={{ fontSize: 11, color: '#9CA3AF', margin: '1px 0 0' }}>{cat.name}</p>
+        <p style={{ fontSize: 11, color: c.textFaint, margin: '1px 0 0' }}>{cat.name}</p>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>
+        <p className="font-figure" style={{ fontSize: 15, color: c.text, margin: 0 }}>
           -{formatCurrency(expense.amount)}
         </p>
         {expense.type !== 'one-time' && (
@@ -56,8 +56,8 @@ function TransactionCard({
               marginTop: 2,
               fontSize: 9,
               fontWeight: 600,
-              color: expense.type === 'monthly' ? '#D97706' : '#7C3AED',
-              backgroundColor: expense.type === 'monthly' ? '#FEF3C7' : '#EDE9FE',
+              color: expense.type === 'monthly' ? c.warning : '#7C3AED',
+              backgroundColor: expense.type === 'monthly' ? c.warningSoft : '#EDE9FE',
               padding: '2px 6px',
               borderRadius: 4,
             }}
@@ -83,6 +83,7 @@ export function RecentTransactionsList({
   expenses: Expense[];
   formatCurrency: (n: number) => string;
 }) {
+  const c = useAppColors();
   const filtered = useMemo(() => {
     if (range === 'month') {
       return getMonthExpenses(expenses, monthKey).sort((a, b) =>
@@ -98,7 +99,7 @@ export function RecentTransactionsList({
 
   if (display.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '12px 0 4px' }}>
+      <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '12px 0 4px' }}>
         No transactions — tap + to add an expense
       </p>
     );

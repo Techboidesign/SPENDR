@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect, type CSSProperties } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   ChartPie,
   ListBullets,
@@ -10,6 +10,8 @@ import {
   ArrowCounterClockwise,
 } from '@phosphor-icons/react';
 import { useApp, getCategoryTotals, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { activePillForeground } from '../../theme/darkModeUi';
 import { getCategoryById } from '../../data/categories';
 import { ExpensesCategoryInsights } from '../expenses/ExpensesCategoryInsights';
 import { Expense } from '../../data/types';
@@ -21,6 +23,11 @@ import { ExpenseSwipeRow } from '../expenses/ExpenseSwipeRow';
 
 const BRAND = '#3E37FF';
 const CHARCOAL = '#1A1A2E';
+/** Same slide feel as Settings → Profile (SubPageLayout). */
+const SLIDE_EASE = [0.32, 0.72, 0, 1] as const;
+const SLIDE_DURATION = 0.32;
+const SLIDE_MS = Math.round(SLIDE_DURATION * 1000) + 16;
+
 const UNDO_DURATION_MS = 10_000;
 const TOP_ACTION_BAR_HEIGHT = 60;
 
@@ -67,9 +74,17 @@ function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
 }
 
 export default function ExpensesScreen() {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
+  const reduceMotion = useReducedMotion();
   const { state, dispatch, openAddModal, formatCurrency } = useApp();
   const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
   const [viewMode, setViewMode] = useState<ExpensesViewMode>('list');
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const [insightsExiting, setInsightsExiting] = useState(false);
+  const [barsReady, setBarsReady] = useState(true);
+  const [barAnimGeneration, setBarAnimGeneration] = useState(0);
+  const insightsExitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -306,18 +321,70 @@ export default function ExpensesScreen() {
     { value: 'yearly', label: 'Yearly' },
   ];
 
-  const setView = (mode: ExpensesViewMode) => {
-    setViewMode(mode);
-    if (mode === 'chart') {
-      setSearchOpen(false);
-      setSearch('');
+  const slideTransition = reduceMotion
+    ? { duration: 0 }
+    : { duration: SLIDE_DURATION, ease: SLIDE_EASE };
+
+  const setView = useCallback(
+    (mode: ExpensesViewMode) => {
+      setViewMode(mode);
+      if (insightsExitTimerRef.current) {
+        clearTimeout(insightsExitTimerRef.current);
+        insightsExitTimerRef.current = undefined;
+      }
+
+      if (mode === 'chart') {
+        setInsightsExiting(false);
+        setInsightsOpen(true);
+        setBarsReady(false);
+        setBarAnimGeneration(g => g + 1);
+        setSearchOpen(false);
+        setSearch('');
+        return;
+      }
+
+      setBarsReady(true);
+      setInsightsExiting(true);
+      if (reduceMotion) {
+        setInsightsOpen(false);
+        setInsightsExiting(false);
+        return;
+      }
+      insightsExitTimerRef.current = setTimeout(() => {
+        setInsightsOpen(false);
+        setInsightsExiting(false);
+        insightsExitTimerRef.current = undefined;
+      }, SLIDE_MS);
+    },
+    [reduceMotion],
+  );
+
+  const handleInsightsAnimationComplete = useCallback(() => {
+    if (!insightsExiting && insightsOpen) {
+      setBarsReady(true);
     }
-  };
+  }, [insightsExiting, insightsOpen]);
+
+  useEffect(() => {
+    if (reduceMotion && insightsOpen && !insightsExiting) {
+      setBarsReady(true);
+    }
+  }, [reduceMotion, insightsOpen, insightsExiting]);
+
+  useEffect(
+    () => () => {
+      if (insightsExitTimerRef.current) clearTimeout(insightsExitTimerRef.current);
+    },
+    [],
+  );
+
+  const listIsEmpty = groupKeys.length === 0;
+  const insightsVisible = insightsOpen || insightsExiting;
 
   const headerLocked = isMultiSelect || !!undoSnack;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#F7F7FA', position: 'relative' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: c.canvas, position: 'relative' }}>
       <AnimatePresence initial={false}>
         {isMultiSelect && !undoSnack && (
           <motion.div
@@ -364,7 +431,7 @@ export default function ExpensesScreen() {
               type="button"
               onClick={selectAll}
               style={{
-                backgroundColor: '#FFFFFF',
+                backgroundColor: c.surface,
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: 13,
@@ -463,9 +530,7 @@ export default function ExpensesScreen() {
         style={{
           position: 'relative',
           flexShrink: 0,
-          backgroundColor: '#FFFFFF',
-          borderBottom: '1px solid #F0F0F5',
-          animation: 'fadeIn 0.5s ease-out both',
+          backgroundColor: c.surface,
           overflow: 'visible',
         }}
       >
@@ -485,7 +550,7 @@ export default function ExpensesScreen() {
                   gap: 12,
                 }}
               >
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Expenses</h1>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Expenses</h1>
                 <AnimatedMonthTotal value={monthTotal} formatCurrency={formatCurrency} />
               </div>
 
@@ -502,16 +567,17 @@ export default function ExpensesScreen() {
                         gap: 4,
                         padding: 4,
                         borderRadius: 9999,
-                        backgroundColor: '#F7F7FA',
+                        backgroundColor: c.canvas,
                       }}
                     >
                       {([
-                        { mode: 'list' as const, icon: ListBullets, label: 'List view' },
+                        { mode: 'list' as const, icon: ListBullets, label: 'List' },
                         { mode: 'chart' as const, icon: ChartPie, label: 'Insights' },
                       ]).map(({ mode, icon: Icon, label }) => {
                         const isActive = viewMode === mode;
-                        const activeBg = isActive ? CHARCOAL : 'transparent';
-                        const activeShadow = isActive ? '0 2px 10px rgba(26, 26, 46, 0.25)' : 'none';
+                        const activeBg = isActive ? (isDark ? c.tabActiveBg : CHARCOAL) : 'transparent';
+                        const activeShadow = isActive ? (isDark ? c.shadowSm : '0 2px 10px rgba(26, 26, 46, 0.25)') : 'none';
+                        const activeFg = isActive ? activePillForeground(isDark, c) : c.textMuted;
                         return (
                           <button
                             key={mode}
@@ -537,7 +603,7 @@ export default function ExpensesScreen() {
                             <Icon
                               size={18}
                               weight="light"
-                              color={isActive ? '#FFFFFF' : '#6B7280'}
+                              color={activeFg}
                               aria-hidden
                             />
                             {isActive && (
@@ -545,7 +611,7 @@ export default function ExpensesScreen() {
                                 style={{
                                   fontSize: 13,
                                   fontWeight: 600,
-                                  color: '#FFFFFF',
+                                  color: activeFg,
                                   whiteSpace: 'nowrap',
                                 }}
                               >
@@ -559,223 +625,272 @@ export default function ExpensesScreen() {
                   }
                 />
               </div>
-
-            {viewMode === 'list' && (
-              <div
-                className="expenses-filter-row"
-                style={{
-                  padding: '0 20px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  flexShrink: 0,
-                  opacity: headerLocked ? 0.42 : 1,
-                  filter: headerLocked ? 'grayscale(1)' : 'none',
-                  transition: 'opacity 0.15s ease, filter 0.15s ease',
-                }}
-              >
-                  <div
-                    className="expenses-filter-chips"
-                    style={{
-                      display: 'flex',
-                      flex: 1,
-                      minWidth: 0,
-                      gap: 6,
-                      overflowX: 'auto',
-                      scrollbarWidth: 'none',
-                    }}
-                  >
-                    {FILTERS.map(f => {
-                      const isActive = filter === f.value;
-                      return (
-                        <button
-                          key={f.value}
-                          type="button"
-                          onClick={() => setFilter(f.value)}
-                          disabled={headerLocked}
-                          style={{
-                            padding: '6px 14px',
-                            borderRadius: 9999,
-                            border: 'none',
-                            cursor: headerLocked ? 'default' : 'pointer',
-                            fontSize: 12,
-                            fontWeight: isActive && !headerLocked ? 600 : 500,
-                            backgroundColor: headerLocked
-                              ? '#E0E0E6'
-                              : isActive
-                                ? '#EDEDFF'
-                                : '#F7F7FA',
-                            color: headerLocked ? '#9B9BA8' : isActive ? BRAND : '#6B7280',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                            transition: 'all 0.2s',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          {f.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={toggleSearch}
-                    disabled={headerLocked}
-                    aria-label={searchOpen ? 'Close search' : 'Search expenses'}
-                    style={{
-                      width: 42,
-                      height: 30,
-                      flexShrink: 0,
-                      marginLeft: 'auto',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 0,
-                      borderRadius: 9999,
-                      border: 'none',
-                      cursor: headerLocked ? 'default' : 'pointer',
-                      fontFamily: 'inherit',
-                      backgroundColor: headerLocked
-                        ? '#C8C8D2'
-                        : searchOpen
-                          ? '#2D28CC'
-                          : BRAND,
-                      boxShadow: headerLocked ? 'none' : '0 2px 10px rgba(62, 55, 255, 0.35)',
-                      transition: 'background-color 0.2s ease',
-                    }}
-                  >
-                    <MagnifyingGlass
-                      size={16}
-                      weight="bold"
-                      color={headerLocked ? '#8E8E9A' : '#FFFFFF'}
-                    />
-                  </button>
-              </div>
-            )}
-
-            <AnimatePresence initial={false}>
-              {viewMode === 'list' && searchOpen && (
-                <motion.div
-                  key="expenses-search"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div style={{ padding: '0 20px 14px' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        backgroundColor: '#F7F7FA',
-                        borderRadius: 14,
-                        padding: '11px 14px',
-                        border: `1px solid ${BRAND}30`,
-                      }}
-                    >
-                      <MagnifyingGlass size={16} weight="light" color={BRAND} />
-                      <input
-                        ref={searchInputRef}
-                        type="search"
-                        placeholder="Search expenses…"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{
-                          flex: 1,
-                          border: 'none',
-                          background: 'transparent',
-                          outline: 'none',
-                          fontSize: 14,
-                          color: '#1A1A2E',
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleSearch}
-                        aria-label="Close search"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
-                      >
-                        <X size={16} weight="light" color="#9CA3AF" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
             </div>
       </header>
 
-      <div
-        ref={scrollRef}
-        data-app-scroll
+      <motion.div
+        initial={reduceMotion ? false : { x: '100%' }}
+        animate={{ x: 0 }}
+        transition={slideTransition}
         style={{
           flex: 1,
-          overflowY: 'auto',
-          paddingBottom: TAB_BAR_CLEARANCE,
-          overflowAnchor: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          backgroundColor: c.surface,
+          overflow: 'hidden',
         }}
       >
-        {viewMode === 'chart' ? (
-          <div style={{ padding: '12px 14px' }}>
-            <ExpensesCategoryInsights
-              segments={categorySegments}
-              formatCurrency={formatCurrency}
-              monthKey={selectedMonthKey}
-              monthTotal={monthTotal}
-              shuffleKey={`${selectedMonthKey}-${viewMode}`}
-            />
-          </div>
-        ) : groupKeys.length === 0 ? (
-          <div style={{ padding: '48px 16px', textAlign: 'center' }}>
-            <Receipt size={40} weight="light" color="#D1D5DB" style={{ marginBottom: 12 }} />
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#6B7280', margin: 0 }}>No expenses found</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '4px 0 0' }}>Try adjusting your filters</p>
-          </div>
-        ) : (
-          <div>
-            {groupKeys.map((dateLabel, groupIdx) => (
-              <section
-                key={dateLabel}
-                style={{ animation: `fadeSlideUp 0.5s ease-out ${0.2 + groupIdx * 0.08}s both` }}
+        <div
+          style={{
+            position: 'relative',
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            aria-hidden={insightsVisible}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 0,
+              pointerEvents: insightsVisible ? 'none' : 'auto',
+            }}
+          >
+            <div
+              className="expenses-filter-row"
+              aria-hidden={viewMode !== 'list'}
+              style={{
+                padding: '0 20px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flexShrink: 0,
+                opacity: viewMode === 'list' ? (headerLocked ? 0.42 : 1) : 0,
+                filter: headerLocked ? 'grayscale(1)' : 'none',
+                transition: 'opacity 0.15s ease, filter 0.15s ease',
+                pointerEvents: viewMode === 'list' ? 'auto' : 'none',
+              }}
+            >
+              <div
+                className="expenses-filter-chips"
+                style={{
+                  display: 'flex',
+                  flex: 1,
+                  minWidth: 0,
+                  gap: 6,
+                  overflowX: 'auto',
+                  scrollbarWidth: 'none',
+                }}
               >
-                <div style={{ padding: '12px 16px 6px' }}>
-                  <SectionTitle>{dateLabel}</SectionTitle>
-                </div>
-                <div style={{ backgroundColor: '#FFFFFF' }}>
-                  {grouped[dateLabel].map(exp => (
-                    <div
-                      key={exp.id}
-                      onTouchStart={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                      onTouchEnd={handleRowTouchEnd}
-                      onMouseDown={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                      onMouseUp={handleRowTouchEnd}
+                {FILTERS.map(f => {
+                  const isActive = filter === f.value;
+                  return (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setFilter(f.value)}
+                      disabled={headerLocked || viewMode !== 'list'}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 9999,
+                        border: 'none',
+                        cursor: headerLocked || viewMode !== 'list' ? 'default' : 'pointer',
+                        fontSize: 12,
+                        fontWeight: isActive && !headerLocked ? 600 : 500,
+                        backgroundColor: headerLocked
+                          ? c.surfaceInset
+                          : isActive
+                            ? c.chipSelectedBg
+                            : c.chipBg,
+                        color: headerLocked ? c.textFaint : isActive ? c.chipSelectedText : c.textMuted,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                        transition: 'all 0.2s',
+                        fontFamily: 'inherit',
+                      }}
                     >
-                      <ExpenseSwipeRow
-                        expense={exp}
-                        isMultiSelect={isMultiSelect}
-                        isSelected={selected.has(exp.id)}
-                        isRowOpen={openRowId === exp.id}
-                        onRowOpen={id => setOpenRowId(id)}
-                        onRowClose={() => setOpenRowId(null)}
-                        onSelect={toggleSelect}
-                        onSwipeSelect={handleSwipeSelect}
-                        onCancelLongPress={cancelLongPress}
-                        onDeleteGestureStart={onDeleteGestureStart}
-                        onEdit={openAddModal}
-                        onRequestDelete={exp => scheduleDelete(exp)}
-                        formatCurrency={formatCurrency}
-                      />
-                    </div>
-                  ))}
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={toggleSearch}
+                disabled={headerLocked || viewMode !== 'list'}
+                aria-label={searchOpen ? 'Close search' : 'Search expenses'}
+                style={{
+                  width: 42,
+                  height: 30,
+                  flexShrink: 0,
+                  marginLeft: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  borderRadius: 9999,
+                  border: 'none',
+                  cursor: headerLocked || viewMode !== 'list' ? 'default' : 'pointer',
+                  fontFamily: 'inherit',
+                  backgroundColor: headerLocked
+                    ? '#C8C8D2'
+                    : searchOpen
+                      ? '#2D28CC'
+                      : BRAND,
+                  boxShadow: headerLocked ? 'none' : '0 2px 10px rgba(62, 55, 255, 0.35)',
+                  transition: 'background-color 0.2s ease',
+                }}
+              >
+                <MagnifyingGlass
+                  size={16}
+                  weight="bold"
+                  color={headerLocked ? '#8E8E9A' : '#FFFFFF'}
+                />
+              </button>
+            </div>
+
+            <div
+              style={{
+                flexShrink: 0,
+                overflow: 'hidden',
+                maxHeight: viewMode === 'list' && searchOpen ? 80 : 0,
+                opacity: viewMode === 'list' && searchOpen ? 1 : 0,
+                transition: 'max-height 0.28s ease, opacity 0.2s ease',
+                pointerEvents: viewMode === 'list' && searchOpen ? 'auto' : 'none',
+              }}
+            >
+              <div style={{ padding: '0 20px 14px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    backgroundColor: c.canvas,
+                    borderRadius: 14,
+                    padding: '11px 14px',
+                    border: `1px solid ${BRAND}30`,
+                  }}
+                >
+                  <MagnifyingGlass size={16} weight="light" color={BRAND} />
+                  <input
+                    ref={searchInputRef}
+                    type="search"
+                    placeholder="Search expenses…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      outline: 'none',
+                      fontSize: 14,
+                      color: c.text,
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleSearch}
+                    aria-label="Close search"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+                  >
+                    <X size={16} weight="light" color="#9CA3AF" />
+                  </button>
                 </div>
-              </section>
-            ))}
+              </div>
+            </div>
+
+            <div
+              ref={scrollRef}
+              data-app-scroll
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                paddingBottom: TAB_BAR_CLEARANCE,
+                overflowAnchor: 'none',
+              }}
+            >
+            {listIsEmpty ? (
+              <div style={{ padding: '48px 16px', textAlign: 'center' }}>
+                <Receipt size={40} weight="light" color="#D1D5DB" style={{ marginBottom: 12 }} />
+                <p style={{ fontSize: 15, fontWeight: 600, color: c.textMuted, margin: 0 }}>No expenses found</p>
+                <p style={{ fontSize: 13, color: c.textFaint, margin: '4px 0 0' }}>Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div>
+                {groupKeys.map(dateLabel => (
+                  <section key={dateLabel}>
+                    <SectionTitle inset>{dateLabel}</SectionTitle>
+                    <div style={{ backgroundColor: c.surface }}>
+                      {grouped[dateLabel].map(exp => (
+                        <div
+                          key={exp.id}
+                          onTouchStart={() => !isMultiSelect && handleRowTouchStart(exp.id)}
+                          onTouchEnd={handleRowTouchEnd}
+                          onMouseDown={() => !isMultiSelect && handleRowTouchStart(exp.id)}
+                          onMouseUp={handleRowTouchEnd}
+                        >
+                          <ExpenseSwipeRow
+                            expense={exp}
+                            isMultiSelect={isMultiSelect}
+                            isSelected={selected.has(exp.id)}
+                            isRowOpen={openRowId === exp.id}
+                            onRowOpen={id => setOpenRowId(id)}
+                            onRowClose={() => setOpenRowId(null)}
+                            onSelect={toggleSelect}
+                            onSwipeSelect={handleSwipeSelect}
+                            onCancelLongPress={cancelLongPress}
+                            onDeleteGestureStart={onDeleteGestureStart}
+                            onEdit={openAddModal}
+                            onRequestDelete={exp => scheduleDelete(exp)}
+                            formatCurrency={formatCurrency}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {insightsOpen && (
+            <motion.div
+              key="expenses-insights-panel"
+              initial={reduceMotion ? false : { x: '100%' }}
+              animate={{ x: insightsExiting ? '100%' : 0 }}
+              transition={slideTransition}
+              onAnimationComplete={handleInsightsAnimationComplete}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                overflowY: 'auto',
+                paddingBottom: TAB_BAR_CLEARANCE,
+                willChange: 'transform',
+                backgroundColor: c.surface,
+              }}
+            >
+              <div style={{ padding: '12px 14px' }}>
+                <ExpensesCategoryInsights
+                  segments={categorySegments}
+                  formatCurrency={formatCurrency}
+                  monthKey={selectedMonthKey}
+                  monthTotal={monthTotal}
+                  barAnimationKey={`${selectedMonthKey}-${barAnimGeneration}`}
+                  animateBars={barsReady}
+                />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
 
       <style>{`
         .expenses-filter-row::-webkit-scrollbar { display: none; }

@@ -1,11 +1,15 @@
 import type { InsightCardData } from '../../hooks/useHomeInsightCards';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { FeatureCardIcon } from '../ui/FeatureCardIcon';
-import { FEATURE_CARD, featureCardGradient } from '../ui/featureCard';
+import { getFeatureCardTokens, featureCardGradient } from '../ui/featureCard';
 import { SectionTitle } from '../ui/SectionTitle';
 
 const HOME_GUTTER = 14;
 
 function InsightCard({ card }: { card: InsightCardData }) {
+  const c = useAppColors();
+  const { isDark } = useAppearance();
+  const fc = getFeatureCardTokens(c);
   return (
     <button
       type="button"
@@ -16,10 +20,10 @@ function InsightCard({ card }: { card: InsightCardData }) {
         width: '100%',
         textAlign: 'left',
         border: 'none',
-        borderRadius: FEATURE_CARD.radius,
-        padding: FEATURE_CARD.padding,
-        background: featureCardGradient(card.accentBg),
-        boxShadow: FEATURE_CARD.shadow,
+        borderRadius: fc.radius,
+        padding: fc.padding,
+        background: featureCardGradient(card.accentBg, c.featureCardEnd, isDark),
+        boxShadow: fc.shadow,
         cursor: 'pointer',
         fontFamily: 'inherit',
         display: 'flex',
@@ -30,16 +34,16 @@ function InsightCard({ card }: { card: InsightCardData }) {
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, ...FEATURE_CARD.eyebrow }}>{card.eyebrow}</p>
-        <p style={{ margin: '2px 0 0', ...FEATURE_CARD.headline }}>{card.headline}</p>
-        <p style={{ margin: '2px 0 0', ...FEATURE_CARD.detail }}>{card.detail}</p>
+        <p style={{ margin: 0, ...fc.eyebrow }}>{card.eyebrow}</p>
+        <p style={{ margin: '2px 0 0', ...fc.headline }}>{card.headline}</p>
+        <p style={{ margin: '2px 0 0', ...fc.detail }}>{card.detail}</p>
         {card.progress !== undefined && (
           <div
             style={{
               marginTop: 6,
               height: 4,
               borderRadius: 999,
-              backgroundColor: 'rgba(255,255,255,0.6)',
+              backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.6)',
               overflow: 'hidden',
             }}
           >
@@ -70,6 +74,7 @@ function InsightCard({ card }: { card: InsightCardData }) {
 }
 
 export function HomeInsightsRail({ cards }: { cards: InsightCardData[] }) {
+  const c = useAppColors();
   const visible = cards.slice(0, 4);
   if (visible.length === 0) return null;
 
@@ -77,12 +82,12 @@ export function HomeInsightsRail({ cards }: { cards: InsightCardData[] }) {
     <section
       style={{
         width: '100%',
-        paddingTop: 0,
+        paddingTop: 4,
         paddingBottom: 4,
-        backgroundColor: '#F5F5FA',
+        backgroundColor: c.canvasHome,
       }}
     >
-      <div style={{ padding: `0 ${HOME_GUTTER}px`, marginBottom: 8 }}>
+      <div style={{ padding: `0 ${HOME_GUTTER}px` }}>
         <SectionTitle>Insights</SectionTitle>
       </div>
 

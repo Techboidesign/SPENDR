@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { TrendDown, TrendUp } from '@phosphor-icons/react';
-import { getCategoryById } from '../../data/categories';
-import { CategoryIcon } from '../CategoryIcon';
+import { useApp } from '../../context/AppContext';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
+import { FeatureCardIcon } from '../ui/FeatureCardIcon';
+import type { AppColorPalette } from '../../theme/appColors';
+import { changeBadgeColors } from '../../theme/darkModeUi';
+import { featureCardGradient } from '../ui/featureCard';
 
 export type TopExpenseItem = {
   cat: string;
@@ -14,19 +18,18 @@ export type TopExpenseItem = {
 
 const CAROUSEL_CARD_W = 200;
 const PAGE_GUTTER = 14;
-const PAGE_BG = '#F5F5FA';
 const EDGE_FADE_W = 32;
 
-function shortCategoryName(categoryId: string): string {
-  return getCategoryById(categoryId).name.split('/')[0].split(' & ')[0];
+function shortCategoryName(name: string): string {
+  return name.split('/')[0].split(' & ')[0];
 }
 
-function getChangeMeta(item: TopExpenseItem) {
+function getChangeMeta(item: TopExpenseItem, c: AppColorPalette, isDark: boolean) {
   const isUp = item.pctChange > 0;
   const isDown = item.pctChange < 0;
   const isNew = item.prevAmt === 0 && item.curAmt > 0;
-  const badgeBg = isUp ? '#FEE2E2' : isDown ? '#D1FAE5' : '#F3F4F6';
-  const badgeColor = isUp ? '#991B1B' : isDown ? '#166534' : '#6B7280';
+  const direction = isUp ? 'up' : isDown ? 'down' : 'neutral';
+  const { badgeBg, badgeColor } = changeBadgeColors(direction, c, isDark);
   const monthBadge = isNew
     ? 'New'
     : isUp
@@ -37,7 +40,15 @@ function getChangeMeta(item: TopExpenseItem) {
   return { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown };
 }
 
-function EdgeFade({ side, visible }: { side: 'left' | 'right'; visible: boolean }) {
+function EdgeFade({
+  side,
+  visible,
+  pageBg,
+}: {
+  side: 'left' | 'right';
+  visible: boolean;
+  pageBg: string;
+}) {
   return (
     <div
       aria-hidden
@@ -53,8 +64,8 @@ function EdgeFade({ side, visible }: { side: 'left' | 'right'; visible: boolean 
         transition: 'opacity 0.2s ease',
         background:
           side === 'left'
-            ? `linear-gradient(to right, ${PAGE_BG} 0%, ${PAGE_BG}88 35%, transparent 100%)`
-            : `linear-gradient(to left, ${PAGE_BG} 0%, ${PAGE_BG}88 35%, transparent 100%)`,
+            ? `linear-gradient(to right, ${pageBg} 0%, ${pageBg}88 35%, transparent 100%)`
+            : `linear-gradient(to left, ${pageBg} 0%, ${pageBg}88 35%, transparent 100%)`,
       }}
     />
   );
@@ -67,6 +78,9 @@ export function TopExpensesCard({
   items: TopExpenseItem[];
   formatCurrency: (n: number) => string;
 }) {
+  const c = useAppColors();
+  const { getCategory } = useApp();
+  const { isDark } = useAppearance();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -91,7 +105,7 @@ export function TopExpensesCard({
 
   if (items.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', margin: '12px 0' }}>
+      <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '12px 0' }}>
         No expenses this month
       </p>
     );
@@ -104,11 +118,12 @@ export function TopExpensesCard({
         marginLeft: -PAGE_GUTTER,
         marginRight: -PAGE_GUTTER,
         width: `calc(100% + ${PAGE_GUTTER * 2}px)`,
-        overflow: 'hidden',
+        overflow: 'visible',
+        paddingBottom: 14,
       }}
     >
-      <EdgeFade side="left" visible={showLeftFade} />
-      <EdgeFade side="right" visible={showRightFade} />
+      <EdgeFade side="left" visible={showLeftFade} pageBg={c.canvasHome} />
+      <EdgeFade side="right" visible={showRightFade} pageBg={c.canvasHome} />
 
       <div
         ref={scrollRef}
@@ -125,15 +140,16 @@ export function TopExpensesCard({
           WebkitOverflowScrolling: 'touch',
           overscrollBehaviorX: 'contain',
           touchAction: 'pan-x',
-          paddingBottom: 4,
+          paddingTop: 4,
+          paddingBottom: 8,
           paddingLeft: PAGE_GUTTER,
           paddingRight: PAGE_GUTTER,
           scrollbarWidth: 'none',
         }}
       >
         {items.map(item => {
-          const cat = getCategoryById(item.cat);
-          const { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown } = getChangeMeta(item);
+          const cat = getCategory(item.cat);
+          const { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown } = getChangeMeta(item, c, isDark);
 
           return (
             <button
@@ -147,8 +163,8 @@ export function TopExpensesCard({
                 padding: '14px 14px',
                 borderRadius: 16,
                 border: 'none',
-                background: `linear-gradient(145deg, ${cat.bg} 0%, #FFFFFF 55%)`,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
+                background: featureCardGradient(cat.bg, c.featureCardEnd, isDark),
+                boxShadow: c.shadowCard,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 textAlign: 'left',
@@ -158,7 +174,12 @@ export function TopExpensesCard({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <CategoryIcon categoryId={item.cat} size="md" />
+                <FeatureCardIcon
+                  accentColor={cat.color}
+                  accentBg={cat.bg}
+                  categoryId={item.cat}
+                  categoryIconSize="md"
+                />
                 <span
                   style={{
                     display: 'inline-flex',
@@ -185,10 +206,13 @@ export function TopExpensesCard({
                 </span>
               </div>
               <div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#1A1A2E', margin: '0 0 3px' }}>
-                  {shortCategoryName(item.cat)}
+                <p style={{ fontSize: 15, fontWeight: 700, color: c.text, margin: '0 0 3px' }}>
+                  {shortCategoryName(cat.name)}
                 </p>
-                <p style={{ fontSize: 18, fontWeight: 800, color: cat.color, margin: 0, letterSpacing: -0.5 }}>
+                <p
+                  className="font-figure"
+                  style={{ fontSize: 18, color: isDark ? c.textSecondary : cat.color, margin: 0, letterSpacing: -0.5 }}
+                >
                   {formatCurrency(item.curAmt)}
                 </p>
               </div>

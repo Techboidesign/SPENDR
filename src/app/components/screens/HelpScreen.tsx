@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import {
-  ArrowLeft, Plus, Minus, EnvelopeSimple,
-  ChatCircleDots, BookOpen, Heart,
-} from '@phosphor-icons/react';
+import { useAppColors } from '../../context/AppearanceContext';
+import { ArrowLeft, Plus, Minus, EnvelopeSimple, ChatCircleDots } from '@phosphor-icons/react';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 
@@ -38,8 +36,9 @@ function FAQItem({ item, isOpen, onToggle }: {
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const c = useAppColors();
   return (
-    <div style={{ borderBottom: '1px solid #F7F7FA' }}>
+    <div style={{ borderBottom: `1px solid ${c.divider}` }}>
       <button
         onClick={onToggle}
         style={{
@@ -49,7 +48,7 @@ function FAQItem({ item, isOpen, onToggle }: {
           textAlign: 'left', fontFamily: 'inherit',
         }}
       >
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#1A1A2E', lineHeight: 1.4 }}>
+        <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: c.text, lineHeight: 1.4 }}>
           {item.q}
         </span>
         <div style={{
@@ -67,7 +66,7 @@ function FAQItem({ item, isOpen, onToggle }: {
       {isOpen && (
         <div style={{ padding: '0 16px 16px 16px' }}>
           <p style={{
-            fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.6,
+            fontSize: 13, color: c.textMuted, margin: 0, lineHeight: 1.6,
           }}>
             {item.a}
           </p>
@@ -78,9 +77,10 @@ function FAQItem({ item, isOpen, onToggle }: {
 }
 
 function SectionLabel({ title }: { title: string }) {
+  const c = useAppColors();
   return (
     <p style={{
-      fontSize: 11, fontWeight: 600, color: '#9CA3AF',
+      fontSize: 11, fontWeight: 600, color: c.textFaint,
       letterSpacing: 0.8, padding: '14px 20px 6px', margin: 0,
     }}>
       {title.toUpperCase()}
@@ -89,6 +89,7 @@ function SectionLabel({ title }: { title: string }) {
 }
 
 export default function HelpScreen() {
+  const c = useAppColors();
   const { exit } = useSubPageNav();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [toast, setToast] = useState('');
@@ -99,13 +100,12 @@ export default function HelpScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F7F7FA', paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
+    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
 
-      {/* Toast */}
       {toast && (
         <div style={{
           position: 'absolute', top: 12, left: 20, right: 20,
-          backgroundColor: '#1A1A2E', color: '#FFFFFF',
+          backgroundColor: c.text, color: c.onAccent,
           borderRadius: 12, padding: '12px 16px',
           fontSize: 13, fontWeight: 500, textAlign: 'center',
           zIndex: 100, boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
@@ -114,11 +114,10 @@ export default function HelpScreen() {
         </div>
       )}
 
-      {/* Header */}
       <div style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         padding: '14px 20px 16px',
-        borderBottom: '1px solid #F0F0F5',
+        borderBottom: `1px solid ${c.border}`,
         display: 'flex', alignItems: 'center',
       }}>
         <button
@@ -129,67 +128,43 @@ export default function HelpScreen() {
             fontFamily: 'inherit',
           }}
         >
-          <ArrowLeft size={18} weight="light" color="#3E37FF" />
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#3E37FF' }}>Settings</span>
+          <ArrowLeft size={18} weight="light" color={c.accent} />
+          <span style={{ fontSize: 15, fontWeight: 500, color: c.accent }}>Settings</span>
         </button>
         <h2 style={{
-          fontSize: 17, fontWeight: 700, color: '#1A1A2E',
+          fontSize: 17, fontWeight: 700, color: c.text,
           margin: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)',
         }}>
-          Help & Support
+          FAQ
         </h2>
       </div>
 
-      {/* Hero */}
-      <div style={{
-        backgroundColor: '#FFFFFF',
-        padding: '24px 20px',
-        borderBottom: '1px solid #F0F0F5',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          width: 60, height: 60, borderRadius: 30,
-          background: 'linear-gradient(135deg, #3E37FF 0%, #7C3AED 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 12px',
-          boxShadow: '0 8px 20px rgba(62,55,255,0.25)',
-        }}>
-          <Heart size={26} weight="light" color="#FFFFFF" />
-        </div>
-        <p style={{ fontSize: 17, fontWeight: 700, color: '#1A1A2E', margin: '0 0 4px' }}>We're here for you</p>
-        <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>
-          Browse the FAQ or reach out — we'll get back to you within 24 hours.
-        </p>
-      </div>
-
       <div style={{ padding: '0 16px' }}>
-
-        {/* Quick actions */}
         <SectionLabel title="Contact" />
         <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
           <button
             onClick={() => showToast('Opening email client…')}
             style={{
               flex: 1, padding: '14px 12px', borderRadius: 14,
-              border: 'none', backgroundColor: '#FFFFFF', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: 'none', backgroundColor: c.surface, cursor: 'pointer',
+              boxShadow: c.shadowCard,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
               fontFamily: 'inherit',
             }}
           >
-            <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#EDEDFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.chipSelectedBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <EnvelopeSimple size={20} weight="light" color="#3E37FF" />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E' }}>Email Us</span>
-            <span style={{ fontSize: 10, color: '#9CA3AF' }}>support@spendr.app</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.text }}>Email Us</span>
+            <span style={{ fontSize: 10, color: c.textFaint }}>support@spendr.app</span>
           </button>
 
           <button
             onClick={() => showToast('Opening feedback form…')}
             style={{
               flex: 1, padding: '14px 12px', borderRadius: 14,
-              border: 'none', backgroundColor: '#FFFFFF', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: 'none', backgroundColor: c.surface, cursor: 'pointer',
+              boxShadow: c.shadowCard,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
               fontFamily: 'inherit',
             }}
@@ -197,31 +172,13 @@ export default function HelpScreen() {
             <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ChatCircleDots size={20} weight="light" color="#10B981" />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E' }}>Feedback</span>
-            <span style={{ fontSize: 10, color: '#9CA3AF' }}>Share ideas</span>
-          </button>
-
-          <button
-            onClick={() => showToast('Opening documentation…')}
-            style={{
-              flex: 1, padding: '14px 12px', borderRadius: 14,
-              border: 'none', backgroundColor: '#FFFFFF', cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-              fontFamily: 'inherit',
-            }}
-          >
-            <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BookOpen size={20} weight="light" color="#D97706" />
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A2E' }}>Docs</span>
-            <span style={{ fontSize: 10, color: '#9CA3AF' }}>Read guides</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.text }}>Feedback</span>
+            <span style={{ fontSize: 10, color: c.textFaint }}>Share ideas</span>
           </button>
         </div>
 
-        {/* FAQ */}
         <SectionLabel title="Frequently Asked Questions" />
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+        <div style={{ backgroundColor: c.surface, borderRadius: 16, overflow: 'hidden', boxShadow: c.shadowCard }}>
           {FAQ_ITEMS.map((item, i) => (
             <FAQItem
               key={i}
@@ -232,8 +189,7 @@ export default function HelpScreen() {
           ))}
         </div>
 
-        {/* Footer note */}
-        <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: c.textFaint, textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
           Spendr v1.0.0 · Made with ♥ by Alejandro Alvarez
         </p>
       </div>

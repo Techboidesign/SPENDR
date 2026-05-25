@@ -1,7 +1,7 @@
 import { createBrowserRouter, Outlet, Navigate } from 'react-router';
 import { AppProvider, useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { AppearanceProvider, useAppColors } from './context/AppearanceContext';
 import RootLayout from './components/RootLayout';
 import SubPageLayout from './components/SubPageLayout';
 import PhoneFrameLayout from './components/PhoneFrameLayout';
@@ -27,21 +27,34 @@ import Step5Categories from './components/screens/onboarding/Step5Categories';
 import Step6Notifications from './components/screens/onboarding/Step6Notifications';
 import Step7Complete from './components/screens/onboarding/Step7Complete';
 
+/** Reads onboarding context and passes into AppProvider (avoids AppContext ↔ OnboardingContext cycle). */
+function AppProviderGate({ children }: { children: React.ReactNode }) {
+  const { auth, onboarding } = useOnboarding();
+  return (
+    <AppProvider auth={auth} onboarding={onboarding}>
+      {children}
+    </AppProvider>
+  );
+}
+
 /** Pathless layout route — provides OnboardingProvider and AppProvider to the entire router tree */
 function ProvidersLayout() {
   return (
     <OnboardingProvider>
-      <AppProvider>
-        <AuthLoadingGate>
-          <Outlet />
-        </AuthLoadingGate>
-      </AppProvider>
+      <AppProviderGate>
+        <AppearanceProvider>
+          <AuthLoadingGate>
+            <Outlet />
+          </AuthLoadingGate>
+        </AppearanceProvider>
+      </AppProviderGate>
     </OnboardingProvider>
   );
 }
 
 function AuthLoadingGate({ children }: { children: React.ReactNode }) {
   const { authLoading } = useOnboarding();
+  const c = useAppColors();
   if (authLoading) {
     return (
       <div
@@ -50,8 +63,8 @@ function AuthLoadingGate({ children }: { children: React.ReactNode }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#F7F7FA',
-          color: '#6B7280',
+          backgroundColor: c.canvas,
+          color: c.textMuted,
           fontSize: 14,
         }}
       >
@@ -94,13 +107,13 @@ function AuthGuard() {
   }
 
   if (onboarding.status === 'not_started') {
-    return <Navigate to="/onboarding/name-basics" replace />;
+    return <Navigate to="/onboarding/goal" replace />;
   }
 
   return <Outlet />;
 }
 
-/** Onboarding routes require sign-in when Supabase is enabled */
+/** Onboarding requires a signed-in account */
 function OnboardingAuthGuard() {
   const { auth, authLoading } = useOnboarding();
 
@@ -122,36 +135,63 @@ function OnboardingAuthGuard() {
     );
   }
 
-  if (isSupabaseConfigured && !auth.isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!auth.isAuthenticated) {
+    return <Navigate to="/welcome" replace />;
   }
 
   return <Outlet />;
 }
 
-/** Root redirect — ensures users land on the right page based on auth/onboarding status */
-function RootRedirect() {
-  const { auth, onboarding } = useOnboarding();
-  const route = getOnboardingRoute(auth, onboarding);
-  return <Navigate to={route} replace />;
+/** Redirect signed-in users away from welcome/login/signup */
+function GuestAuthGuard() {
+  const { auth, authLoading, onboarding } = useOnboarding();
+
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F5F5FA',
+          color: '#6B7280',
+          fontSize: 14,
+        }}
+      >
+        Loading…
+      </div>
+    );
+  }
+
+  if (auth.isAuthenticated) {
+    return <Navigate to={getOnboardingRoute(auth, onboarding)} replace />;
+  }
+
+  return <Outlet />;
 }
 
 export const router = createBrowserRouter([
   {
     Component: ProvidersLayout,
     children: [
-      // Public auth routes (with phone frame)
+      // Public auth routes (guests only)
       {
-        Component: PhoneFrameLayout,
+        Component: GuestAuthGuard,
         children: [
-          { path: '/welcome', Component: WelcomeScreen },
-          { path: '/signup', Component: SignUpScreen },
-          { path: '/login', Component: LogInScreen },
-          { path: '/forgot-password', Component: ForgotPasswordScreen },
+          {
+            Component: PhoneFrameLayout,
+            children: [
+              { path: '/welcome', Component: WelcomeScreen },
+              { path: '/signup', Component: SignUpScreen },
+              { path: '/login', Component: LogInScreen },
+              { path: '/forgot-password', Component: ForgotPasswordScreen },
+            ],
+          },
         ],
       },
 
-      // Onboarding routes (require auth when Supabase enabled)
+      // Onboarding routes (require auth)
       {
         path: '/onboarding',
         Component: OnboardingAuthGuard,
@@ -196,6 +236,8 @@ export const router = createBrowserRouter([
           },
         ],
       },
+
+      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
 ]);

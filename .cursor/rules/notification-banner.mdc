@@ -1,0 +1,99 @@
+---
+description: In-app notification banners — slide-down alerts, provider API, and alert flows
+globs: "src/app/components/**/*Notification*.tsx,src/app/context/NotificationContext.tsx,src/app/services/notificationAlerts.ts"
+alwaysApply: false
+---
+
+# Notification banner
+
+Use the shared **in-app banner** system for budget alerts, summaries, and reminders.  
+These are **not** OS push notifications (no `Notification.requestPermission` yet).
+
+## Components
+
+| Piece | Path |
+|-------|------|
+| UI | `src/app/components/ui/NotificationBanner.tsx` |
+| Provider | `src/app/context/NotificationContext.tsx` |
+| Host (in mockup) | `NotificationBannerHost` in `DeviceShell.tsx` |
+| Rules engine | `src/app/services/notificationAlerts.ts` |
+| Auto runner | `src/app/components/NotificationAlertRunner.tsx` (main app only) |
+
+## Showing a banner
+
+Always go through the provider — never mount `NotificationBanner` ad hoc in screens.
+
+```tsx
+import { useNotifications } from '../context/NotificationContext';
+
+const { showNotification } = useNotifications();
+
+showNotification({
+  id: 'unique-dedupe-key',      // required — used for queue + localStorage dedupe
+  title: 'Approaching budget limit',
+  message: '82% of your monthly budget is used.',
+  variant: 'warning',             // 'info' | 'warning' | 'success'
+});
+```
+
+Provider is mounted in `routes.tsx` → `NotificationProvider` (wraps the app tree).
+
+## Banner behaviour (required)
+
+- **Enter**: slide from above (`translateY(-100%)` → `0`), ~320ms ease-out.
+- **Duration**: auto-dismiss after **5 seconds** (`NOTIFICATION_BANNER_DURATION_MS`).
+- **Dismiss**: **X** button calls `onDismiss` immediately (plays exit animation).
+- **Position**: inside `DeviceShell` → `device-shell__content`, **flush top**, **edge-to-edge** (no horizontal inset, no card radius, bottom border only). `z-index: 280`.
+- **Queue**: one visible at a time; auto-runner shows **at most one** alert per evaluation. Manual `showNotification` replaces any pending queue entry (no long FIFO chains).
+
+## User preferences
+
+Stored on `AppState.notificationPreferences`:
+
+- `budgetAlerts` — monthly + category budget thresholds
+- `weeklySummary` — once per calendar week
+- `billReminders` — recurring charges due within 3 days
+- `goalMilestones` — 50% / 75% / 100% of category goals
+- `recurringReminders` — synced with bill reminders for cloud DB
+
+Toggles: onboarding **Stay on track** + **Settings → Notifications**.  
+Updates use `dispatch({ type: 'SET_NOTIFICATION_PREFERENCES', preferences })`.
+
+## Alert flows (when banners fire)
+
+Mount `NotificationAlertRunner` only under the main app shell (`RootLayout`), not during onboarding.
+
+`evaluateNotificationAlerts()` returns **one** payload: the highest-priority unseen alert. Lower-priority candidates are skipped until the user dismisses the current one and state changes.
+
+| Priority (high → low) | Toggle | Trigger | Dedupe id |
+|----------------------|--------|---------|-----------|
+| 1 | Budget alerts | Month spend ≥ 100% | `{YYYY-MM}-budget-over` |
+| 2 | Budget alerts | Any category ≥ 100% (worst wins) | `{YYYY-MM}-cat-{id}-over` |
+| 3 | Budget alerts | Month spend ≥ 80% | `{YYYY-MM}-budget-warning` |
+| 4 | Budget alerts | Category ≥ 80% | `{YYYY-MM}-cat-{id}-warn` |
+| 5 | Bill reminders | Soonest recurring due in 0–3 days | `{YYYY-MM}-bill-{seriesKey}` |
+| 6 | Goal milestones | Highest band only: 50% or 75% (not if ≥80%; no 50+75+100 stack) | `{YYYY-MM}-milestone-{id}-{pct}` |
+| 7 | Weekly summary | Week with spend > 0 | `{weekStart}-weekly-summary` |
+
+Seen ids persist in `localStorage` key `spendr:notification-seen:v1` (30-day TTL).  
+Call `markNotificationSeen(id)` on dismiss (provider does this automatically). Superseded milestone ids are marked seen when a higher band or category over/warn applies.
+
+## Do not
+
+- Use inline absolute “toast” divs for product alerts (export toasts in Settings are legacy; prefer `showNotification` for new work).
+- Fire the same `id` twice in one session (provider dedupes active + queue).
+- Mount `NotificationAlertRunner` on onboarding or auth routes.
+- Add emoji to banner copy.
+- Use non-Phosphor icons in banner chrome (X button uses Phosphor `X`).
+
+## Adding a new alert type
+
+1. Add a preference flag if it should be toggleable.
+2. Add a scored candidate in `evaluateNotificationAlerts()` with a **stable unique `id`** and `priority`.
+3. Respect `prefs` and `wasNotificationSeen(id)`; keep priorities documented in the table above.
+4. Document the row in this file’s table.
+
+## Reference
+
+- Onboarding toggles: `Step6Notifications.tsx`
+- Settings toggles: `SettingsScreen.tsx` → Notifications section

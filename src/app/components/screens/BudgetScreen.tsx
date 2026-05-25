@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, getCategoryTotals } from '../../context/AppContext';
+import { useAppColors } from '../../context/AppearanceContext';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { CURRENT_MONTH_KEY } from '../../utils/periods';
 import { FeaturedBudgetCard } from '../budget/FeaturedBudgetCard';
 import { CategoryBudgetCard } from '../budget/CategoryBudgetCard';
 import { BudgetEditModal, type BudgetEditTarget } from '../budget/BudgetEditModal';
+import { SectionTitle } from '../ui/SectionTitle';
 
 export default function BudgetScreen() {
+  const c = useAppColors();
   const { state, dispatch, formatCurrency, categories } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
 
@@ -32,11 +35,46 @@ export default function BudgetScreen() {
           ? (state.budgetGoals.find(g => g.categoryId === editTarget.categoryId)?.amount ?? 0)
           : 0;
 
+  const currencySymbol =
+    state.currency === 'EUR'
+      ? '€'
+      : state.currency === 'GBP'
+        ? '£'
+        : state.currency === 'USD'
+          ? '$'
+          : state.currency;
+
+  const categoryIds = useMemo(() => categories.map(c => c.id), [categories]);
+
+  const hasCategoriesWithoutBudget = useMemo(
+    () =>
+      state.monthlyBudget > 0 &&
+      categoryIds.some(id => {
+        const goal = state.budgetGoals.find(g => g.categoryId === id);
+        return !goal || goal.amount <= 0;
+      }),
+    [state.monthlyBudget, state.budgetGoals, categoryIds],
+  );
+
+  const didAutoFillCategories = useRef(false);
+
+  useEffect(() => {
+    if (!hasCategoriesWithoutBudget || didAutoFillCategories.current) return;
+    if (state.monthlyBudget < categoryIds.length) return;
+    didAutoFillCategories.current = true;
+    dispatch({
+      type: 'SET_BUDGET',
+      amount: state.monthlyBudget,
+      categoryIds,
+    });
+  }, [hasCategoriesWithoutBudget, state.monthlyBudget, categoryIds, dispatch]);
+
   const handleSave = (amount: number) => {
     if (!editTarget) return;
     if (editTarget.kind === 'income') dispatch({ type: 'SET_INCOME', amount });
-    else if (editTarget.kind === 'budget') dispatch({ type: 'SET_BUDGET', amount });
-    else dispatch({ type: 'SET_CATEGORY_BUDGET', categoryId: editTarget.categoryId, amount });
+    else if (editTarget.kind === 'budget') {
+      dispatch({ type: 'SET_BUDGET', amount, categoryIds });
+    } else dispatch({ type: 'SET_CATEGORY_BUDGET', categoryId: editTarget.categoryId, amount });
   };
 
   const budgetStatus =
@@ -59,23 +97,23 @@ export default function BudgetScreen() {
         style={{
           height: '100%',
           overflowY: 'auto',
-          backgroundColor: '#F7F7FA',
+          backgroundColor: c.canvas,
           paddingBottom: TAB_BAR_CLEARANCE,
         }}
       >
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: c.surface,
             padding: '20px 20px 16px',
-            borderBottom: '1px solid #F0F0F5',
+            borderBottom: `1px solid ${c.border}`,
           }}
         >
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Budget & Goals</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Budget & Goals</h1>
         </div>
 
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <FeaturedBudgetCard
-            title={<>Monthly<br />Income</>}
+            title="Monthly income"
             icon={{ iconKey: 'wallet' }}
             spent={totalSpent}
             limit={state.income}
@@ -88,7 +126,7 @@ export default function BudgetScreen() {
           />
 
           <FeaturedBudgetCard
-            title={<>Monthly<br />Budget</>}
+            title="Monthly budget"
             icon={{ phosphorIcon: 'target' }}
             spent={totalSpent}
             limit={state.monthlyBudget}
@@ -101,17 +139,10 @@ export default function BudgetScreen() {
           />
 
           <div style={{ paddingTop: 4 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 10,
-                padding: '0 2px',
-              }}
-            >
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Categories</p>
-            </div>
+            <SectionTitle>Categories budget limit</SectionTitle>
+            <p style={{ fontSize: 13, color: c.textMuted, margin: '0 0 10px', padding: '0 2px', lineHeight: 1.45 }}>
+              Tap each category to modify your budget limits
+            </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {categories.map((cat, index) => {
@@ -145,6 +176,7 @@ export default function BudgetScreen() {
         target={editTarget}
         initialAmount={modalAmount}
         formatCurrency={formatCurrency}
+        currencySymbol={currencySymbol}
         onSave={handleSave}
         onClose={() => setEditTarget(null)}
       />

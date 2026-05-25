@@ -13,7 +13,7 @@ export default function App() {
         display: 'flex',
         alignItems: native ? 'stretch' : 'center',
         justifyContent: 'center',
-        backgroundColor: native ? '#FFFFFF' : '#E8E8F0',
+        backgroundColor: native ? 'var(--app-shell-native)' : 'var(--app-shell-outer)',
       }}
     >
       <RouterProvider router={router} />

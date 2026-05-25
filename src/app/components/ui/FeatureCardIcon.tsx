@@ -7,8 +7,10 @@ import {
 } from '@phosphor-icons/react';
 import type { CategoryIconKey } from '../../data/categoryConfig';
 import type { InsightPhosphorIcon } from '../../hooks/useHomeInsightCards';
+import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { CategoryIcon, CategoryIconPreview } from '../CategoryIcon';
-import { FEATURE_CARD } from './featureCard';
+import { getFeatureCardTokens } from './featureCard';
+import { featureIconTile } from '../../theme/darkModeUi';
 
 export type FeatureCardPhosphorIcon = InsightPhosphorIcon | 'target';
 
@@ -22,11 +24,11 @@ const PHOSPHOR_ICONS = {
 export type FeatureCardIconProps = {
   accentColor: string;
   accentBg: string;
-  /** When set, overrides the icon tile background (e.g. darker chip on hero cards). */
   iconSurfaceBg?: string;
-  /** When set, overrides icon/glyph color (e.g. white on dark tile). */
   iconGlyphColor?: string;
   categoryId?: string;
+  /** When `categoryId` is set — defaults to `sm` (insights). */
+  categoryIconSize?: 'sm' | 'md';
   iconKey?: CategoryIconKey;
   phosphorIcon?: FeatureCardPhosphorIcon;
 };
@@ -37,21 +39,27 @@ export function FeatureCardIcon({
   iconSurfaceBg,
   iconGlyphColor,
   categoryId,
+  categoryIconSize = 'sm',
   iconKey,
   phosphorIcon,
 }: FeatureCardIconProps) {
-  const tileBg = iconSurfaceBg ?? accentBg;
-  const glyph = iconGlyphColor ?? accentColor;
+  const { isDark } = useAppearance();
+  const c = useAppColors();
+  const fc = getFeatureCardTokens(c);
+  const themed = featureIconTile(accentColor, accentBg, isDark);
+  const tileBg = iconSurfaceBg ?? themed.iconSurfaceBg;
+  const glyph = iconGlyphColor ?? themed.iconGlyphColor;
+  const tileIsGradient = typeof tileBg === 'string' && tileBg.includes('gradient');
 
   if (categoryId) {
-    return <CategoryIcon categoryId={categoryId} size="sm" />;
+    return <CategoryIcon categoryId={categoryId} size={categoryIconSize} />;
   }
 
   if (iconKey) {
     return (
       <CategoryIconPreview
         iconKey={iconKey}
-        color={glyph}
+        color={accentColor}
         bg={tileBg}
         iconColor={glyph}
         size="sm"
@@ -61,14 +69,18 @@ export function FeatureCardIcon({
 
   if (phosphorIcon) {
     const Icon = PHOSPHOR_ICONS[phosphorIcon];
-    const { outer, inner, radius } = FEATURE_CARD.icon;
+    const { outer, inner, radius } = fc.icon;
     return (
       <div
         style={{
           width: outer,
           height: outer,
           borderRadius: radius,
-          backgroundColor: tileBg,
+          ...(tileIsGradient
+            ? { background: tileBg }
+            : tileBg && tileBg !== 'transparent'
+              ? { backgroundColor: tileBg }
+              : {}),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

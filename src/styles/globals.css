@@ -28,35 +28,25 @@
   height: 128px;
   pointer-events: none;
   z-index: 40;
-  background: linear-gradient(
-    to top,
-    rgba(245, 245, 250, 0.97) 0%,
-    rgba(245, 245, 250, 0.82) 28%,
-    rgba(245, 245, 250, 0.45) 58%,
-    transparent 100%
-  );
+  background: var(--tab-scrim);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
   mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
 }
 
-/* Floating tab bar — frosted glass (readable icons) */
+/* Floating tab bar — frosted glass */
 .tab-bar-glass {
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.94) 0%,
-    rgba(248, 249, 252, 0.88) 45%,
-    rgba(255, 255, 255, 0.9) 100%
-  );
+  background: var(--tab-glass);
   -webkit-backdrop-filter: blur(48px) saturate(1.85) brightness(1.05);
   backdrop-filter: blur(48px) saturate(1.85) brightness(1.05);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.12),
-    0 2px 8px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+  border: 1px solid var(--tab-glass-border);
+  box-shadow: var(--tab-glass-shadow);
+}
+
+.dark .tab-bar-glass {
+  -webkit-backdrop-filter: blur(48px) saturate(1.4) brightness(0.92);
+  backdrop-filter: blur(48px) saturate(1.4) brightness(0.92);
 }
 
 /* Full-screen shell on phone / installed PWA (no design mockup) */
@@ -66,7 +56,7 @@
   min-height: 100dvh;
   height: 100dvh;
   max-height: 100dvh;
-  background-color: #ffffff;
+  background-color: var(--app-canvas);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -95,4 +85,34 @@
 
 .month-year-picker-col::-webkit-scrollbar {
   display: none;
+}
+
+/* Expenses insights — bar grow-in (fill-mode both avoids first-frame flash) */
+@keyframes spendr-chart-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.spendr-chart-bar-grow {
+  transform: scaleY(0);
+  transform-origin: bottom center;
+  animation: spendr-chart-bar-grow 0.55s cubic-bezier(0.32, 0.72, 0, 1) var(--bar-delay, 0ms) both;
+}
+
+@keyframes spendr-breakdown-bar-grow {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--bar-target);
+  }
+}
+
+.spendr-breakdown-bar-grow {
+  width: 0;
+  animation: spendr-breakdown-bar-grow 0.55s cubic-bezier(0.32, 0.72, 0, 1) var(--bar-delay, 0ms) both;
 }

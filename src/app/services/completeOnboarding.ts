@@ -1,6 +1,11 @@
 import type { OnboardingData } from '../context/OnboardingContext';
 import type { AppState, BudgetGoal } from '../data/types';
 import { CATEGORIES } from '../data/categories';
+import { mergeNotificationPreferences } from '../data/notificationPreferences';
+import {
+  buildBudgetGoalsForMonthlyBudget,
+  DEFAULT_CATEGORY_BUDGET_WEIGHTS,
+} from '../utils/budgetAllocation';
 import { getSupabase } from '../../lib/supabase';
 import { replaceAppStateOnServer } from './appDataService';
 import { saveOnboarding } from './onboardingService';
@@ -33,7 +38,13 @@ export function mergeOnboardingIntoAppState(
     next.income = data.monthlyAmount.value;
   }
 
-  if (data.budgetAllocations) {
+  if (data.monthlyBudget != null && data.monthlyBudget > 0) {
+    next.budgetGoals = buildBudgetGoalsForMonthlyBudget(
+      data.monthlyBudget,
+      CATEGORIES.map(c => c.id),
+      DEFAULT_CATEGORY_BUDGET_WEIGHTS,
+    );
+  } else if (data.budgetAllocations) {
     const goals: BudgetGoal[] = [];
     for (const [key, amount] of Object.entries(data.budgetAllocations)) {
       const categoryId = ALLOCATION_TO_CATEGORY[key];
@@ -42,6 +53,16 @@ export function mergeOnboardingIntoAppState(
       }
     }
     if (goals.length > 0) next.budgetGoals = goals;
+  }
+
+  if (data.notifications) {
+    next.notificationPreferences = mergeNotificationPreferences({
+      budgetAlerts: data.notifications.budgetAlerts,
+      weeklySummary: data.notifications.weeklySummary,
+      billReminders: data.notifications.billReminders,
+      goalMilestones: data.notifications.goalMilestones,
+      recurringReminders: data.notifications.billReminders,
+    });
   }
 
   if (data.customCategories?.length) {

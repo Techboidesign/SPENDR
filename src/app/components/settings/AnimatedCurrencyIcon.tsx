@@ -1,11 +1,15 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { getCurrencyIcon } from '../../data/currencyConfig';
+import { useAppearance } from '../../context/AppearanceContext';
+import { uiIconChipStyle } from '../../theme/darkModeUi';
 
-const ICON_BG = '#EDE9FE';
-const ICON_COLOR = '#7C3AED';
+const CURRENCY_ACCENT = '#7C3AED';
+const CURRENCY_LIGHT_BG = '#EDE9FE';
 
 export function AnimatedCurrencyIcon({ currency }: { currency: string }) {
+  const { isDark } = useAppearance();
   const Icon = getCurrencyIcon(currency);
+  const chip = uiIconChipStyle(CURRENCY_ACCENT, isDark, CURRENCY_LIGHT_BG);
 
   return (
     <div
@@ -13,12 +17,12 @@ export function AnimatedCurrencyIcon({ currency }: { currency: string }) {
         width: 34,
         height: 34,
         borderRadius: 9,
-        backgroundColor: ICON_BG,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
         overflow: 'hidden',
+        ...chip.containerStyle,
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -30,7 +34,7 @@ export function AnimatedCurrencyIcon({ currency }: { currency: string }) {
           transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon size={16} weight="light" color={ICON_COLOR} />
+          <Icon size={16} weight="light" color={chip.iconColor} />
         </motion.div>
       </AnimatePresence>
     </div>

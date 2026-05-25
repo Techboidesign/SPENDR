@@ -131,7 +131,7 @@ function TabLink({
           whileHover={
             isActive
               ? { scale: 1.06 }
-              : { scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.55)' }
+              : { scale: 1.05, backgroundColor: 'var(--tab-hover-bg)' }
           }
           transition={{ type: 'spring', stiffness: 500, damping: 28 }}
           style={{
@@ -153,15 +153,15 @@ function TabLink({
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 14,
-                backgroundColor: '#0A0A0A',
-                boxShadow: '0 4px 14px rgba(10, 10, 10, 0.28)',
+                backgroundColor: 'var(--tab-active-bg)',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.28)',
               }}
             />
           )}
           <Icon
             size={24}
             weight={isActive ? 'fill' : 'regular'}
-            color={isActive ? '#FFFFFF' : '#6B7280'}
+            color={isActive ? 'var(--tab-active-icon)' : 'var(--tab-inactive-icon)'}
             style={{ position: 'relative', zIndex: 1 }}
           />
         </motion.div>
