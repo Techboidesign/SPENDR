@@ -139,6 +139,10 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'SET_APPEARANCE':
       return { ...state, appearance: action.mode };
+    case 'SET_DISABLED_CATEGORY_IDS':
+      return { ...state, disabledCategoryIds: action.categoryIds };
+    case 'SET_PRIMARY_GOAL':
+      return { ...state, primaryGoal: action.goal };
     default:
       return state;
   }
@@ -198,6 +202,8 @@ export function AppProvider({
   const [parseStatusMessage, setParseStatusMessage] = useState('Analyzing receipt…');
   const stateRef = useRef(state);
   stateRef.current = state;
+  const onboardingRef = useRef(onboarding);
+  onboardingRef.current = onboarding;
 
   // Offline fallback: persist to localStorage when Supabase is not configured
   useEffect(() => {
@@ -273,15 +279,20 @@ export function AppProvider({
   );
 
   const completeOnboardingAndSync = useCallback(async () => {
+    const onboardingSnapshot = onboardingRef.current;
     if (useCloud && userId) {
-      const merged = await completeOnboardingOnServer(userId, onboarding, stateRef.current);
+      const merged = await completeOnboardingOnServer(
+        userId,
+        onboardingSnapshot,
+        stateRef.current,
+      );
       baseDispatch({ type: 'HYDRATE_STATE', state: merged });
       return;
     }
 
-    const merged = mergeOnboardingIntoAppState(stateRef.current, onboarding.data);
+    const merged = mergeOnboardingIntoAppState(stateRef.current, onboardingSnapshot.data);
     baseDispatch({ type: 'HYDRATE_STATE', state: merged });
-  }, [useCloud, userId, onboarding]);
+  }, [useCloud, userId]);
 
   const eraseAllData = useCallback(async () => {
     const current = stateRef.current;
@@ -395,8 +406,13 @@ export function AppProvider({
   };
 
   const categories = useMemo(
-    () => resolveCategories(state.categoryCustomizations, state.customCategories),
-    [state.categoryCustomizations, state.customCategories],
+    () =>
+      resolveCategories(
+        state.categoryCustomizations,
+        state.customCategories,
+        state.disabledCategoryIds,
+      ),
+    [state.categoryCustomizations, state.customCategories, state.disabledCategoryIds],
   );
 
   const getCategory = useCallback(

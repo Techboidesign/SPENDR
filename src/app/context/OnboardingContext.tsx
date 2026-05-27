@@ -32,9 +32,20 @@ export interface OnboardingData {
   };
   incomeFrequency?: 'monthly' | 'bi-weekly' | 'weekly' | 'irregular';
   monthlyBudget?: number;
+  /** automatic = rebalance to monthly total; custom = free-edit category amounts */
+  budgetAllocationMode?: 'automatic' | 'custom';
   budgetAllocations?: Record<string, number>;
+  /** @deprecated Use selectedCategoryIds */
   selectedCategories?: string[];
-  customCategories?: Array<{ name: string; color?: string }>;
+  selectedCategoryIds?: string[];
+  customCategories?: Array<{
+    id: string;
+    name: string;
+    color: string;
+    bg: string;
+    iconKey: string;
+    iconColor?: string;
+  }>;
   notifications?: {
     budgetAlerts?: boolean;
     weeklySummary?: boolean;

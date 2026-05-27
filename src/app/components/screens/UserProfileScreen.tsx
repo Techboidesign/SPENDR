@@ -15,6 +15,7 @@ import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useSubPageNav } from '../SubPageLayout';
 import { AvatarCropModal } from '../AvatarCropModal';
 import { BottomSheetModal } from '../BottomSheetModal';
+import { bottomSheetChrome } from '../../theme/modalSheet';
 
 /* ─────────── Shared sub-components ─────────── */
 
@@ -248,10 +249,8 @@ function PasswordSheet({ open, onClose }: { open: boolean; onClose: () => void }
       open={open}
       onClose={onClose}
       sheetStyle={{
-        backgroundColor: c.surface,
-        borderRadius: '24px 24px 0 0',
+        ...bottomSheetChrome(c),
         padding: '8px 20px max(32px, env(safe-area-inset-bottom, 0px))',
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
         maxHeight: '90vh',
         overflowY: 'auto',
       }}

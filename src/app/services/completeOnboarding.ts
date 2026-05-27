@@ -7,12 +7,13 @@ import {
   DEFAULT_CATEGORY_BUDGET_WEIGHTS,
 } from '../utils/budgetAllocation';
 import { getSupabase } from '../../lib/supabase';
+import { createCustomCategoryAppId, toCustomCategoryAppId, toCustomCategoryDbId } from '../utils/customCategoryId';
 import { replaceAppStateOnServer } from './appDataService';
 import { saveOnboarding } from './onboardingService';
 import type { OnboardingState } from '../context/OnboardingContext';
 
 /** Map onboarding budget allocation keys → app category ids */
-const ALLOCATION_TO_CATEGORY: Record<string, string> = {
+export const ALLOCATION_TO_CATEGORY: Record<string, string> = {
   housing: 'rent',
   food: 'groceries',
   transportation: 'transport',
@@ -21,6 +22,19 @@ const ALLOCATION_TO_CATEGORY: Record<string, string> = {
   entertainment: 'entertainment',
   savings: 'other',
 };
+
+export function budgetAllocationsToGoals(
+  allocations: Record<string, number>,
+): BudgetGoal[] {
+  const goals: BudgetGoal[] = [];
+  for (const [key, amount] of Object.entries(allocations)) {
+    const categoryId = ALLOCATION_TO_CATEGORY[key];
+    if (categoryId && amount > 0) {
+      goals.push({ categoryId, amount: Math.round(amount) });
+    }
+  }
+  return goals;
+}
 
 export function mergeOnboardingIntoAppState(
   current: AppState,
@@ -32,27 +46,24 @@ export function mergeOnboardingIntoAppState(
     next.userName = data.firstName;
     next.userFullName = data.firstName;
   }
+  if (data.primaryGoal) {
+    next.primaryGoal = data.primaryGoal;
+  }
   if (data.currency) next.currency = data.currency;
   if (data.monthlyBudget != null) next.monthlyBudget = data.monthlyBudget;
   if (data.monthlyAmount?.type === 'income' && data.monthlyAmount.value != null) {
     next.income = data.monthlyAmount.value;
   }
 
-  if (data.monthlyBudget != null && data.monthlyBudget > 0) {
+  if (data.budgetAllocations && Object.keys(data.budgetAllocations).length > 0) {
+    const goals = budgetAllocationsToGoals(data.budgetAllocations);
+    if (goals.length > 0) next.budgetGoals = goals;
+  } else if (data.monthlyBudget != null && data.monthlyBudget > 0) {
     next.budgetGoals = buildBudgetGoalsForMonthlyBudget(
       data.monthlyBudget,
       CATEGORIES.map(c => c.id),
       DEFAULT_CATEGORY_BUDGET_WEIGHTS,
     );
-  } else if (data.budgetAllocations) {
-    const goals: BudgetGoal[] = [];
-    for (const [key, amount] of Object.entries(data.budgetAllocations)) {
-      const categoryId = ALLOCATION_TO_CATEGORY[key];
-      if (categoryId && amount > 0) {
-        goals.push({ categoryId, amount });
-      }
-    }
-    if (goals.length > 0) next.budgetGoals = goals;
   }
 
   if (data.notifications) {
@@ -65,13 +76,26 @@ export function mergeOnboardingIntoAppState(
     });
   }
 
+  const allBuiltInIds = CATEGORIES.map(c => c.id);
+  const selectedIds =
+    data.selectedCategoryIds ??
+    (data.selectedCategories
+      ? data.selectedCategories
+          .map(name => CATEGORIES.find(c => c.name === name)?.id)
+          .filter((id): id is string => Boolean(id))
+      : allBuiltInIds);
+  next.disabledCategoryIds = allBuiltInIds.filter(id => !selectedIds.includes(id));
+
   if (data.customCategories?.length) {
-    next.customCategories = data.customCategories.map((c, i) => ({
-      id: `custom-${Date.now()}-${i}`,
+    next.customCategories = data.customCategories.map(c => ({
+      id: c.id
+        ? toCustomCategoryAppId(toCustomCategoryDbId(c.id))
+        : createCustomCategoryAppId(),
       name: c.name,
       color: c.color ?? '#3E37FF',
-      bg: c.color ? `${c.color}22` : '#EDEDFF',
-      iconKey: 'other',
+      bg: c.bg ?? (c.color ? `${c.color}22` : '#EDEDFF'),
+      iconKey: c.iconKey ?? 'other',
+      iconColor: c.iconColor,
     }));
   }
 
@@ -104,16 +128,6 @@ export async function completeOnboardingOnServer(
     onboarding_completed_at: completed.completedAt,
   }).eq('id', userId);
   if (profileErr) throw profileErr;
-
-  if (onboarding.data.notifications) {
-    const n = onboarding.data.notifications;
-    await supabase.from('user_preferences').update({
-      budget_alerts: n.budgetAlerts ?? true,
-      weekly_summary: n.weeklySummary ?? true,
-      bill_reminders: n.billReminders ?? true,
-      goal_milestones: n.goalMilestones ?? true,
-    }).eq('user_id', userId);
-  }
 
   await replaceAppStateOnServer(userId, merged);
   await saveOnboarding(userId, completed);

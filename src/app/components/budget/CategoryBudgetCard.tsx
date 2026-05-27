@@ -1,4 +1,4 @@
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight, Star } from '@phosphor-icons/react';
 import { useAppColors } from '../../context/AppearanceContext';
 import { getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
@@ -15,6 +15,7 @@ export function CategoryBudgetCard({
   formatCurrency,
   onClick,
   animationDelay = 0,
+  showFocusBadge = false,
 }: {
   categoryId: string;
   spent: number;
@@ -22,6 +23,7 @@ export function CategoryBudgetCard({
   formatCurrency: (n: number) => string;
   onClick: () => void;
   animationDelay?: number;
+  showFocusBadge?: boolean;
 }) {
   const c = useAppColors();
   const cat = getCategoryById(categoryId);
@@ -50,7 +52,27 @@ export function CategoryBudgetCard({
     >
       <CategoryIcon categoryId={categoryId} size="md" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 4px' }}>{cat.name}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: 0 }}>{cat.name}</p>
+          {showFocusBadge ? (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '2px 7px',
+                borderRadius: 999,
+                backgroundColor: c.accentSoft,
+                color: c.accent,
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              <Star size={10} weight="fill" />
+              Focus
+            </span>
+          ) : null}
+        </div>
         <p style={{ fontSize: 12, color: c.textFaint, margin: 0 }}>
           {budgeted > 0 ? (
             <>

@@ -47,6 +47,56 @@ export function distributeAmountByWeights(
   return out;
 }
 
+type WeightedCategory = { id: string; suggested: number };
+
+/**
+ * When one category amount changes, keep the monthly total fixed:
+ * cap the edited category and redistribute the remainder across the others.
+ */
+export function rebalanceCategoryAllocation(
+  editedCategoryId: string,
+  newAmount: number,
+  monthlyBudget: number,
+  categories: readonly WeightedCategory[],
+  currentAllocations: Record<string, number>,
+): Record<string, number> {
+  const target = Math.round(monthlyBudget);
+  if (target <= 0) return {};
+
+  const clamped = Math.max(0, Math.min(Math.round(newAmount), target));
+  const others = categories.filter(c => c.id !== editedCategoryId);
+  if (others.length === 0) {
+    return { [editedCategoryId]: clamped };
+  }
+
+  const remaining = target - clamped;
+  if (remaining <= 0) {
+    return {
+      [editedCategoryId]: clamped,
+      ...Object.fromEntries(others.map(c => [c.id, 0])),
+    };
+  }
+
+  const weights = Object.fromEntries(
+    others.map(c => {
+      const current = currentAllocations[c.id] ?? 0;
+      return [c.id, current > 0 ? current : c.suggested];
+    }),
+  );
+
+  const distributed = distributeAmountByWeights(remaining, weights);
+  return { ...distributed, [editedCategoryId]: clamped };
+}
+
+/** Build allocation map from % weights (sums to monthlyBudget). */
+export function buildAllocationsFromWeights(
+  monthlyBudget: number,
+  categories: readonly WeightedCategory[],
+): Record<string, number> {
+  const weights = Object.fromEntries(categories.map(cat => [cat.id, cat.suggested]));
+  return distributeAmountByWeights(monthlyBudget, weights);
+}
+
 /** Assign a monthly budget across every category (fills missing goals). */
 export function buildBudgetGoalsForMonthlyBudget(
   monthlyBudget: number,

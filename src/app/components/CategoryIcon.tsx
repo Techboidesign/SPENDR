@@ -105,7 +105,7 @@ export function CategoryIconPreview({
   tone?: 'light' | 'dark' | 'auto';
 }) {
   const { isDark: appDark } = useAppearance();
-  const dim = SIZE_MAP[size];
+  const dim = SIZE_MAP[size] ?? SIZE_MAP.md;
   const IconComp = CATEGORY_ICON_MAP[iconKey] ?? Package;
   const isDark = tone === 'dark' || (tone === 'auto' && appDark);
   const stroke = isDark ? ONBOARDING_CHIP_ICON : (iconColor ?? color);

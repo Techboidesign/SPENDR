@@ -222,8 +222,12 @@ function resolveCustomCategory(cat: CustomCategory): Category & { iconKey: Categ
 export function resolveCategories(
   customizations: Record<string, CategoryCustomization> = {},
   customCategories: CustomCategory[] = [],
+  disabledCategoryIds: string[] = [],
 ): (Category & { iconKey: CategoryIconKey })[] {
-  const builtIn = CATEGORIES.map(cat => resolveCategory(cat, customizations[cat.id]));
+  const disabled = new Set(disabledCategoryIds);
+  const builtIn = CATEGORIES.filter(cat => !disabled.has(cat.id)).map(cat =>
+    resolveCategory(cat, customizations[cat.id]),
+  );
   const custom = customCategories.map(resolveCustomCategory);
   return [...builtIn, ...custom];
 }

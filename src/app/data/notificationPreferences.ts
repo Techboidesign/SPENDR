@@ -20,5 +20,7 @@ export function normalizeAppState(state: AppState): AppState {
     ...state,
     appearance: state.appearance === 'dark' ? 'dark' : 'light',
     notificationPreferences: mergeNotificationPreferences(state.notificationPreferences),
+    disabledCategoryIds: state.disabledCategoryIds ?? [],
+    primaryGoal: state.primaryGoal ?? null,
   };
 }

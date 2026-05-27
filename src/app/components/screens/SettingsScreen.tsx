@@ -11,6 +11,7 @@ import { mergeNotificationPreferences } from '../../data/notificationPreferences
 import { useApp } from '../../context/AppContext';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { CategoryIcon } from '../CategoryIcon';
+import { AddCustomCategoryButton } from '../settings/AddCustomCategoryButton';
 import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModal';
 import { EraseAllDataModal } from '../settings/EraseAllDataModal';
 import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
@@ -594,36 +595,7 @@ export default function SettingsScreen() {
                   );
                 })}
               </div>
-              <button
-                type="button"
-                onClick={() => setEditingCategoryId(NEW_CATEGORY_ID)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginTop: 10,
-                  padding: '6px 12px 6px 8px',
-                  borderRadius: 20,
-                  border: `1px dashed ${c.borderSubtle}`,
-                  backgroundColor: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: BADGE_TRANSITION,
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
-                  e.currentTarget.style.borderColor = c.accentBorder;
-                  e.currentTarget.style.backgroundColor = isDark ? c.accentSoft : '#EDEDFF';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = '';
-                  e.currentTarget.style.borderColor = c.borderSubtle;
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <Plus size={14} weight="bold" color={c.accent} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: c.accent }}>Add Category</span>
-              </button>
+              <AddCustomCategoryButton onClick={() => setEditingCategoryId(NEW_CATEGORY_ID)} />
             </div>
           </div>
         </SettingsSection>

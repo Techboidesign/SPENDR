@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { House, ForkKnife, Car, Lightning, ShoppingBag, FilmSlate, PiggyBank } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
@@ -9,8 +9,18 @@ import {
   onboardingRowCard,
   onboardingSuccessColor,
 } from '../../../theme/onboardingDarkUi';
-import { FormInput, formFieldStyleCompactDark } from '../../shared/FormFields';
-import { distributeAmountByWeights } from '../../../utils/budgetAllocation';
+import { formatSliderAmountLabel } from '../../../utils/nonLinearAmountScale';
+import { FormInput, FormSelect, formFieldStyleCompactDark } from '../../shared/FormFields';
+import { IncomeBudgetWarning } from '../../onboarding/IncomeBudgetWarning';
+import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
+import {
+  GOAL_ONBOARDING_ALLOCATION_WEIGHTS,
+  parsePrimaryGoal,
+} from '../../../data/primaryGoalConfig';
+import {
+  buildAllocationsFromWeights,
+  rebalanceCategoryAllocation,
+} from '../../../utils/budgetAllocation';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 const BUDGET_CATEGORIES = [
@@ -23,39 +33,105 @@ const BUDGET_CATEGORIES = [
   { id: 'savings', label: 'Savings', suggested: 20, icon: PiggyBank, accent: '#F7A54D' },
 ] as const;
 
-function buildSuggestedAllocations(
-  budget: number,
-  categories: ReadonlyArray<{ id: string; suggested: number }>,
-): Record<string, number> {
-  const weights = Object.fromEntries(categories.map(cat => [cat.id, cat.suggested]));
-  return distributeAmountByWeights(budget, weights);
-}
+type AllocationMode = 'automatic' | 'custom';
+
+const ALLOCATION_MODE_OPTIONS: { value: AllocationMode; label: string }[] = [
+  { value: 'automatic', label: 'Automatic allocation' },
+  { value: 'custom', label: 'Custom allocation' },
+];
 
 export default function Step4Budget() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
 
-  const monthlyValue = onboarding.data.monthlyAmount?.value || 0;
+  const monthlyIncome = onboarding.data.monthlyAmount?.value ?? 0;
 
-  const [budget, setBudget] = useState(
-    onboarding.data.monthlyBudget?.toString() || monthlyValue.toString()
+  const [budgetAmount, setBudgetAmount] = useState(() => {
+    const saved = onboarding.data.monthlyBudget ?? monthlyIncome;
+    if (monthlyIncome > 0) return Math.min(saved, monthlyIncome);
+    return saved;
+  });
+  const [showOverIncomeWarning, setShowOverIncomeWarning] = useState(false);
+  const [allocationMode, setAllocationMode] = useState<AllocationMode>(
+    onboarding.data.budgetAllocationMode ?? 'automatic',
   );
   const [allocations, setAllocations] = useState<Record<string, number>>(
-    onboarding.data.budgetAllocations || {}
+    onboarding.data.budgetAllocations || {},
   );
 
-  const budgetNum = parseFloat(budget) || 0;
+  const budgetNum = budgetAmount;
+  const isAutomatic = allocationMode === 'automatic';
+  const incomeCap = Math.max(0, monthlyIncome);
+  const primaryGoal = parsePrimaryGoal(onboarding.data.primaryGoal);
+  const goalAllocationWeights = GOAL_ONBOARDING_ALLOCATION_WEIGHTS[primaryGoal];
 
+  // Keep budget in sync when income cap changes (e.g. user went back and edited income)
   useEffect(() => {
-    if (Object.keys(allocations).length === 0 && budgetNum > 0) {
-      setAllocations(buildSuggestedAllocations(budgetNum, BUDGET_CATEGORIES));
+    if (incomeCap <= 0) return;
+    setBudgetAmount(prev => {
+      if (prev <= incomeCap) return prev;
+      setShowOverIncomeWarning(true);
+      return incomeCap;
+    });
+  }, [incomeCap]);
+
+  const handleBudgetChange = (next: number) => {
+    if (incomeCap > 0 && next > incomeCap) {
+      setShowOverIncomeWarning(true);
+      setBudgetAmount(incomeCap);
+      return;
     }
-  }, [budgetNum]);
+    setShowOverIncomeWarning(false);
+    setBudgetAmount(next);
+  };
+
+  const budgetHelperText =
+    incomeCap > 0
+      ? `Based on your monthly income — your budget can go up to ${formatSliderAmountLabel(incomeCap)}.`
+      : undefined;
+
+  // Automatic mode: keep suggested % splits in sync with monthly budget (goal-aware weights)
+  useEffect(() => {
+    if (!isAutomatic || budgetNum <= 0) return;
+    const categoriesWithGoalWeights = BUDGET_CATEGORIES.map(cat => ({
+      ...cat,
+      suggested: goalAllocationWeights[cat.id] ?? cat.suggested,
+    }));
+    setAllocations(buildAllocationsFromWeights(budgetNum, categoriesWithGoalWeights));
+  }, [budgetNum, isAutomatic, primaryGoal]);
+
+  const totalAllocated = Object.values(allocations).reduce((sum, val) => sum + val, 0);
+  const remaining = Math.round(budgetNum - totalAllocated);
+
+  const allocationStatus = useMemo(() => {
+    if (isAutomatic) {
+      return { label: 'Fully allocated', color: onboardingSuccessColor };
+    }
+    if (remaining === 0) {
+      return { label: 'Fully allocated', color: onboardingSuccessColor };
+    }
+    if (remaining > 0) {
+      return { label: `$${remaining} left`, color: AUTH_THEME.textMuted };
+    }
+    return { label: `$${Math.abs(remaining)} over`, color: onboardingDangerColor };
+  }, [isAutomatic, remaining]);
+
+  const handleModeChange = (mode: AllocationMode) => {
+    setAllocationMode(mode);
+    if (mode === 'automatic' && budgetNum > 0) {
+      const categoriesWithGoalWeights = BUDGET_CATEGORIES.map(cat => ({
+        ...cat,
+        suggested: goalAllocationWeights[cat.id] ?? cat.suggested,
+      }));
+      setAllocations(buildAllocationsFromWeights(budgetNum, categoriesWithGoalWeights));
+    }
+  };
 
   const handleNext = () => {
     if (budgetNum > 0) {
       updateData({
         monthlyBudget: budgetNum,
+        budgetAllocationMode: allocationMode,
         budgetAllocations: allocations,
       });
       next('budget');
@@ -74,12 +150,24 @@ export default function Step4Budget() {
   };
 
   const handleAllocationChange = (categoryId: string, value: string) => {
-    const num = parseFloat(value) || 0;
+    if (value !== '' && Number.isNaN(parseFloat(value))) return;
+    const num = value === '' ? 0 : parseFloat(value);
+
+    if (isAutomatic) {
+      setAllocations(prev =>
+        rebalanceCategoryAllocation(
+          categoryId,
+          num,
+          budgetNum,
+          BUDGET_CATEGORIES,
+          prev,
+        ),
+      );
+      return;
+    }
+
     setAllocations(prev => ({ ...prev, [categoryId]: num }));
   };
-
-  const totalAllocated = Object.values(allocations).reduce((sum, val) => sum + val, 0);
-  const remaining = budgetNum - totalAllocated;
 
   return (
     <OnboardingLayout
@@ -88,52 +176,82 @@ export default function Step4Budget() {
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}
-      nextDisabled={budgetNum <= 0}
+      nextDisabled={budgetNum <= 0 || (incomeCap > 0 && budgetNum > incomeCap)}
       nextLabel="Continue"
     >
       <h1 style={onboardingTitleStyle}>Set your budget</h1>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>Monthly budget</label>
-        <div style={{ position: 'relative' }}>
-          <span
-            style={{
-              position: 'absolute',
-              left: 16,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: 16,
-              color: AUTH_THEME.textMuted,
-              fontWeight: 600,
-            }}
-          >
-            $
-          </span>
-          <FormInput
-            type="number"
-            tone="dark"
-            className="font-figure"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder="0"
-            style={{ paddingLeft: 32, fontSize: 20 }}
-          />
-        </div>
-      </div>
+      <p
+        style={{
+          margin: '0 0 16px',
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: AUTH_THEME.textMuted,
+          fontWeight: 500,
+        }}
+      >
+        Start with what you earn each month, then choose how much you want to plan to spend.
+      </p>
+
+      <OnboardingAmountField
+        label="Monthly budget"
+        value={budgetAmount}
+        onChange={handleBudgetChange}
+        maxAmount={incomeCap > 0 ? incomeCap : undefined}
+        helperText={budgetHelperText}
+      />
+
+      {showOverIncomeWarning && incomeCap > 0 ? (
+        <IncomeBudgetWarning
+          message={`Adjust your budget to ${formatSliderAmountLabel(incomeCap)} or less.`}
+        />
+      ) : null}
 
       {budgetNum > 0 && (
         <div style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <h2 style={{ ...onboardingLabelStyle, marginBottom: 0 }}>Suggested allocation</h2>
-            <div
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <h2
               className="font-figure"
               style={{
-                fontSize: 12,
-                color: remaining >= 0 ? onboardingSuccessColor : onboardingDangerColor,
+                ...onboardingLabelStyle,
+                marginBottom: 0,
+                color: allocationStatus.color,
               }}
             >
-              {remaining >= 0 ? `$${remaining} left` : `$${Math.abs(remaining)} over`}
-            </div>
+              {allocationStatus.label}
+            </h2>
+            <FormSelect
+              tone="dark"
+              value={allocationMode}
+              onChange={(e) => handleModeChange(e.target.value as AllocationMode)}
+              aria-label="Allocation mode"
+              style={{
+                ...formFieldStyleCompactDark,
+                width: 'auto',
+                minWidth: 168,
+                height: 34,
+                fontSize: 12,
+                fontWeight: 600,
+                paddingTop: 0,
+                paddingBottom: 0,
+                flexShrink: 0,
+              }}
+            >
+              {ALLOCATION_MODE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </FormSelect>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -187,7 +305,9 @@ export default function Step4Budget() {
                       type="number"
                       tone="dark"
                       className="font-figure"
-                      value={allocations[cat.id] || ''}
+                      min={0}
+                      max={isAutomatic ? budgetNum : undefined}
+                      value={allocations[cat.id] ?? ''}
                       onChange={(e) => handleAllocationChange(cat.id, e.target.value)}
                       placeholder="0"
                       style={{

@@ -37,6 +37,9 @@ export interface CustomCategory {
 /** User-facing light/dark for the main app shell. */
 export type AppearanceMode = 'light' | 'dark';
 
+/** Onboarding “What's your main goal?” — persisted on profiles.primary_goal */
+export type PrimaryGoalId = 'save' | 'track' | 'debt' | 'emergency' | 'invest' | 'exploring';
+
 /** In-app banner alert toggles (onboarding + Settings). */
 export interface NotificationPreferences {
   budgetAlerts: boolean;
@@ -59,9 +62,12 @@ export interface AppState {
   userPhone: string;
   userAvatar: string; // base64 data URL or empty string
   categoryCustomizations: Record<string, CategoryCustomization>;
+  /** Built-in category ids the user turned off (not shown in pickers). */
+  disabledCategoryIds: string[];
   customCategories: CustomCategory[];
   notificationPreferences: NotificationPreferences;
   appearance: AppearanceMode;
+  primaryGoal: PrimaryGoalId | null;
 }
 
 export type Action =
@@ -85,4 +91,6 @@ export type Action =
   | { type: 'ADD_CUSTOM_CATEGORY'; category: CustomCategory }
   | { type: 'UPDATE_CUSTOM_CATEGORY'; category: CustomCategory }
   | { type: 'SET_NOTIFICATION_PREFERENCES'; preferences: NotificationPreferences }
-  | { type: 'SET_APPEARANCE'; mode: AppearanceMode };
+  | { type: 'SET_APPEARANCE'; mode: AppearanceMode }
+  | { type: 'SET_DISABLED_CATEGORY_IDS'; categoryIds: string[] }
+  | { type: 'SET_PRIMARY_GOAL'; goal: PrimaryGoalId | null };

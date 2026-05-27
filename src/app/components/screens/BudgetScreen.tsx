@@ -5,13 +5,24 @@ import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { CURRENT_MONTH_KEY } from '../../utils/periods';
 import { FeaturedBudgetCard } from '../budget/FeaturedBudgetCard';
 import { CategoryBudgetCard } from '../budget/CategoryBudgetCard';
+import { PrimaryGoalFocusCard } from '../budget/PrimaryGoalFocusCard';
 import { BudgetEditModal, type BudgetEditTarget } from '../budget/BudgetEditModal';
 import { SectionTitle } from '../ui/SectionTitle';
+import {
+  getFocusCategoryId,
+  getPrimaryGoalDefinition,
+  parsePrimaryGoal,
+  sortCategoriesForPrimaryGoal,
+} from '../../data/primaryGoalConfig';
+import { computePrimaryGoalProgress } from '../../utils/primaryGoalProgress';
 
 export default function BudgetScreen() {
   const c = useAppColors();
   const { state, dispatch, formatCurrency, categories } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
+
+  const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
+  const goalDef = getPrimaryGoalDefinition(goalId);
 
   const categoryTotals = useMemo(
     () => getCategoryTotals(state.expenses, CURRENT_MONTH_KEY),
@@ -44,7 +55,39 @@ export default function BudgetScreen() {
           ? '$'
           : state.currency;
 
-  const categoryIds = useMemo(() => categories.map(c => c.id), [categories]);
+  const categoryIds = useMemo(() => categories.map(cat => cat.id), [categories]);
+
+  const sortedCategories = useMemo(
+    () => sortCategoriesForPrimaryGoal(categories, goalId, categoryTotals),
+    [categories, goalId, categoryTotals],
+  );
+
+  const focusCategoryId = useMemo(
+    () => getFocusCategoryId(goalId, categoryIds),
+    [goalId, categoryIds],
+  );
+
+  const goalProgress = useMemo(
+    () =>
+      computePrimaryGoalProgress({
+        goalId,
+        income: state.income,
+        monthlyBudget: state.monthlyBudget,
+        totalSpent,
+        categoryTotals,
+        budgetGoals: state.budgetGoals,
+        categoryIds,
+      }),
+    [
+      goalId,
+      state.income,
+      state.monthlyBudget,
+      totalSpent,
+      categoryTotals,
+      state.budgetGoals,
+      categoryIds,
+    ],
+  );
 
   const hasCategoriesWithoutBudget = useMemo(
     () =>
@@ -112,6 +155,12 @@ export default function BudgetScreen() {
         </div>
 
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <PrimaryGoalFocusCard
+            goal={goalDef}
+            progress={goalProgress}
+            animationDelay={0}
+          />
+
           <FeaturedBudgetCard
             layout="compact"
             title="Monthly income"
@@ -123,7 +172,7 @@ export default function BudgetScreen() {
             formatCurrency={formatCurrency}
             statusMessage={incomeStatus}
             onClick={() => setEditTarget({ kind: 'income' })}
-            animationDelay={0}
+            animationDelay={120}
           />
 
           <FeaturedBudgetCard
@@ -135,16 +184,17 @@ export default function BudgetScreen() {
             accentColor="#F59E0B"
             accentBg="#FEF3C7"
             formatCurrency={formatCurrency}
+            subtitle={goalDef.budgetCardHint}
             statusMessage={budgetStatus}
             onClick={() => setEditTarget({ kind: 'budget' })}
-            animationDelay={120}
+            animationDelay={240}
           />
 
           <div style={{ paddingTop: 4 }}>
-            <SectionTitle>Categories budget limit</SectionTitle>
+            <SectionTitle>{goalDef.categoriesSectionTitle}</SectionTitle>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {categories.map((cat, index) => {
+              {sortedCategories.map((cat, index) => {
                 const goal = state.budgetGoals.find(g => g.categoryId === cat.id);
                 const spent = categoryTotals[cat.id] ?? 0;
                 return (
@@ -154,7 +204,8 @@ export default function BudgetScreen() {
                     spent={spent}
                     budgeted={goal?.amount ?? 0}
                     formatCurrency={formatCurrency}
-                    animationDelay={280 + index * 55}
+                    showFocusBadge={cat.id === focusCategoryId}
+                    animationDelay={400 + index * 55}
                     onClick={() =>
                       setEditTarget({
                         kind: 'category',

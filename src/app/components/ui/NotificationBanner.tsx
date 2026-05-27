@@ -131,7 +131,7 @@ export function NotificationBanner({
             height: 28,
             borderRadius: 14,
             border: 'none',
-            background: c.surfaceInset,
+            background: c.surfaceElevated,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

@@ -1,4 +1,12 @@
-import type { AppState, Action, Expense, CategoryCustomization, CustomCategory } from '../data/types';
+import type {
+  AppState,
+  Action,
+  Expense,
+  CategoryCustomization,
+  CustomCategory,
+  PrimaryGoalId,
+} from '../data/types';
+import { parsePrimaryGoal } from '../data/primaryGoalConfig';
 import type {
   DbProfile,
   DbExpense,
@@ -9,8 +17,67 @@ import type {
 } from '../data/database.types';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../data/notificationPreferences';
 import { getSupabase } from '../../lib/supabase';
+import { toCustomCategoryAppId, toCustomCategoryDbId } from '../utils/customCategoryId';
 import { recurringSeriesKey } from '../utils/recurringExpense';
 import type { NotificationPreferences } from '../data/types';
+
+function isMissingPrefsColumnError(error: { code?: string; message?: string }, column: string): boolean {
+  const msg = error.message?.toLowerCase() ?? '';
+  return (
+    error.code === 'PGRST204' ||
+    msg.includes(column.toLowerCase()) ||
+    msg.includes('schema cache')
+  );
+}
+
+/** Upsert notification prefs; omits disabled_category_ids if the column is not migrated yet. */
+async function upsertUserPreferencesFromState(
+  userId: string,
+  state: AppState,
+): Promise<void> {
+  const supabase = getSupabase();
+  const base = {
+    user_id: userId,
+    ...notificationPreferencesToDb(state.notificationPreferences),
+  };
+  const withDisabled = {
+    ...base,
+    disabled_category_ids: state.disabledCategoryIds ?? [],
+  };
+
+  let result = await supabase
+    .from('user_preferences')
+    .upsert(withDisabled, { onConflict: 'user_id' });
+
+  if (result.error && isMissingPrefsColumnError(result.error, 'disabled_category_ids')) {
+    result = await supabase.from('user_preferences').upsert(base, { onConflict: 'user_id' });
+  }
+
+  if (result.error) throw result.error;
+}
+
+function rowToCustomCategory(row: DbCustomCategory): CustomCategory {
+  return {
+    id: toCustomCategoryAppId(row.id),
+    name: row.name,
+    color: row.color,
+    bg: row.bg,
+    iconKey: row.icon_key,
+    iconColor: row.icon_color ?? undefined,
+  };
+}
+
+function customCategoryToRow(userId: string, c: CustomCategory) {
+  return {
+    id: toCustomCategoryDbId(c.id),
+    user_id: userId,
+    name: c.name,
+    color: c.color,
+    bg: c.bg,
+    icon_key: c.iconKey,
+    icon_color: c.iconColor ?? null,
+  };
+}
 
 /** Clears financial data; keeps profile, currency, appearance, and notification prefs. */
 export function buildErasedAppState(current: AppState): AppState {
@@ -48,9 +115,11 @@ export function createEmptyAppState(overrides?: Partial<AppState>): AppState {
     userPhone: '',
     userAvatar: '',
     categoryCustomizations: {},
+    disabledCategoryIds: [],
     customCategories: [],
     notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
     appearance: 'light',
+    primaryGoal: null,
     ...overrides,
   };
 }
@@ -121,6 +190,7 @@ export function profileToAppFields(profile: DbProfile): Pick<
   | 'currency'
   | 'income'
   | 'monthlyBudget'
+  | 'primaryGoal'
 > {
   return {
     userName: profile.display_name || profile.full_name.split(' ')[0] || '',
@@ -131,6 +201,7 @@ export function profileToAppFields(profile: DbProfile): Pick<
     currency: profile.currency,
     income: Number(profile.income),
     monthlyBudget: Number(profile.monthly_budget),
+    primaryGoal: profile.primary_goal ? parsePrimaryGoal(profile.primary_goal) : null,
   };
 }
 
@@ -167,14 +238,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
   }
 
   const customCategories: CustomCategory[] = ((customCatRes.data ?? []) as DbCustomCategory[]).map(
-    row => ({
-      id: row.id,
-      name: row.name,
-      color: row.color,
-      bg: row.bg,
-      iconKey: row.icon_key,
-      iconColor: row.icon_color ?? undefined,
-    }),
+    rowToCustomCategory,
   );
 
   return {
@@ -186,6 +250,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
       amount: Number(g.amount),
     })),
     categoryCustomizations,
+    disabledCategoryIds: (prefsRes.data as DbUserPreferences | null)?.disabled_category_ids ?? [],
     customCategories,
     notificationPreferences: dbPrefsToNotificationPreferences(
       prefsRes.data as DbUserPreferences | null,
@@ -346,30 +411,16 @@ export async function syncActionToSupabase(
       break;
     }
     case 'ADD_CUSTOM_CATEGORY': {
-      const cat = action.category;
-      const { error } = await supabase.from('custom_categories').upsert({
-        id: cat.id,
-        user_id: userId,
-        name: cat.name,
-        color: cat.color,
-        bg: cat.bg,
-        icon_key: cat.iconKey,
-        icon_color: cat.iconColor ?? null,
-      });
+      const { error } = await supabase
+        .from('custom_categories')
+        .upsert(customCategoryToRow(userId, action.category));
       if (error) throw error;
       break;
     }
     case 'UPDATE_CUSTOM_CATEGORY': {
-      const cat = action.category;
-      const { error } = await supabase.from('custom_categories').upsert({
-        id: cat.id,
-        user_id: userId,
-        name: cat.name,
-        color: cat.color,
-        bg: cat.bg,
-        icon_key: cat.iconKey,
-        icon_color: cat.iconColor ?? null,
-      });
+      const { error } = await supabase
+        .from('custom_categories')
+        .upsert(customCategoryToRow(userId, action.category));
       if (error) throw error;
       break;
     }
@@ -378,6 +429,22 @@ export async function syncActionToSupabase(
         .from('user_preferences')
         .update(notificationPreferencesToDb(action.preferences))
         .eq('user_id', userId);
+      if (error) throw error;
+      break;
+    }
+    case 'SET_DISABLED_CATEGORY_IDS': {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update({ disabled_category_ids: action.categoryIds })
+        .eq('user_id', userId);
+      if (error) throw error;
+      break;
+    }
+    case 'SET_PRIMARY_GOAL': {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ primary_goal: action.goal })
+        .eq('id', userId);
       if (error) throw error;
       break;
     }
@@ -402,6 +469,7 @@ export async function replaceAppStateOnServer(userId: string, state: AppState): 
     currency: state.currency,
     income: state.income,
     monthly_budget: state.monthlyBudget,
+    primary_goal: state.primaryGoal,
     has_migrated: true,
   }).eq('id', userId);
   if (profileErr) throw profileErr;
@@ -440,19 +508,13 @@ export async function replaceAppStateOnServer(userId: string, state: AppState): 
 
   await supabase.from('custom_categories').delete().eq('user_id', userId);
   if (state.customCategories.length > 0) {
-    const { error } = await supabase.from('custom_categories').insert(
-      state.customCategories.map(c => ({
-        id: c.id,
-        user_id: userId,
-        name: c.name,
-        color: c.color,
-        bg: c.bg,
-        icon_key: c.iconKey,
-        icon_color: c.iconColor ?? null,
-      })),
-    );
+    const { error } = await supabase
+      .from('custom_categories')
+      .insert(state.customCategories.map(c => customCategoryToRow(userId, c)));
     if (error) throw error;
   }
+
+  await upsertUserPreferencesFromState(userId, state);
 }
 
 export async function fetchUserPreferences(userId: string): Promise<DbUserPreferences | null> {

@@ -164,7 +164,9 @@ export const INITIAL_APP_STATE: AppState = {
   userPhone: '+34 600 123 456',
   userAvatar: '',
   categoryCustomizations: {},
+  disabledCategoryIds: [],
   customCategories: [],
   notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
   appearance: 'light',
+  primaryGoal: null,
 };

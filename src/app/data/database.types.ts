@@ -28,6 +28,7 @@ export interface DbUserPreferences {
   bill_reminders: boolean;
   goal_milestones: boolean;
   recurring_reminders: boolean;
+  disabled_category_ids?: string[];
 }
 
 export interface DbOnboardingProgress {

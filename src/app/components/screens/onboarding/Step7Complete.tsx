@@ -1,18 +1,104 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, CheckCircle } from '@phosphor-icons/react';
+import { Bell, Sparkle, Wallet } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { useApp } from '../../../context/AppContext';
-import { Button } from '../../ui/button';
-import { SpendrLogo } from '../../auth/SpendrLogo';
-import { AUTH_THEME } from '../../../theme/authTheme';
+import { CATEGORIES } from '../../../data/categories';
+import type { CategoryIconKey } from '../../../data/categoryConfig';
+import {
+  OnboardingCategoryPreviewStrip,
+  type CategoryStripItem,
+} from '../../onboarding/OnboardingCategoryPreviewStrip';
+import { getCurrencyIcon } from '../../../data/currencyConfig';
+import { getPrimaryGoalDefinition } from '../../../data/primaryGoalConfig';
+import { AUTH_THEME, APP_PRIMARY_DARK, appPrimaryDarkRgba } from '../../../theme/authTheme';
+import { onboardingRowCard } from '../../../theme/onboardingDarkUi';
+import { OnboardingSummaryRow, onboardingSectionLabelStyle } from '../../onboarding/OnboardingSummaryRow';
+import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+import { formatErrorMessage } from '../../../utils/formatError';
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CAD: 'C$',
+  AUD: 'A$',
+};
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  monthly: 'Monthly',
+  'bi-weekly': 'Every two weeks',
+  weekly: 'Weekly',
+  irregular: 'Varies',
+};
+
+function formatMoney(amount: number, currency: string): string {
+  const sym = CURRENCY_SYMBOLS[currency] ?? '$';
+  return `${sym}${amount.toLocaleString()}`;
+}
 
 export default function Step7Complete() {
   const navigate = useNavigate();
-  const { complete, back, onboarding } = useOnboarding();
+  const { back, onboarding, complete } = useOnboarding();
   const { completeOnboardingAndSync } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const data = onboarding.data;
+  const firstName = data.firstName || 'there';
+  const currency = data.currency || 'USD';
+  const goal = getPrimaryGoalDefinition(data.primaryGoal);
+  const GoalIcon = goal.Icon;
+  const CurrencyIcon = getCurrencyIcon(currency);
+
+  const monthlyBudget = data.monthlyBudget;
+  const monthlyAmount = data.monthlyAmount;
+  const incomeFrequency = data.incomeFrequency;
+
+  const selectedIds =
+    data.selectedCategoryIds ??
+    (data.selectedCategories
+      ? data.selectedCategories
+          .map(name => CATEGORIES.find(c => c.name === name)?.id)
+          .filter((id): id is string => Boolean(id))
+      : []);
+
+  const customCats = data.customCategories ?? [];
+  const categoryCount = selectedIds.length + customCats.length;
+
+  const notificationCount = useMemo(() => {
+    const n = data.notifications;
+    if (!n) return 0;
+    return [
+      n.budgetAlerts,
+      n.weeklySummary,
+      n.billReminders,
+      n.goalMilestones,
+    ].filter(Boolean).length;
+  }, [data.notifications]);
+
+  const categoryStripItems = useMemo((): CategoryStripItem[] => {
+    const builtIn: CategoryStripItem[] = selectedIds
+      .map(id => {
+        const cat = CATEGORIES.find(c => c.id === id);
+        if (!cat) return null;
+        return { kind: 'builtin' as const, id: cat.id, name: cat.name };
+      })
+      .filter((item): item is CategoryStripItem => item !== null);
+
+    const custom: CategoryStripItem[] = customCats.map(cat => ({
+      kind: 'custom' as const,
+      id: cat.id,
+      name: cat.name,
+      iconKey: cat.iconKey as CategoryIconKey,
+      color: cat.color,
+      bg: cat.bg,
+      iconColor: cat.iconColor,
+    }));
+
+    return [...builtIn, ...custom];
+  }, [selectedIds, customCats]);
 
   const handleBack = () => {
     back();
@@ -23,148 +109,235 @@ export default function Step7Complete() {
     setLoading(true);
     setError('');
     try {
-      complete();
       await completeOnboardingAndSync();
+      complete();
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your setup. Try again.');
+      console.error('Onboarding complete failed:', err);
+      setError(formatErrorMessage(err, 'Could not save your setup. Try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const firstName = onboarding.data.firstName || 'there';
-  const currency = onboarding.data.currency || 'USD';
-  const monthlyBudget = onboarding.data.monthlyBudget;
-  const selectedCategories = onboarding.data.selectedCategories || [];
+  const setupGridItems: ReactNode[] = [
+    <OnboardingSummaryRow
+      key="goal"
+      compact
+      icon={GoalIcon}
+      accent={goal.accentColor}
+      label="Primary goal"
+      value={goal.label}
+    />,
+    <OnboardingSummaryRow
+      key="currency"
+      compact
+      icon={CurrencyIcon}
+      accent="#707BFF"
+      label="Currency"
+      value={currency}
+      detail={data.country ?? undefined}
+    />,
+  ];
+
+  if (monthlyBudget != null && monthlyBudget > 0) {
+    setupGridItems.push(
+      <OnboardingSummaryRow
+        key="budget"
+        compact
+        icon={Wallet}
+        accent="#5EEAD4"
+        label="Monthly budget"
+        value={formatMoney(monthlyBudget, currency)}
+        detail={
+          data.budgetAllocationMode === 'custom' ? 'Custom amounts' : 'Auto-balanced'
+        }
+      />,
+    );
+  } else if (monthlyAmount && monthlyAmount.value > 0) {
+    setupGridItems.push(
+      <OnboardingSummaryRow
+        key="income"
+        compact
+        icon={Wallet}
+        accent="#5EEAD4"
+        label={monthlyAmount.type === 'income' ? 'Monthly income' : 'Available'}
+        value={formatMoney(monthlyAmount.value, currency)}
+        detail={incomeFrequency ? FREQUENCY_LABELS[incomeFrequency] : undefined}
+      />,
+    );
+  }
+
+  if (notificationCount > 0) {
+    setupGridItems.push(
+      <OnboardingSummaryRow
+        key="notifications"
+        compact
+        icon={Bell}
+        accent="#F7A54D"
+        label="Notifications"
+        value={`${notificationCount} on`}
+        detail="Alerts enabled"
+      />,
+    );
+  }
 
   return (
-    <div
-      style={{
-        height: '100%',
-        background: AUTH_THEME.bgGradient,
-        color: AUTH_THEME.textPrimary,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+    <OnboardingLayout
+      currentStep={7}
+      totalSteps={7}
+      onNext={handleLaunch}
+      onBack={handleBack}
+      nextLabel={loading ? 'Saving…' : 'Launch Spendr'}
+      nextDisabled={loading}
+      showSkip={false}
     >
-      <div style={{ padding: '12px 20px 8px', flexShrink: 0 }}>
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label="Back"
+      <div
+        style={{
+          position: 'relative',
+          borderRadius: 16,
+          padding: '12px 14px',
+          marginBottom: 14,
+          overflow: 'hidden',
+          border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+          background: `linear-gradient(145deg, ${appPrimaryDarkRgba(0.38)} 0%, ${AUTH_THEME.surface} 55%, rgba(94, 234, 212, 0.08) 100%)`,
+          boxShadow: `0 4px 20px ${appPrimaryDarkRgba(0.28)}`,
+        }}
+      >
+        <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 20,
-            backgroundColor: AUTH_THEME.buttonGhost,
-            border: `1px solid ${AUTH_THEME.surfaceBorder}`,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
+            justifyContent: 'space-between',
+            gap: 10,
+            marginBottom: 6,
           }}
         >
-          <ArrowLeft size={18} color={AUTH_THEME.textPrimary} weight="light" />
-        </button>
+          <h1
+            style={{
+              ...onboardingTitleStyle,
+              margin: 0,
+              fontSize: 20,
+              lineHeight: 1.2,
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            You&apos;re all set, {firstName}!
+          </h1>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 9px',
+              borderRadius: 20,
+              backgroundColor: appPrimaryDarkRgba(0.28),
+              border: `1px solid ${appPrimaryDarkRgba(0.4)}`,
+              flexShrink: 0,
+            }}
+          >
+            <Sparkle size={11} color={AUTH_THEME.accentMint} weight="fill" />
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: AUTH_THEME.accentMint,
+                letterSpacing: 0.03,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Ready to go
+            </span>
+          </div>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: AUTH_THEME.textMuted,
+            lineHeight: 1.4,
+          }}
+        >
+          {goal.label} — we&apos;ll tailor Spendr around this.
+        </p>
       </div>
+
+      {error ? (
+        <div
+          role="alert"
+          style={{
+            ...onboardingRowCard(),
+            padding: '8px 12px',
+            marginBottom: 12,
+            borderColor: 'rgba(252, 165, 165, 0.45)',
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 12, color: '#FCA5A5', lineHeight: 1.4 }}>{error}</p>
+        </div>
+      ) : null}
+
+      <p style={onboardingSectionLabelStyle()}>Your setup</p>
 
       <div
         style={{
-          flex: 1,
-          padding: '0 20px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflowY: 'auto',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 8,
+          marginBottom: 12,
         }}
       >
-      <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-        <div style={{ margin: '0 auto 24px', position: 'relative', width: 88, height: 88 }}>
-          <SpendrLogo size={88} />
+        {setupGridItems}
+
+        {categoryCount > 0 ? (
           <div
             style={{
-              position: 'absolute',
-              right: -4,
-              bottom: -4,
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: AUTH_THEME.accentMint,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              gridColumn: '1 / -1',
+              ...onboardingRowCard(),
+              padding: '10px 12px 11px',
             }}
           >
-            <CheckCircle size={20} color={AUTH_THEME.bgSolid} weight="fill" />
-          </div>
-        </div>
-
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5, margin: '0 0 20px' }}>
-          You&apos;re all set, {firstName}!
-        </h1>
-
-        {error && (
-          <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 12 }}>{error}</p>
-        )}
-
-        <div
-          style={{
-            backgroundColor: AUTH_THEME.surface,
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 20,
-            textAlign: 'left',
-            border: `1px solid ${AUTH_THEME.surfaceBorder}`,
-          }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Currency</div>
-            <div style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5 }}>{currency}</div>
-          </div>
-
-          {monthlyBudget != null && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Monthly budget</div>
-              <div style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5 }}>
-                {currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'}
-                {monthlyBudget.toLocaleString()}
+            <div style={{ marginBottom: 10 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: AUTH_THEME.textMuted,
+                  marginBottom: 2,
+                }}
+              >
+                Categories
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+                {categoryCount} selected
+                {customCats.length > 0 ? (
+                  <span style={{ fontWeight: 600, color: AUTH_THEME.textFaint }}>
+                    {' '}
+                    · {customCats.length} custom
+                  </span>
+                ) : null}
               </div>
             </div>
-          )}
 
-          {selectedCategories.length > 0 && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-                {selectedCategories.length} categories selected
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Button
-          onClick={handleLaunch}
-          disabled={loading}
-          style={{
-            width: '100%',
-            height: 50,
-            fontSize: 14,
-            fontWeight: 700,
-            backgroundColor: AUTH_THEME.buttonPrimary,
-            color: AUTH_THEME.buttonPrimaryText,
-            borderRadius: 20,
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? 'Saving…' : 'Launch Spendr'}
-        </Button>
-
-        <p style={{ fontSize: 13, color: AUTH_THEME.textFaint, marginTop: 12, lineHeight: 1.5 }}>
-          You can change these later in Settings
-        </p>
+            <OnboardingCategoryPreviewStrip items={categoryStripItems} />
+          </div>
+        ) : null}
       </div>
-      </div>
-    </div>
+
+      <p
+        style={{
+          margin: 0,
+          fontSize: 12,
+          color: AUTH_THEME.textFaint,
+          textAlign: 'center',
+          lineHeight: 1.45,
+          paddingBottom: 2,
+        }}
+      >
+        You can change any of this later in{' '}
+        <span style={{ color: APP_PRIMARY_DARK, fontWeight: 600 }}>Settings</span>
+      </p>
+    </OnboardingLayout>
   );
 }

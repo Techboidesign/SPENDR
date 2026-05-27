@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { AUTH_THEME } from '../../../theme/authTheme';
-import { FormInput, FormSelect } from '../../shared/FormFields';
+import { FormSelect } from '../../shared/FormFields';
+import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 export default function Step3MonthlyIncome() {
@@ -10,20 +11,17 @@ export default function Step3MonthlyIncome() {
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
 
   const [amountType, setAmountType] = useState<'income' | 'available_to_spend'>(
-    onboarding.data.monthlyAmount?.type || 'income'
+    onboarding.data.monthlyAmount?.type || 'income',
   );
-  const [amount, setAmount] = useState(
-    onboarding.data.monthlyAmount?.value?.toString() || ''
-  );
+  const [amount, setAmount] = useState(onboarding.data.monthlyAmount?.value ?? 0);
   const [frequency, setFrequency] = useState<'monthly' | 'bi-weekly' | 'weekly' | 'irregular'>(
-    onboarding.data.incomeFrequency || 'monthly'
+    onboarding.data.incomeFrequency || 'monthly',
   );
 
   const handleNext = () => {
-    const value = parseFloat(amount);
-    if (!isNaN(value) && value > 0) {
+    if (amount > 0) {
       updateData({
-        monthlyAmount: { value, type: amountType },
+        monthlyAmount: { value: amount, type: amountType },
         incomeFrequency: frequency,
       });
       next('monthly-income');
@@ -41,8 +39,6 @@ export default function Step3MonthlyIncome() {
     navigate('/');
   };
 
-  const isValid = amount.trim() !== '' && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0;
-
   return (
     <OnboardingLayout
       currentStep={2}
@@ -50,12 +46,11 @@ export default function Step3MonthlyIncome() {
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}
-      nextDisabled={!isValid}
+      nextDisabled={amount <= 0}
       nextLabel="Continue"
     >
       <h1 style={onboardingTitleStyle}>Let&apos;s talk money</h1>
 
-      {/* Amount type toggle */}
       <div style={{ marginBottom: 16 }}>
         <label style={onboardingLabelStyle}>I want to enter my</label>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -86,7 +81,8 @@ export default function Step3MonthlyIncome() {
               padding: '12px',
               borderRadius: 14,
               border: `2px solid ${amountType === 'available_to_spend' ? AUTH_THEME.accent : AUTH_THEME.surfaceBorder}`,
-              backgroundColor: amountType === 'available_to_spend' ? AUTH_THEME.surfaceSelected : AUTH_THEME.surface,
+              backgroundColor:
+                amountType === 'available_to_spend' ? AUTH_THEME.surfaceSelected : AUTH_THEME.surface,
               color: amountType === 'available_to_spend' ? AUTH_THEME.textPrimary : AUTH_THEME.textMuted,
               fontSize: 14,
               fontWeight: 700,
@@ -100,36 +96,11 @@ export default function Step3MonthlyIncome() {
         </div>
       </div>
 
-      {/* Amount input */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>
-          {amountType === 'income' ? 'Monthly income' : 'Amount available to spend'}
-        </label>
-        <div style={{ position: 'relative' }}>
-          <span
-            style={{
-              position: 'absolute',
-              left: 16,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: 16,
-              color: AUTH_THEME.textMuted,
-              fontWeight: 700,
-            }}
-          >
-            $
-          </span>
-          <FormInput
-            type="number"
-            tone="dark"
-            className="font-figure"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            placeholder="0"
-            style={{ paddingLeft: 34, fontSize: 20 }}
-          />
-        </div>
-      </div>
+      <OnboardingAmountField
+        label={amountType === 'income' ? 'Monthly income' : 'Amount available to spend'}
+        value={amount}
+        onChange={setAmount}
+      />
 
       <div style={{ marginBottom: 16 }}>
         <label style={onboardingLabelStyle}>How often do you get paid?</label>

@@ -167,11 +167,11 @@ export const APP_COLORS: Record<AppearanceMode, AppColorPalette> = {
     dangerSoft: 'rgba(248, 113, 113, 0.14)',
     fab: '#7B74FF',
     notificationInfoBg: '#1C1C28',
-    notificationInfoBorder: 'rgba(255, 255, 255, 0.1)',
-    notificationWarningBg: 'rgba(251, 191, 36, 0.12)',
-    notificationWarningBorder: 'rgba(251, 191, 36, 0.28)',
-    notificationSuccessBg: 'rgba(52, 211, 153, 0.12)',
-    notificationSuccessBorder: 'rgba(52, 211, 153, 0.28)',
+    notificationInfoBorder: '#2E2E3A',
+    notificationWarningBg: '#2A2418',
+    notificationWarningBorder: '#5C4A1A',
+    notificationSuccessBg: '#152821',
+    notificationSuccessBorder: '#1F4D3A',
   },
 };
 

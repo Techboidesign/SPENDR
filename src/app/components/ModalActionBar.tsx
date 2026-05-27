@@ -1,13 +1,9 @@
 import { FloppyDisk } from '@phosphor-icons/react';
+import { useAppColors, useAppearance } from '../context/AppearanceContext';
 
 export const MODAL_ACTION_BAR_HEIGHT = 76;
 
 type LeftVariant = 'cancel' | 'delete';
-
-const LEFT_STYLES: Record<LeftVariant, { backgroundColor: string; color: string; border: string }> = {
-  cancel: { backgroundColor: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB' },
-  delete: { backgroundColor: '#FEE2E2', color: '#EF4444', border: 'none' },
-};
 
 export function ModalActionBar({
   onSave,
@@ -16,7 +12,8 @@ export function ModalActionBar({
   leftVariant = 'cancel',
   saveLabel = 'SAVE',
   saveDisabled = false,
-  dark = false,
+  /** Force dark chrome (e.g. avatar crop). Defaults to app appearance. */
+  dark,
 }: {
   onSave: () => void;
   onLeft: () => void;
@@ -24,19 +21,32 @@ export function ModalActionBar({
   leftVariant?: LeftVariant;
   saveLabel?: string;
   saveDisabled?: boolean;
-  /** For dark full-screen modals (e.g. avatar crop). */
   dark?: boolean;
 }) {
-  const left = LEFT_STYLES[leftVariant];
+  const c = useAppColors();
+  const { isDark: appDark } = useAppearance();
+  const isDark = dark ?? appDark;
+
+  const leftBg =
+    leftVariant === 'delete'
+      ? isDark
+        ? '#3A1C1C'
+        : '#FEE2E2'
+      : isDark
+        ? c.inputBg
+        : '#FFFFFF';
+  const leftColor = leftVariant === 'delete' ? c.danger : isDark ? c.textSecondary : '#6B7280';
+  const leftBorder =
+    leftVariant === 'delete' ? 'none' : `1px solid ${isDark ? c.inputBorder : '#E5E7EB'}`;
 
   return (
     <div
       style={{
         flexShrink: 0,
-        padding: dark ? '12px 20px 24px' : '12px 20px 20px',
-        backgroundColor: dark ? '#000000' : '#FFFFFF',
-        borderTop: dark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #F3F4F6',
-        boxShadow: dark ? '0 -8px 32px rgba(0,0,0,0.5)' : '0 -8px 24px rgba(0,0,0,0.08)',
+        padding: isDark ? '12px 20px 24px' : '12px 20px 20px',
+        backgroundColor: isDark ? c.modalSheet : '#FFFFFF',
+        borderTop: `1px solid ${isDark ? c.border : '#F3F4F6'}`,
+        boxShadow: isDark ? c.shadow : '0 -8px 24px rgba(0,0,0,0.08)',
       }}
     >
       <div style={{ display: 'flex', gap: 10 }}>
@@ -47,12 +57,12 @@ export function ModalActionBar({
             flex: 1,
             padding: '14px',
             borderRadius: 14,
-            border: dark ? '1px solid rgba(255,255,255,0.2)' : left.border,
-            backgroundColor: dark ? 'rgba(255,255,255,0.1)' : left.backgroundColor,
+            border: leftBorder,
+            backgroundColor: leftBg,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: 0.6,
-            color: dark ? '#FFFFFF' : left.color,
+            color: leftColor,
             cursor: 'pointer',
             fontFamily: 'inherit',
           }}
@@ -68,11 +78,11 @@ export function ModalActionBar({
             padding: '14px',
             borderRadius: 14,
             border: 'none',
-            backgroundColor: saveDisabled ? '#C7C5FF' : '#3E37FF',
+            backgroundColor: saveDisabled ? (isDark ? '#3D3A6E' : '#C7C5FF') : c.accent,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: 0.6,
-            color: '#FFFFFF',
+            color: c.onAccent,
             cursor: saveDisabled ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
             display: 'flex',
