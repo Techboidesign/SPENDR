@@ -6,9 +6,11 @@ import {
   buildBudgetGoalsForMonthlyBudget,
   DEFAULT_CATEGORY_BUDGET_WEIGHTS,
 } from '../utils/budgetAllocation';
-import { getSupabase } from '../../lib/supabase';
+import { parsePrimaryGoal, resolveOnboardingGoalChoice } from '../data/primaryGoalConfig';
+import { goalRequiresTargetSetup, targetToProfileFields } from '../data/primaryGoalTarget';
 import { createCustomCategoryAppId, toCustomCategoryAppId, toCustomCategoryDbId } from '../utils/customCategoryId';
 import { replaceAppStateOnServer } from './appDataService';
+import { updateProfileSafe } from './profileUpdates';
 import { saveOnboarding } from './onboardingService';
 import type { OnboardingState } from '../context/OnboardingContext';
 
@@ -47,7 +49,12 @@ export function mergeOnboardingIntoAppState(
     next.userFullName = data.firstName;
   }
   if (data.primaryGoal) {
-    next.primaryGoal = data.primaryGoal;
+    next.primaryGoal = parsePrimaryGoal(resolveOnboardingGoalChoice(data.primaryGoal));
+  }
+  if (data.primaryGoalTarget && next.primaryGoal && goalRequiresTargetSetup(next.primaryGoal)) {
+    next.primaryGoalTarget = data.primaryGoalTarget;
+  } else {
+    next.primaryGoalTarget = null;
   }
   if (data.currency) next.currency = data.currency;
   if (data.monthlyBudget != null) next.monthlyBudget = data.monthlyBudget;
@@ -115,19 +122,19 @@ export async function completeOnboardingOnServer(
     completedAt: new Date().toISOString(),
   };
 
-  const supabase = getSupabase();
-  const { error: profileErr } = await supabase.from('profiles').update({
+  const targetFields = targetToProfileFields(merged.primaryGoalTarget, merged.primaryGoal);
+  await updateProfileSafe(userId, {
     display_name: merged.userName,
     full_name: merged.userFullName,
     currency: merged.currency,
     income: merged.income,
     monthly_budget: merged.monthlyBudget,
     country: onboarding.data.country ?? null,
-    primary_goal: onboarding.data.primaryGoal ?? null,
+    primary_goal: merged.primaryGoal,
     income_frequency: onboarding.data.incomeFrequency ?? null,
     onboarding_completed_at: completed.completedAt,
-  }).eq('id', userId);
-  if (profileErr) throw profileErr;
+    ...targetFields,
+  });
 
   await replaceAppStateOnServer(userId, merged);
   await saveOnboarding(userId, completed);

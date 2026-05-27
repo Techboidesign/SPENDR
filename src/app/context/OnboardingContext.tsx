@@ -25,7 +25,9 @@ export interface OnboardingData {
   firstName?: string;
   currency?: string;
   country?: string;
-  primaryGoal?: 'save' | 'track' | 'debt' | 'emergency' | 'invest' | 'exploring';
+  /** After step 2 may be `exploring`; after goal-setup stored goal id. */
+  primaryGoal?: import('../data/types').OnboardingGoalChoice | import('../data/types').PrimaryGoalId;
+  primaryGoalTarget?: import('../data/primaryGoalTarget').PrimaryGoalTarget | null;
   monthlyAmount?: {
     value: number;
     type: 'income' | 'available_to_spend';

@@ -22,5 +22,6 @@ export function normalizeAppState(state: AppState): AppState {
     notificationPreferences: mergeNotificationPreferences(state.notificationPreferences),
     disabledCategoryIds: state.disabledCategoryIds ?? [],
     primaryGoal: state.primaryGoal ?? null,
+    primaryGoalTarget: state.primaryGoalTarget ?? null,
   };
 }

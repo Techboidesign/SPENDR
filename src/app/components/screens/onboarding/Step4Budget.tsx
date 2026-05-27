@@ -16,11 +16,13 @@ import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
 import {
   GOAL_ONBOARDING_ALLOCATION_WEIGHTS,
   parsePrimaryGoal,
+  resolveOnboardingGoalChoice,
 } from '../../../data/primaryGoalConfig';
 import {
   buildAllocationsFromWeights,
   rebalanceCategoryAllocation,
 } from '../../../utils/budgetAllocation';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 const BUDGET_CATEGORIES = [
@@ -62,7 +64,9 @@ export default function Step4Budget() {
   const budgetNum = budgetAmount;
   const isAutomatic = allocationMode === 'automatic';
   const incomeCap = Math.max(0, monthlyIncome);
-  const primaryGoal = parsePrimaryGoal(onboarding.data.primaryGoal);
+  const primaryGoal = parsePrimaryGoal(
+    resolveOnboardingGoalChoice(onboarding.data.primaryGoal ?? undefined),
+  );
   const goalAllocationWeights = GOAL_ONBOARDING_ALLOCATION_WEIGHTS[primaryGoal];
 
   // Keep budget in sync when income cap changes (e.g. user went back and edited income)
@@ -171,8 +175,8 @@ export default function Step4Budget() {
 
   return (
     <OnboardingLayout
-      currentStep={3}
-      totalSteps={7}
+      currentStep={4}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}

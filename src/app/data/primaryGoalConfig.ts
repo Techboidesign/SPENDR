@@ -5,46 +5,52 @@ import {
   MagnifyingGlass,
   PiggyBank,
   ShieldCheck,
-  TrendUp,
 } from '@phosphor-icons/react';
+import type { OnboardingGoalChoice, PrimaryGoalId } from './types';
 
-export type PrimaryGoalId = 'save' | 'track' | 'debt' | 'emergency' | 'invest' | 'exploring';
+export type { PrimaryGoalId };
 
 export type PrimaryGoalProgressMode =
-  | 'savings_rate'
-  | 'budget_adherence'
-  | 'categories_tracked'
-  | 'emergency_fund_proxy'
-  | 'invest_readiness'
-  | 'setup_completeness';
+  | 'target_amount'
+  | 'categories_tracked';
 
 export interface PrimaryGoalDefinition {
   id: PrimaryGoalId;
   label: string;
   shortLabel: string;
-  description: string;
   Icon: PhosphorIcon;
   accentColor: string;
   accentBg: string;
   progressMode: PrimaryGoalProgressMode;
-  budgetCardHint?: string;
   categoriesSectionTitle: string;
   emphasizedCategoryIds: string[];
 }
 
-const ALL_GOAL_IDS: PrimaryGoalId[] = ['save', 'track', 'debt', 'emergency', 'invest', 'exploring'];
+export const PRIMARY_GOAL_IDS: PrimaryGoalId[] = ['save', 'track', 'debt', 'emergency'];
+
+/** Shown only on onboarding step 2 (`exploring` resolves to `track`). */
+export const ONBOARDING_GOAL_CHOICES: Array<{
+  id: OnboardingGoalChoice;
+  label: string;
+  accent: string;
+  Icon: PhosphorIcon;
+}> = [
+  { id: 'save', label: 'Save for a goal', accent: '#F7A54D', Icon: PiggyBank },
+  { id: 'track', label: 'Track my spending', accent: '#707BFF', Icon: ChartBar },
+  { id: 'debt', label: 'Pay off debt', accent: '#EF4444', Icon: CreditCard },
+  { id: 'emergency', label: 'Build emergency fund', accent: '#2D7A26', Icon: ShieldCheck },
+  { id: 'exploring', label: 'Just exploring', accent: '#8B8D9E', Icon: MagnifyingGlass },
+];
 
 export const PRIMARY_GOAL_BY_ID: Record<PrimaryGoalId, PrimaryGoalDefinition> = {
   save: {
     id: 'save',
     label: 'Save for a goal',
     shortLabel: 'Your focus',
-    description: 'Build savings for something specific',
     Icon: PiggyBank,
     accentColor: '#F7A54D',
     accentBg: '#FEF5EC',
-    progressMode: 'savings_rate',
-    budgetCardHint: 'Leave room to save—stay under budget.',
+    progressMode: 'target_amount',
     categoriesSectionTitle: 'Where you can still save',
     emphasizedCategoryIds: ['other', 'groceries', 'utilities'],
   },
@@ -52,12 +58,10 @@ export const PRIMARY_GOAL_BY_ID: Record<PrimaryGoalId, PrimaryGoalDefinition> = 
     id: 'track',
     label: 'Track my spending',
     shortLabel: 'Your focus',
-    description: 'See where my money goes',
     Icon: ChartBar,
     accentColor: '#707BFF',
     accentBg: '#F0F1FF',
     progressMode: 'categories_tracked',
-    budgetCardHint: 'Your budget is a map of where money goes.',
     categoriesSectionTitle: 'Where your money goes',
     emphasizedCategoryIds: [],
   },
@@ -65,12 +69,10 @@ export const PRIMARY_GOAL_BY_ID: Record<PrimaryGoalId, PrimaryGoalDefinition> = 
     id: 'debt',
     label: 'Pay off debt',
     shortLabel: 'Your focus',
-    description: 'Get out of debt faster',
     Icon: CreditCard,
     accentColor: '#EF4444',
     accentBg: '#FEE2E2',
-    progressMode: 'budget_adherence',
-    budgetCardHint: 'Prioritize essentials; shrink discretionary spending.',
+    progressMode: 'target_amount',
     categoriesSectionTitle: 'Keep essentials covered',
     emphasizedCategoryIds: ['rent', 'utilities', 'transport', 'groceries'],
   },
@@ -78,59 +80,40 @@ export const PRIMARY_GOAL_BY_ID: Record<PrimaryGoalId, PrimaryGoalDefinition> = 
     id: 'emergency',
     label: 'Build emergency fund',
     shortLabel: 'Your focus',
-    description: 'Create financial safety net',
     Icon: ShieldCheck,
     accentColor: '#2D7A26',
     accentBg: '#EEFAEC',
-    progressMode: 'emergency_fund_proxy',
-    budgetCardHint: 'Aim to set aside about 20% of your budget when you can.',
+    progressMode: 'target_amount',
     categoriesSectionTitle: 'Building your safety net',
     emphasizedCategoryIds: ['other', 'utilities', 'rent'],
   },
-  invest: {
-    id: 'invest',
-    label: 'Start investing',
-    shortLabel: 'Your focus',
-    description: 'Grow wealth over time',
-    Icon: TrendUp,
-    accentColor: '#3E37FF',
-    accentBg: '#EDEDFF',
-    progressMode: 'invest_readiness',
-    budgetCardHint: 'Investing starts with spending less than you earn.',
-    categoriesSectionTitle: 'Room to grow wealth',
-    emphasizedCategoryIds: ['other', 'subscriptions'],
-  },
-  exploring: {
-    id: 'exploring',
-    label: 'Just exploring',
-    shortLabel: 'Your focus',
-    description: 'Not sure yet',
-    Icon: MagnifyingGlass,
-    accentColor: '#8B8D9E',
-    accentBg: '#F2F2F5',
-    progressMode: 'setup_completeness',
-    budgetCardHint: 'Adjust anytime as you learn what works.',
-    categoriesSectionTitle: 'Categories budget limit',
-    emphasizedCategoryIds: [],
-  },
 };
 
+const LEGACY_GOAL_MAP: Record<string, PrimaryGoalId> = {
+  save: 'save',
+  track: 'track',
+  debt: 'debt',
+  emergency: 'emergency',
+  invest: 'track',
+  exploring: 'track',
+};
+
+export function resolveOnboardingGoalChoice(choice: OnboardingGoalChoice | null | undefined): PrimaryGoalId {
+  if (!choice) return 'track';
+  if (choice === 'exploring') return 'track';
+  return choice;
+}
+
 export function parsePrimaryGoal(raw: string | null | undefined): PrimaryGoalId {
-  if (raw && ALL_GOAL_IDS.includes(raw as PrimaryGoalId)) {
-    return raw as PrimaryGoalId;
-  }
-  return 'exploring';
+  if (raw && raw in LEGACY_GOAL_MAP) return LEGACY_GOAL_MAP[raw];
+  return 'track';
 }
 
 export function getPrimaryGoalDefinition(goalId: PrimaryGoalId | null | undefined): PrimaryGoalDefinition {
   return PRIMARY_GOAL_BY_ID[parsePrimaryGoal(goalId ?? undefined)];
 }
 
-/** Onboarding Step 4 allocation keys → suggested % (sum = 100). */
-export const GOAL_ONBOARDING_ALLOCATION_WEIGHTS: Record<
-  PrimaryGoalId,
-  Record<string, number>
-> = {
+export const GOAL_ONBOARDING_ALLOCATION_WEIGHTS: Record<PrimaryGoalId, Record<string, number>> = {
   save: {
     housing: 28,
     food: 12,
@@ -167,24 +150,6 @@ export const GOAL_ONBOARDING_ALLOCATION_WEIGHTS: Record<
     entertainment: 5,
     savings: 30,
   },
-  invest: {
-    housing: 28,
-    food: 12,
-    transportation: 10,
-    utilities: 10,
-    shopping: 8,
-    entertainment: 5,
-    savings: 27,
-  },
-  exploring: {
-    housing: 30,
-    food: 15,
-    transportation: 10,
-    utilities: 10,
-    shopping: 10,
-    entertainment: 5,
-    savings: 20,
-  },
 };
 
 export const DISCRETIONARY_CATEGORY_IDS = ['entertainment', 'shopping', 'dining'] as const;
@@ -194,7 +159,6 @@ export interface CategoryLike {
   name: string;
 }
 
-/** Render order for Budget category list (does not mutate stored state). */
 export function sortCategoriesForPrimaryGoal<T extends CategoryLike>(
   categories: T[],
   goalId: PrimaryGoalId,
@@ -220,4 +184,40 @@ export function sortCategoriesForPrimaryGoal<T extends CategoryLike>(
 export function getFocusCategoryId(goalId: PrimaryGoalId, categoryIds: string[]): string | null {
   const emphasized = PRIMARY_GOAL_BY_ID[goalId].emphasizedCategoryIds;
   return emphasized.find(id => categoryIds.includes(id)) ?? null;
+}
+
+export function getGoalTargetFieldCopy(goalId: PrimaryGoalId): {
+  nameLabel: string;
+  namePlaceholder: string;
+  amountLabel: string;
+  dateLabel: string;
+  currentLabel: string;
+} {
+  switch (goalId) {
+    case 'debt':
+      return {
+        nameLabel: 'What are you paying off?',
+        namePlaceholder: 'e.g. Credit cards',
+        amountLabel: 'Total to pay off',
+        dateLabel: 'Pay off by',
+        currentLabel: 'Already paid',
+      };
+    case 'emergency':
+      return {
+        nameLabel: 'Fund name',
+        namePlaceholder: 'e.g. Emergency fund',
+        amountLabel: 'Target fund size',
+        dateLabel: 'Build by',
+        currentLabel: 'Already saved',
+      };
+    case 'save':
+    default:
+      return {
+        nameLabel: 'What are you saving for?',
+        namePlaceholder: 'e.g. New car, trip',
+        amountLabel: 'Target amount',
+        dateLabel: 'Save by',
+        currentLabel: 'Already saved',
+      };
+  }
 }

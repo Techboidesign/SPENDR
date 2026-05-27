@@ -1,6 +1,7 @@
 /** Canonical onboarding flow order (matches routes & stepper). */
 export const ONBOARDING_STEPS = [
   { id: 'goal', route: '/onboarding/goal' },
+  { id: 'goal-setup', route: '/onboarding/goal-setup' },
   { id: 'monthly-income', route: '/onboarding/monthly-income' },
   { id: 'budget', route: '/onboarding/budget' },
   { id: 'categories', route: '/onboarding/categories' },

@@ -1,33 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { PiggyBank, ChartBar, CreditCard, ShieldCheck, TrendUp, MagnifyingGlass } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import type { OnboardingGoalChoice } from '../../../data/types';
+import { ONBOARDING_GOAL_CHOICES } from '../../../data/primaryGoalConfig';
 import { AUTH_THEME } from '../../../theme/authTheme';
 import { darkIconChip, onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
-
-const GOALS = [
-  { id: 'save' as const, icon: PiggyBank, accent: '#F7A54D', label: 'Save for a goal', desc: 'Build savings for something specific' },
-  { id: 'track' as const, icon: ChartBar, accent: '#707BFF', label: 'Track my spending', desc: 'See where my money goes' },
-  { id: 'debt' as const, icon: CreditCard, accent: '#EF4444', label: 'Pay off debt', desc: 'Get out of debt faster' },
-  { id: 'emergency' as const, icon: ShieldCheck, accent: '#2D7A26', label: 'Build emergency fund', desc: 'Create financial safety net' },
-  { id: 'invest' as const, icon: TrendUp, accent: '#3E37FF', label: 'Start investing', desc: 'Grow wealth over time' },
-  { id: 'exploring' as const, icon: MagnifyingGlass, accent: '#8B8D9E', label: 'Just exploring', desc: 'Not sure yet' },
-];
 
 export default function Step2Goal() {
   const navigate = useNavigate();
   const { updateData, next, skipAll, onboarding } = useOnboarding();
 
-  const [selectedGoal, setSelectedGoal] = useState<typeof GOALS[number]['id'] | null>(
-    onboarding.data.primaryGoal || null,
+  const [selectedGoal, setSelectedGoal] = useState<OnboardingGoalChoice | null>(
+    (onboarding.data.primaryGoal as OnboardingGoalChoice | undefined) ?? null,
   );
 
   const handleNext = () => {
     if (selectedGoal) {
       updateData({ primaryGoal: selectedGoal });
       next('goal');
-      navigate('/onboarding/monthly-income');
+      navigate('/onboarding/goal-setup');
     }
   };
 
@@ -43,7 +36,7 @@ export default function Step2Goal() {
   return (
     <OnboardingLayout
       currentStep={1}
-      totalSteps={7}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}
@@ -52,8 +45,8 @@ export default function Step2Goal() {
       <h1 style={onboardingTitleStyle}>What&apos;s your main goal?</h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {GOALS.map(goal => {
-          const Icon = goal.icon;
+        {ONBOARDING_GOAL_CHOICES.map(goal => {
+          const Icon = goal.Icon;
           const selected = selectedGoal === goal.id;
           const chip = darkIconChip(goal.accent);
           return (

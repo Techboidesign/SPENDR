@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { FormInput, FormSelect } from '../../shared/FormFields';
 import { AUTH_THEME } from '../../../theme/authTheme';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 const CURRENCIES = [
@@ -54,8 +55,8 @@ export default function Step1NameBasics() {
 
   return (
     <OnboardingLayout
-      currentStep={6}
-      totalSteps={7}
+      currentStep={7}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkip}

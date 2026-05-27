@@ -11,6 +11,7 @@ import {
   CategoryEditModal,
   NEW_CATEGORY_ID,
 } from '../../settings/CategoryEditModal';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
 
 /** Short label — matches Settings category pills */
@@ -132,8 +133,8 @@ export default function Step5Categories() {
 
   return (
     <OnboardingLayout
-      currentStep={4}
-      totalSteps={7}
+      currentStep={5}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}

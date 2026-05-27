@@ -12,6 +12,10 @@ export interface DbProfile {
   currency: string;
   country: string | null;
   primary_goal: string | null;
+  primary_goal_name?: string | null;
+  primary_goal_target_amount?: number | null;
+  primary_goal_target_date?: string | null;
+  primary_goal_current_amount?: number | null;
   income: number;
   monthly_budget: number;
   income_frequency: string | null;

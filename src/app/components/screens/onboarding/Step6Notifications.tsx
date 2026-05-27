@@ -9,6 +9,7 @@ import {
   onboardingToggleThumb,
   onboardingToggleTrack,
 } from '../../../theme/onboardingDarkUi';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
 
 const NOTIFICATION_OPTIONS = [
@@ -75,8 +76,8 @@ export default function Step6Notifications() {
 
   return (
     <OnboardingLayout
-      currentStep={5}
-      totalSteps={7}
+      currentStep={6}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}

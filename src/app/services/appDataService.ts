@@ -7,6 +7,9 @@ import type {
   PrimaryGoalId,
 } from '../data/types';
 import { parsePrimaryGoal } from '../data/primaryGoalConfig';
+import { targetFromProfileFields, targetToProfileFields } from '../data/primaryGoalTarget';
+import { updateProfileSafe } from './profileUpdates';
+import { fetchOnboarding } from './onboardingService';
 import type {
   DbProfile,
   DbExpense,
@@ -120,6 +123,7 @@ export function createEmptyAppState(overrides?: Partial<AppState>): AppState {
     notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
     appearance: 'light',
     primaryGoal: null,
+    primaryGoalTarget: null,
     ...overrides,
   };
 }
@@ -191,7 +195,9 @@ export function profileToAppFields(profile: DbProfile): Pick<
   | 'income'
   | 'monthlyBudget'
   | 'primaryGoal'
+  | 'primaryGoalTarget'
 > {
+  const primaryGoal = profile.primary_goal ? parsePrimaryGoal(profile.primary_goal) : null;
   return {
     userName: profile.display_name || profile.full_name.split(' ')[0] || '',
     userFullName: profile.full_name,
@@ -201,7 +207,8 @@ export function profileToAppFields(profile: DbProfile): Pick<
     currency: profile.currency,
     income: Number(profile.income),
     monthlyBudget: Number(profile.monthly_budget),
-    primaryGoal: profile.primary_goal ? parsePrimaryGoal(profile.primary_goal) : null,
+    primaryGoal,
+    primaryGoalTarget: targetFromProfileFields(profile),
   };
 }
 
@@ -241,7 +248,7 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     rowToCustomCategory,
   );
 
-  return {
+  const base = {
     ...EMPTY_APP_STATE,
     ...profileToAppFields(profile),
     expenses: ((expensesRes.data ?? []) as DbExpense[]).map(rowToExpense),
@@ -256,6 +263,19 @@ export async function fetchAppState(userId: string): Promise<AppState> {
       prefsRes.data as DbUserPreferences | null,
     ),
   };
+
+  if (!base.primaryGoalTarget) {
+    try {
+      const onboarding = await fetchOnboarding(userId);
+      if (onboarding?.data?.primaryGoalTarget) {
+        base.primaryGoalTarget = onboarding.data.primaryGoalTarget;
+      }
+    } catch {
+      // onboarding_progress may be unavailable; ignore
+    }
+  }
+
+  return base;
 }
 
 /** Persist a single reducer action to Supabase (no-op if offline config). */
@@ -441,11 +461,8 @@ export async function syncActionToSupabase(
       break;
     }
     case 'SET_PRIMARY_GOAL': {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ primary_goal: action.goal })
-        .eq('id', userId);
-      if (error) throw error;
+      const targetFields = targetToProfileFields(action.target ?? null, action.goal);
+      await updateProfileSafe(userId, { primary_goal: action.goal, ...targetFields });
       break;
     }
     case 'HYDRATE_STATE':
@@ -460,7 +477,8 @@ export async function syncActionToSupabase(
 export async function replaceAppStateOnServer(userId: string, state: AppState): Promise<void> {
   const supabase = getSupabase();
 
-  const { error: profileErr } = await supabase.from('profiles').update({
+  const targetFields = targetToProfileFields(state.primaryGoalTarget, state.primaryGoal);
+  await updateProfileSafe(userId, {
     full_name: state.userFullName,
     display_name: state.userName,
     email: state.userEmail,
@@ -471,8 +489,8 @@ export async function replaceAppStateOnServer(userId: string, state: AppState): 
     monthly_budget: state.monthlyBudget,
     primary_goal: state.primaryGoal,
     has_migrated: true,
-  }).eq('id', userId);
-  if (profileErr) throw profileErr;
+    ...targetFields,
+  });
 
   await supabase.from('expenses').delete().eq('user_id', userId);
   if (state.expenses.length > 0) {

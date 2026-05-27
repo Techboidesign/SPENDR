@@ -22,6 +22,7 @@ import AuthCallbackScreen from './components/screens/auth/AuthCallbackScreen';
 // Onboarding screens
 import Step1NameBasics from './components/screens/onboarding/Step1NameBasics';
 import Step2Goal from './components/screens/onboarding/Step2Goal';
+import Step2GoalSetup from './components/screens/onboarding/Step2GoalSetup';
 import Step3MonthlyIncome from './components/screens/onboarding/Step3MonthlyIncome';
 import Step4Budget from './components/screens/onboarding/Step4Budget';
 import Step5Categories from './components/screens/onboarding/Step5Categories';
@@ -205,6 +206,7 @@ export const router = createBrowserRouter([
             children: [
           { path: 'name-basics', Component: Step1NameBasics },
           { path: 'goal', Component: Step2Goal },
+          { path: 'goal-setup', Component: Step2GoalSetup },
           { path: 'monthly-income', Component: Step3MonthlyIncome },
           { path: 'budget', Component: Step4Budget },
           { path: 'categories', Component: Step5Categories },

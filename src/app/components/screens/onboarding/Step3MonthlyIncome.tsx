@@ -4,6 +4,7 @@ import { useOnboarding } from '../../../context/OnboardingContext';
 import { AUTH_THEME } from '../../../theme/authTheme';
 import { FormSelect } from '../../shared/FormFields';
 import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 export default function Step3MonthlyIncome() {
@@ -31,7 +32,7 @@ export default function Step3MonthlyIncome() {
 
   const handleBack = () => {
     back();
-    navigate('/onboarding/goal');
+    navigate('/onboarding/goal-setup');
   };
 
   const handleSkipAll = () => {
@@ -41,8 +42,8 @@ export default function Step3MonthlyIncome() {
 
   return (
     <OnboardingLayout
-      currentStep={2}
-      totalSteps={7}
+      currentStep={3}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}
       onSkip={handleSkipAll}

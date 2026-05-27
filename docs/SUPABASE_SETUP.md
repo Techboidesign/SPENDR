@@ -12,8 +12,11 @@ Rotate any token that was shared in chat or committed by mistake.
 
 ## 1. Apply database schema
 
-**Option A — Dashboard:** Supabase → SQL Editor → paste and run  
-`supabase/migrations/20250519000000_initial_schema.sql`
+**Option A — Dashboard:** Supabase → SQL Editor → paste and run migrations in order:
+
+1. `supabase/migrations/20250519000000_initial_schema.sql`
+2. `supabase/migrations/20250527120000_disabled_category_ids.sql` (if not already applied)
+3. `supabase/migrations/20250528120000_primary_goal_target.sql` (focus goal amount/date — required for Launch Spendr goal targets)
 
 **Option B — CLI:**
 

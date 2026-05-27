@@ -169,4 +169,5 @@ export const INITIAL_APP_STATE: AppState = {
   notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
   appearance: 'light',
   primaryGoal: null,
+  primaryGoalTarget: null,
 };

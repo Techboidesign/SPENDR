@@ -142,7 +142,12 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_DISABLED_CATEGORY_IDS':
       return { ...state, disabledCategoryIds: action.categoryIds };
     case 'SET_PRIMARY_GOAL':
-      return { ...state, primaryGoal: action.goal };
+      return {
+        ...state,
+        primaryGoal: action.goal,
+        primaryGoalTarget:
+          action.target !== undefined ? action.target : state.primaryGoalTarget,
+      };
     default:
       return state;
   }

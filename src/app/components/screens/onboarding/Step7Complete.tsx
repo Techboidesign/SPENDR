@@ -10,10 +10,12 @@ import {
   type CategoryStripItem,
 } from '../../onboarding/OnboardingCategoryPreviewStrip';
 import { getCurrencyIcon } from '../../../data/currencyConfig';
-import { getPrimaryGoalDefinition } from '../../../data/primaryGoalConfig';
+import { getPrimaryGoalDefinition, parsePrimaryGoal, resolveOnboardingGoalChoice } from '../../../data/primaryGoalConfig';
+import { formatTargetDateShort } from '../../../data/primaryGoalTarget';
 import { AUTH_THEME, APP_PRIMARY_DARK, appPrimaryDarkRgba } from '../../../theme/authTheme';
 import { onboardingRowCard } from '../../../theme/onboardingDarkUi';
 import { OnboardingSummaryRow, onboardingSectionLabelStyle } from '../../onboarding/OnboardingSummaryRow';
+import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
 import { formatErrorMessage } from '../../../utils/formatError';
 
@@ -48,7 +50,10 @@ export default function Step7Complete() {
   const data = onboarding.data;
   const firstName = data.firstName || 'there';
   const currency = data.currency || 'USD';
-  const goal = getPrimaryGoalDefinition(data.primaryGoal);
+  const goal = getPrimaryGoalDefinition(
+    parsePrimaryGoal(resolveOnboardingGoalChoice(data.primaryGoal ?? undefined)),
+  );
+  const goalTarget = data.primaryGoalTarget;
   const GoalIcon = goal.Icon;
   const CurrencyIcon = getCurrencyIcon(currency);
 
@@ -128,6 +133,11 @@ export default function Step7Complete() {
       accent={goal.accentColor}
       label="Primary goal"
       value={goal.label}
+      detail={
+        goalTarget && goalTarget.targetAmount > 0
+          ? `${goalTarget.name ? `${goalTarget.name} · ` : ''}${formatMoney(goalTarget.targetAmount, currency)} by ${formatTargetDateShort(goalTarget.targetDate)}`
+          : undefined
+      }
     />,
     <OnboardingSummaryRow
       key="currency"
@@ -184,8 +194,8 @@ export default function Step7Complete() {
 
   return (
     <OnboardingLayout
-      currentStep={7}
-      totalSteps={7}
+      currentStep={8}
+      totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleLaunch}
       onBack={handleBack}
       nextLabel={loading ? 'Saving…' : 'Launch Spendr'}

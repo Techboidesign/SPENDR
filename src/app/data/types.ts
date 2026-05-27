@@ -1,3 +1,5 @@
+import type { PrimaryGoalTarget } from './primaryGoalTarget';
+
 export type ExpenseType = 'one-time' | 'monthly' | 'yearly';
 
 export interface Expense {
@@ -37,8 +39,11 @@ export interface CustomCategory {
 /** User-facing light/dark for the main app shell. */
 export type AppearanceMode = 'light' | 'dark';
 
-/** Onboarding “What's your main goal?” — persisted on profiles.primary_goal */
-export type PrimaryGoalId = 'save' | 'track' | 'debt' | 'emergency' | 'invest' | 'exploring';
+/** Focus goal stored on profile (invest/exploring removed; exploring maps to track). */
+export type PrimaryGoalId = 'save' | 'track' | 'debt' | 'emergency';
+
+/** Step 2 onboarding choice — `exploring` is saved as `track` after setup. */
+export type OnboardingGoalChoice = PrimaryGoalId | 'exploring';
 
 /** In-app banner alert toggles (onboarding + Settings). */
 export interface NotificationPreferences {
@@ -68,6 +73,7 @@ export interface AppState {
   notificationPreferences: NotificationPreferences;
   appearance: AppearanceMode;
   primaryGoal: PrimaryGoalId | null;
+  primaryGoalTarget: PrimaryGoalTarget | null;
 }
 
 export type Action =
@@ -93,4 +99,8 @@ export type Action =
   | { type: 'SET_NOTIFICATION_PREFERENCES'; preferences: NotificationPreferences }
   | { type: 'SET_APPEARANCE'; mode: AppearanceMode }
   | { type: 'SET_DISABLED_CATEGORY_IDS'; categoryIds: string[] }
-  | { type: 'SET_PRIMARY_GOAL'; goal: PrimaryGoalId | null };
+  | {
+      type: 'SET_PRIMARY_GOAL';
+      goal: PrimaryGoalId | null;
+      target?: PrimaryGoalTarget | null;
+    };

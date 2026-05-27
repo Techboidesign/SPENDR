@@ -6,7 +6,10 @@ import { CURRENT_MONTH_KEY } from '../../utils/periods';
 import { FeaturedBudgetCard } from '../budget/FeaturedBudgetCard';
 import { CategoryBudgetCard } from '../budget/CategoryBudgetCard';
 import { PrimaryGoalFocusCard } from '../budget/PrimaryGoalFocusCard';
+import { PrimaryGoalSetupModal } from '../budget/PrimaryGoalSetupModal';
 import { BudgetEditModal, type BudgetEditTarget } from '../budget/BudgetEditModal';
+import type { PrimaryGoalId } from '../../data/types';
+import type { PrimaryGoalTarget } from '../../data/primaryGoalTarget';
 import { SectionTitle } from '../ui/SectionTitle';
 import {
   getFocusCategoryId,
@@ -20,6 +23,7 @@ export default function BudgetScreen() {
   const c = useAppColors();
   const { state, dispatch, formatCurrency, categories } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
+  const [focusModalOpen, setFocusModalOpen] = useState(false);
 
   const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
   const goalDef = getPrimaryGoalDefinition(goalId);
@@ -71,23 +75,17 @@ export default function BudgetScreen() {
     () =>
       computePrimaryGoalProgress({
         goalId,
-        income: state.income,
-        monthlyBudget: state.monthlyBudget,
-        totalSpent,
+        primaryGoalTarget: state.primaryGoalTarget,
         categoryTotals,
         budgetGoals: state.budgetGoals,
         categoryIds,
       }),
-    [
-      goalId,
-      state.income,
-      state.monthlyBudget,
-      totalSpent,
-      categoryTotals,
-      state.budgetGoals,
-      categoryIds,
-    ],
+    [goalId, state.primaryGoalTarget, categoryTotals, state.budgetGoals, categoryIds],
   );
+
+  const handleFocusSave = (nextGoalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => {
+    dispatch({ type: 'SET_PRIMARY_GOAL', goal: nextGoalId, target });
+  };
 
   const hasCategoriesWithoutBudget = useMemo(
     () =>
@@ -157,8 +155,11 @@ export default function BudgetScreen() {
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <PrimaryGoalFocusCard
             goal={goalDef}
+            target={state.primaryGoalTarget}
             progress={goalProgress}
             animationDelay={0}
+            formatCurrency={formatCurrency}
+            onEdit={() => setFocusModalOpen(true)}
           />
 
           <FeaturedBudgetCard
@@ -184,7 +185,6 @@ export default function BudgetScreen() {
             accentColor="#F59E0B"
             accentBg="#FEF3C7"
             formatCurrency={formatCurrency}
-            subtitle={goalDef.budgetCardHint}
             statusMessage={budgetStatus}
             onClick={() => setEditTarget({ kind: 'budget' })}
             animationDelay={240}
@@ -229,6 +229,15 @@ export default function BudgetScreen() {
         currencySymbol={currencySymbol}
         onSave={handleSave}
         onClose={() => setEditTarget(null)}
+      />
+
+      <PrimaryGoalSetupModal
+        open={focusModalOpen}
+        goalId={goalId}
+        target={state.primaryGoalTarget}
+        formatCurrency={formatCurrency}
+        onSave={handleFocusSave}
+        onClose={() => setFocusModalOpen(false)}
       />
     </div>
   );
