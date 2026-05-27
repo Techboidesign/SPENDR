@@ -30,6 +30,7 @@ export function FeaturedBudgetCard({
   statusMessage,
   onClick,
   animationDelay = 0,
+  layout = 'full',
 }: {
   title: ReactNode;
   subtitle?: string;
@@ -42,6 +43,7 @@ export function FeaturedBudgetCard({
   statusMessage?: string;
   onClick: () => void;
   animationDelay?: number;
+  layout?: 'full' | 'compact';
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
@@ -51,6 +53,7 @@ export function FeaturedBudgetCard({
   const remaining = Math.max(limit - spent, 0);
   const isOver = spent > limit && limit > 0;
   const fillColor = isOver ? getBudgetProgressColor(usagePercent) : lightenHex(accentColor, 0.28);
+  const isCompact = layout === 'compact';
 
   const [barPct, setBarPct] = useState(0);
   useEffect(() => {
@@ -62,6 +65,87 @@ export function FeaturedBudgetCard({
   const pencil = editPencilTile(c, isDark);
   const trackBg = isDark ? hexToRgba(accentBg, 0.2) : accentBg;
   const iconTile = featuredBudgetIconTile(accentColor, accentBg, isDark);
+  const barHeight = isCompact ? 10 : 14;
+
+  const progressBar = (
+    <div
+      style={{
+        position: 'relative',
+        height: barHeight,
+        borderRadius: 999,
+        overflow: 'hidden',
+        backgroundColor: trackBg,
+        backgroundImage: TRACK_STRIPE(accentColor),
+      }}
+    >
+      <motion.div
+        initial={false}
+        animate={{ width: `${barPct}%` }}
+        transition={{ duration: 0.85, ease: BAR_EASE }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          backgroundColor: fillColor,
+          borderRadius: 999,
+        }}
+      />
+    </div>
+  );
+
+  const usageRow = (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: 4,
+        marginTop: isCompact ? 8 : 10,
+        flexWrap: 'nowrap',
+      }}
+    >
+      <span
+        style={{
+          fontSize: isCompact ? 10 : 12,
+          color: c.textMuted,
+          fontWeight: 500,
+          flexShrink: 0,
+        }}
+      >
+        {limit > 0 ? `${Math.round(usagePercent)}% used` : 'Your progress'}
+      </span>
+      <span
+        className="font-figure"
+        style={{
+          fontSize: isCompact ? 10 : 12,
+          fontWeight: isCompact ? 600 : undefined,
+          color: isOver ? getBudgetProgressColor(usagePercent) : c.text,
+          textAlign: 'right',
+          minWidth: 0,
+        }}
+      >
+        {isOver ? `${formatCurrency(spent - limit)} over` : `${formatCurrency(remaining)} left`}
+      </span>
+    </div>
+  );
+
+  const statusStrip = statusMessage ? (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 6,
+        padding: isCompact ? '10px 12px' : '12px 16px',
+        backgroundColor: accentColor,
+      }}
+    >
+      <Info size={isCompact ? 14 : 16} weight="fill" color="#FFFFFF" style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ fontSize: isCompact ? 10 : 12, fontWeight: 600, color: '#FFFFFF', lineHeight: 1.35 }}>
+        {statusMessage}
+      </span>
+    </div>
+  ) : null;
 
   return (
     <button
@@ -71,7 +155,7 @@ export function FeaturedBudgetCard({
         width: '100%',
         textAlign: 'left',
         background: featureCardGradient(accentBg, c.featureCardEnd, isDark),
-        borderRadius: fc.radiusLg,
+        borderRadius: isCompact ? fc.radius : fc.radiusLg,
         border: 'none',
         padding: 0,
         cursor: 'pointer',
@@ -80,106 +164,131 @@ export function FeaturedBudgetCard({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: fc.paddingLg }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <FeatureCardIcon
-            {...icon}
-            accentColor={accentColor}
-            accentBg={accentBg}
-            iconSurfaceBg={iconTile.iconSurfaceBg}
-            iconGlyphColor={iconTile.iconGlyphColor}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ ...listRowLabelStyle(c), lineHeight: 1.25 }}>
-              {title}
-            </div>
-            {subtitle && (
-              <p style={{ fontSize: 12, color: c.textFaint, margin: '4px 0 0' }}>{subtitle}</p>
-            )}
-          </div>
+      <div
+        style={{
+          padding: isCompact ? '15px 17px 12px' : fc.paddingLg,
+          minHeight: isCompact ? 108 : undefined,
+          boxSizing: 'border-box',
+          display: isCompact ? 'flex' : 'block',
+          flexDirection: isCompact ? 'column' : undefined,
+          justifyContent: isCompact ? 'space-between' : undefined,
+        }}
+      >
+        {isCompact ? (
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              backgroundColor: pencil.bg,
-              border: pencil.border,
-              boxShadow: pencil.boxShadow,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
+              gap: 12,
+              marginBottom: 10,
             }}
-            aria-hidden
           >
-            <PencilSimple size={18} weight="light" color={pencil.iconColor} />
+            <FeatureCardIcon
+              {...icon}
+              compact
+              accentColor={accentColor}
+              accentBg={accentBg}
+              iconSurfaceBg={iconTile.iconSurfaceBg}
+              iconGlyphColor={iconTile.iconGlyphColor}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: c.text, lineHeight: 1.25 }}>
+                {title}
+              </div>
+              {subtitle && (
+                <p style={{ fontSize: 10, color: c.textFaint, margin: '4px 0 0' }}>{subtitle}</p>
+              )}
+            </div>
+            <span style={{ flexShrink: 0, lineHeight: 1 }}>
+              <CurrencyFigureAmount
+                formatted={formatCurrency(Math.ceil(limit))}
+                color={c.text}
+                size="compact"
+              />
+            </span>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                backgroundColor: pencil.bg,
+                border: pencil.border,
+                boxShadow: pencil.boxShadow,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+              aria-hidden
+            >
+              <PencilSimple size={14} weight="light" color={pencil.iconColor} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <FeatureCardIcon
+                {...icon}
+                accentColor={accentColor}
+                accentBg={accentBg}
+                iconSurfaceBg={iconTile.iconSurfaceBg}
+                iconGlyphColor={iconTile.iconGlyphColor}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ ...listRowLabelStyle(c), lineHeight: 1.25 }}>{title}</div>
+                {subtitle && (
+                  <p style={{ fontSize: 12, color: c.textFaint, margin: '4px 0 0' }}>{subtitle}</p>
+                )}
+              </div>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: pencil.bg,
+                  border: pencil.border,
+                  boxShadow: pencil.boxShadow,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+                aria-hidden
+              >
+                <PencilSimple size={18} weight="light" color={pencil.iconColor} />
+              </div>
+            </div>
 
-        <p style={{ margin: '0 0 14px', lineHeight: 1.2 }}>
-          <CurrencyFigureAmount
-            formatted={formatCurrency(Math.ceil(limit))}
-            color={c.text}
-          />
-        </p>
+            <p style={{ margin: '0 0 14px', lineHeight: 1.2 }}>
+              <CurrencyFigureAmount
+                formatted={formatCurrency(Math.ceil(limit))}
+                color={c.text}
+              />
+            </p>
+          </>
+        )}
 
-        <div
-          style={{
-            position: 'relative',
-            height: 14,
-            borderRadius: 999,
-            overflow: 'hidden',
-            backgroundColor: trackBg,
-            backgroundImage: TRACK_STRIPE(accentColor),
-          }}
-        >
-          <motion.div
-            initial={false}
-            animate={{ width: `${barPct}%` }}
-            transition={{ duration: 0.85, ease: BAR_EASE }}
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              backgroundColor: fillColor,
-              borderRadius: 999,
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-          <span style={{ fontSize: 12, color: c.textMuted, fontWeight: 500 }}>
-            {limit > 0 ? `${Math.round(usagePercent)}% used` : 'Your progress'}
-          </span>
-          <span
-            className="font-figure"
-            style={{
-              fontSize: 12,
-              color: isOver ? getBudgetProgressColor(usagePercent) : c.text,
-            }}
-          >
-            {isOver ? `${formatCurrency(spent - limit)} over` : `${formatCurrency(remaining)} left`}
-          </span>
-        </div>
+        {isCompact ? (
+          <div>
+            {progressBar}
+            {usageRow}
+          </div>
+        ) : (
+          <>
+            {progressBar}
+            {usageRow}
+          </>
+        )}
       </div>
 
-      {statusMessage && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 16px',
-            backgroundColor: accentColor,
-          }}
-        >
-          <Info size={16} weight="fill" color="#FFFFFF" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#FFFFFF', lineHeight: 1.35 }}>
-            {statusMessage}
-          </span>
-        </div>
-      )}
+      {statusStrip}
     </button>
   );
 }

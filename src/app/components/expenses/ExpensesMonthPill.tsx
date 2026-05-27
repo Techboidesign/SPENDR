@@ -46,7 +46,7 @@ export function AnimatedMonthTotal({
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
   const pillBg = isDark ? TOTAL_GREEN_BG_DARK : TOTAL_GREEN_BG;
-  const pillFg = isDark ? TOTAL_GREEN_BG : TOTAL_GREEN_FG;
+  const pillFg = isDark ? '#4ADE80' : TOTAL_GREEN_FG;
 
   useEffect(() => {
     const from = fromRef.current;
@@ -78,17 +78,19 @@ export function AnimatedMonthTotal({
 
   return (
     <span
+      className="font-figure"
       style={{
         ...pillBase,
+        height: 32,
+        minHeight: 32,
         backgroundColor: pillBg,
         color: pillFg,
         boxShadow: 'none',
-        fontWeight: 500,
-        gap: 4,
+        fontWeight: 600,
+        fontSize: 12,
       }}
     >
-      <span>Month&apos;s total:</span>
-      <span className="font-figure">{formatted}</span>
+      {formatted}
     </span>
   );
 }

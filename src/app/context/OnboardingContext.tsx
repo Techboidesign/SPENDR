@@ -10,7 +10,7 @@ import { useLocation } from 'react-router';
 import { ONBOARDING_STEPS } from '../theme/onboardingSteps';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase, getSiteUrl, isSupabaseConfigured } from '../../lib/supabase';
-import { getItem, setItem } from '../utils/storage';
+import { getItem, removeItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
 import { clearLocalUserData } from '../services/migrateLocalStorage';
 import { createEmptyAppState } from '../services/appDataService';

@@ -31,6 +31,8 @@ export type FeatureCardIconProps = {
   categoryIconSize?: 'sm' | 'md';
   iconKey?: CategoryIconKey;
   phosphorIcon?: FeatureCardPhosphorIcon;
+  /** Smaller tile for 2-column budget cards */
+  compact?: boolean;
 };
 
 export function FeatureCardIcon({
@@ -42,6 +44,7 @@ export function FeatureCardIcon({
   categoryIconSize = 'sm',
   iconKey,
   phosphorIcon,
+  compact = false,
 }: FeatureCardIconProps) {
   const { isDark } = useAppearance();
   const c = useAppColors();
@@ -50,6 +53,7 @@ export function FeatureCardIcon({
   const tileBg = iconSurfaceBg ?? themed.iconSurfaceBg;
   const glyph = iconGlyphColor ?? themed.iconGlyphColor;
   const tileIsGradient = typeof tileBg === 'string' && tileBg.includes('gradient');
+  const tile = compact ? { outer: 28, inner: 14, radius: 8 } : fc.icon;
 
   if (categoryId) {
     return <CategoryIcon categoryId={categoryId} size={categoryIconSize} />;
@@ -62,14 +66,14 @@ export function FeatureCardIcon({
         color={accentColor}
         bg={tileBg}
         iconColor={glyph}
-        size="sm"
+        size={compact ? 'xs' : 'sm'}
       />
     );
   }
 
   if (phosphorIcon) {
     const Icon = PHOSPHOR_ICONS[phosphorIcon];
-    const { outer, inner, radius } = fc.icon;
+    const { outer, inner, radius } = tile;
     return (
       <div
         style={{

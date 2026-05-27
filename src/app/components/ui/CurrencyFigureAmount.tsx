@@ -11,8 +11,10 @@ export function splitCurrencyForDisplay(formatted: string): {
   };
 }
 
-const MAIN_SIZE = 26;
-const DECIMAL_SIZE = 17;
+const SIZES = {
+  default: { main: 26, decimals: 17 },
+  compact: { main: 18, decimals: 12 },
+} as const;
 
 /**
  * Large figure-style currency — integer part full size, decimal suffix smaller.
@@ -20,11 +22,14 @@ const DECIMAL_SIZE = 17;
 export function CurrencyFigureAmount({
   formatted,
   color,
+  size = 'default',
 }: {
   formatted: string;
   color: string;
+  size?: keyof typeof SIZES;
 }) {
   const { main, decimals } = splitCurrencyForDisplay(formatted);
+  const { main: mainSize, decimals: decimalSize } = SIZES[size];
 
   return (
     <span
@@ -37,9 +42,9 @@ export function CurrencyFigureAmount({
       <span
         className="font-figure"
         style={{
-          fontSize: MAIN_SIZE,
+          fontSize: mainSize,
           color,
-          letterSpacing: -0.5,
+          letterSpacing: size === 'compact' ? -0.35 : -0.5,
         }}
       >
         {main}
@@ -48,7 +53,7 @@ export function CurrencyFigureAmount({
         <span
           className="font-figure"
           style={{
-            fontSize: DECIMAL_SIZE,
+            fontSize: decimalSize,
             color,
             letterSpacing: -0.3,
             opacity: 0.88,

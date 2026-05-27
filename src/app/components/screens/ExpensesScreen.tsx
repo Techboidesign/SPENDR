@@ -551,7 +551,69 @@ export default function ExpensesScreen() {
                 }}
               >
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Expenses</h1>
-                <AnimatedMonthTotal value={monthTotal} formatCurrency={formatCurrency} />
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: 4,
+                    borderRadius: 9999,
+                    backgroundColor: c.canvas,
+                    flexShrink: 0,
+                  }}
+                >
+                  {([
+                    { mode: 'chart' as const, icon: ChartPie, label: 'Insights' },
+                    { mode: 'list' as const, icon: ListBullets, label: 'List view' },
+                  ]).map(({ mode, icon: Icon, label }) => {
+                    const isActive = viewMode === mode;
+                    const activeBg = isActive ? (isDark ? c.tabActiveBg : CHARCOAL) : 'transparent';
+                    const activeShadow = isActive ? (isDark ? c.shadowSm : '0 2px 10px rgba(26, 26, 46, 0.25)') : 'none';
+                    const activeFg = isActive ? activePillForeground(isDark, c) : c.textMuted;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setView(mode)}
+                        disabled={headerLocked}
+                        aria-label={label}
+                        aria-pressed={isActive}
+                        style={{
+                          border: 'none',
+                          cursor: headerLocked ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: isActive ? '6px 12px 6px 8px' : '6px 10px',
+                          minHeight: 32,
+                          borderRadius: 9999,
+                          backgroundColor: activeBg,
+                          boxShadow: activeShadow,
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        <Icon
+                          size={18}
+                          weight="fill"
+                          color={activeFg}
+                          aria-hidden
+                        />
+                        {isActive && (
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: activeFg,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {label}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div style={{ padding: '0 20px 14px', position: 'relative', zIndex: 2 }}>
@@ -560,68 +622,7 @@ export default function ExpensesScreen() {
                   onMonthChange={setSelectedMonthKey}
                   disabled={headerLocked}
                   trailingSlot={
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: 4,
-                        borderRadius: 9999,
-                        backgroundColor: c.canvas,
-                      }}
-                    >
-                      {([
-                        { mode: 'list' as const, icon: ListBullets, label: 'List' },
-                        { mode: 'chart' as const, icon: ChartPie, label: 'Insights' },
-                      ]).map(({ mode, icon: Icon, label }) => {
-                        const isActive = viewMode === mode;
-                        const activeBg = isActive ? (isDark ? c.tabActiveBg : CHARCOAL) : 'transparent';
-                        const activeShadow = isActive ? (isDark ? c.shadowSm : '0 2px 10px rgba(26, 26, 46, 0.25)') : 'none';
-                        const activeFg = isActive ? activePillForeground(isDark, c) : c.textMuted;
-                        return (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => setView(mode)}
-                            disabled={headerLocked}
-                            aria-label={label}
-                            aria-pressed={isActive}
-                            style={{
-                              border: 'none',
-                              cursor: headerLocked ? 'default' : 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: isActive ? '6px 12px' : '6px 10px',
-                              minHeight: 32,
-                              borderRadius: 9999,
-                              backgroundColor: activeBg,
-                              boxShadow: activeShadow,
-                              fontFamily: 'inherit',
-                            }}
-                          >
-                            <Icon
-                              size={18}
-                              weight="light"
-                              color={activeFg}
-                              aria-hidden
-                            />
-                            {isActive && (
-                              <span
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  color: activeFg,
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {label}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <AnimatedMonthTotal value={monthTotal} formatCurrency={formatCurrency} />
                   }
                 />
               </div>

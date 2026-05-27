@@ -113,6 +113,7 @@ export default function BudgetScreen() {
 
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <FeaturedBudgetCard
+            layout="compact"
             title="Monthly income"
             icon={{ iconKey: 'wallet' }}
             spent={totalSpent}
@@ -126,6 +127,7 @@ export default function BudgetScreen() {
           />
 
           <FeaturedBudgetCard
+            layout="compact"
             title="Monthly budget"
             icon={{ phosphorIcon: 'target' }}
             spent={totalSpent}
@@ -140,9 +142,6 @@ export default function BudgetScreen() {
 
           <div style={{ paddingTop: 4 }}>
             <SectionTitle>Categories budget limit</SectionTitle>
-            <p style={{ fontSize: 13, color: c.textMuted, margin: '0 0 10px', padding: '0 2px', lineHeight: 1.45 }}>
-              Tap each category to modify your budget limits
-            </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {categories.map((cat, index) => {
