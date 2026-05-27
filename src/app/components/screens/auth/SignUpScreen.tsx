@@ -69,7 +69,7 @@ export default function SignUpScreen() {
           <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>Confirm your email</h1>
           <p style={{ fontSize: 14, color: AUTH_THEME.textMuted, lineHeight: 1.5, margin: '0 0 24px' }}>
             We sent a link to <strong style={{ color: AUTH_THEME.textPrimary }}>{email}</strong>.
-            After confirming, log in to continue setup.
+            Open the link in the email — we&apos;ll confirm your account and take you straight into setup.
           </p>
           <Button
             onClick={() => navigate('/login')}

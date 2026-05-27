@@ -29,3 +29,8 @@ export function getSupabase(): SupabaseClient {
 export function getSiteUrl(): string {
   return (import.meta.env.VITE_SITE_URL as string | undefined) ?? window.location.origin;
 }
+
+/** Auth email links (confirm signup, magic link, password reset). */
+export function getAuthCallbackUrl(): string {
+  return `${getSiteUrl()}/auth/callback`;
+}

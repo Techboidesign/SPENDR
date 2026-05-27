@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet, Navigate } from 'react-router';
+import { createBrowserRouter, Outlet, Navigate, useLocation } from 'react-router';
 import { AppProvider, useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
 import { AppearanceProvider, useAppColors } from './context/AppearanceContext';
@@ -17,6 +17,7 @@ import WelcomeScreen from './components/screens/auth/WelcomeScreen';
 import SignUpScreen from './components/screens/auth/SignUpScreen';
 import LogInScreen from './components/screens/auth/LogInScreen';
 import ForgotPasswordScreen from './components/screens/auth/ForgotPasswordScreen';
+import AuthCallbackScreen from './components/screens/auth/AuthCallbackScreen';
 
 // Onboarding screens
 import Step1NameBasics from './components/screens/onboarding/Step1NameBasics';
@@ -142,9 +143,11 @@ function OnboardingAuthGuard() {
   return <Outlet />;
 }
 
-/** Redirect signed-in users away from welcome/login/signup */
+/** Redirect signed-in users away from welcome/login/signup (not /auth/callback). */
 function GuestAuthGuard() {
   const { auth, authLoading, onboarding } = useOnboarding();
+  const { pathname } = useLocation();
+  const isAuthCallback = pathname === '/auth/callback';
 
   if (authLoading) {
     return (
@@ -164,7 +167,7 @@ function GuestAuthGuard() {
     );
   }
 
-  if (auth.isAuthenticated) {
+  if (auth.isAuthenticated && !isAuthCallback) {
     return <Navigate to={getOnboardingRoute(auth, onboarding)} replace />;
   }
 
@@ -185,6 +188,7 @@ export const router = createBrowserRouter([
               { path: '/welcome', Component: WelcomeScreen },
               { path: '/signup', Component: SignUpScreen },
               { path: '/login', Component: LogInScreen },
+              { path: '/auth/callback', Component: AuthCallbackScreen },
               { path: '/forgot-password', Component: ForgotPasswordScreen },
             ],
           },

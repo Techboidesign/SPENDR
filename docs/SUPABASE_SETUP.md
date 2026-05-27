@@ -29,8 +29,12 @@ Supabase → **Authentication → URL Configuration**
 
 | Setting | Value |
 |---------|--------|
-| Site URL | `https://spendr-finance.netlify.app` |
+| Site URL | `https://spendr-finance.netlify.app` (not `localhost`) |
 | Redirect URLs | `https://spendr-finance.netlify.app/**`, `http://localhost:5173/**` |
+
+Email confirm / password reset links open `/auth/callback` (not `/login`).
+
+If confirmation emails open `localhost`, the **Site URL** in Supabase is still set to localhost — update it and request a new confirmation email.
 
 Enable **Email** provider. For local dev you may disable “Confirm email” until you test signup.
 

@@ -9,7 +9,11 @@ import React, {
 import { useLocation } from 'react-router';
 import { ONBOARDING_STEPS } from '../theme/onboardingSteps';
 import type { Session } from '@supabase/supabase-js';
-import { getSupabase, getSiteUrl, isSupabaseConfigured } from '../../lib/supabase';
+import {
+  getAuthCallbackUrl,
+  getSupabase,
+  isSupabaseConfigured,
+} from '../../lib/supabase';
 import { getItem, removeItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
 import { clearLocalUserData } from '../services/migrateLocalStorage';
@@ -283,7 +287,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     removeItem('appState');
     removeItem('auth');
     removeItem('onboarding');
-    const { data, error } = await getSupabase().auth.signUp({ email, password });
+    const { data, error } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: getAuthCallbackUrl(),
+      },
+    });
     if (error) throw error;
     const needsEmailConfirmation = !data.session;
     if (data.session) {
@@ -307,7 +317,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const resetPassword = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) return;
     const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: `${getSiteUrl()}/login`,
+      redirectTo: getAuthCallbackUrl(),
     });
     if (error) throw error;
   }, []);

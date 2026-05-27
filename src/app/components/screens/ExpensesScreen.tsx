@@ -563,8 +563,8 @@ export default function ExpensesScreen() {
                   }}
                 >
                   {([
-                    { mode: 'chart' as const, icon: ChartPie, label: 'Insights' },
                     { mode: 'list' as const, icon: ListBullets, label: 'List view' },
+                    { mode: 'chart' as const, icon: ChartPie, label: 'Insights' },
                   ]).map(({ mode, icon: Icon, label }) => {
                     const isActive = viewMode === mode;
                     const activeBg = isActive ? (isDark ? c.tabActiveBg : CHARCOAL) : 'transparent';
