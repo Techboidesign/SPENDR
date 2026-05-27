@@ -108,12 +108,14 @@ export function CategoryIconPreview({
   const dim = SIZE_MAP[size] ?? SIZE_MAP.md;
   const IconComp = CATEGORY_ICON_MAP[iconKey] ?? Package;
   const isDark = tone === 'dark' || (tone === 'auto' && appDark);
-  const stroke = isDark ? ONBOARDING_CHIP_ICON : (iconColor ?? color);
-  const chipBg = isDark
-    ? { background: onboardingIconGradient(color) }
-    : tone === 'light'
-      ? {}
-      : { backgroundColor: bg };
+  const gradientBg = typeof bg === 'string' && bg.includes('gradient');
+  const stroke = gradientBg || isDark ? ONBOARDING_CHIP_ICON : (iconColor ?? color);
+  const chipBg =
+    gradientBg || isDark
+      ? { background: gradientBg ? bg : onboardingIconGradient(color) }
+      : tone === 'light'
+        ? {}
+        : { backgroundColor: bg };
 
   return (
     <div

@@ -5,6 +5,7 @@ import { AUTH_THEME } from '../../../theme/authTheme';
 import { FormSelect } from '../../shared/FormFields';
 import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
+import { getCurrencySymbol } from '../../../utils/currencySymbol';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 export default function Step3MonthlyIncome() {
@@ -101,6 +102,7 @@ export default function Step3MonthlyIncome() {
         label={amountType === 'income' ? 'Monthly income' : 'Amount available to spend'}
         value={amount}
         onChange={setAmount}
+        currencySymbol={getCurrencySymbol(onboarding.data.currency ?? 'USD')}
       />
 
       <div style={{ marginBottom: 16 }}>

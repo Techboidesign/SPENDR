@@ -1,0 +1,55 @@
+---
+description: Bottom-sheet modals — no inner scroll, fixed action bar
+globs: src/app/components/**/*Modal*.tsx
+alwaysApply: false
+---
+
+# Modals (bottom sheets)
+
+## Structure (required)
+
+Use **`BottomSheetModal`** + **`bottomSheetChrome()`** + **`AppBottomSheetLayout`** (or the same flex pattern):
+
+1. **Sheet** — `display: flex`, `flexDirection: column`, `overflow: hidden`, `maxHeight: ~88vh` (via `bottomSheetChrome`).
+2. **Header** — grabber, title, optional leading icon; close **X** in header. `flexShrink: 0`.
+3. **Body** — form/content only. **`overflow: hidden`** (never `overflowY: auto` / `scroll` on the sheet or a body wrapper).
+4. **Footer** — **`ModalActionBar`** as a sibling below the body, `flexShrink: 0`, always visible (not inside a scroll region).
+
+```tsx
+<BottomSheetModal open={open} onClose={onClose} sheetStyle={bottomSheetChrome(c)}>
+  {/* header — flexShrink: 0 */}
+  {/* body — overflow: hidden */}
+  <ModalActionBar onLeft={onClose} leftLabel="CANCEL" onSave={handleSave} saveLabel="SAVE" />
+</BottomSheetModal>
+```
+
+Prefer **`AppBottomSheetLayout`** for new/edited sheets instead of hand-rolled absolute overlays.
+
+## ModalActionBar API
+
+Use the canonical props only:
+
+- `onLeft`, `leftLabel`, `leftVariant` (`cancel` | `delete`)
+- `onSave`, `saveLabel`, `saveDisabled`
+
+Prefer `onLeft` / `onSave`; `onSecondary` / `onPrimary` aliases exist on `ModalActionBar` but canonical names are clearer.
+
+## Content must fit without scrolling
+
+- Keep forms **compact** (`compact` variant on shared forms, 2-column goal picker, toggles instead of long lists).
+- Split rare/long flows into **steps** (separate sheet content or full screen), not inner scroll.
+- Centered **alert** dialogs (`EraseAllDataModal`) are OK without `AppBottomSheetLayout`; still no inner scroll.
+
+## Do not
+
+- Put `ModalActionBar` inside a scrollable `div`.
+- Use `overflowY: auto` on modal sheet or body (grep before shipping).
+- Duplicate backdrop/sheet markup when `BottomSheetModal` exists.
+- Rely on scrolling to reveal Cancel/Save — actions stay pinned in the footer.
+
+## Checklist
+
+- [ ] `BottomSheetModal` + `bottomSheetChrome`
+- [ ] No `overflowY: auto` in modal file
+- [ ] `ModalActionBar` at sheet root, after body
+- [ ] Cancel + Save visible without scrolling

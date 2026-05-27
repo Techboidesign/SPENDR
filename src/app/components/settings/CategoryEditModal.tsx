@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { X } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { getCategoryById } from '../../data/categories';
@@ -12,9 +11,8 @@ import {
 } from '../../data/categoryConfig';
 import type { CategoryCustomization, CustomCategory } from '../../data/types';
 import { createCustomCategoryAppId } from '../../utils/customCategoryId';
-import { bottomSheetChrome } from '../../theme/modalSheet';
 import { CategoryIconPreview } from '../CategoryIcon';
-import { BottomSheetModal } from '../BottomSheetModal';
+import { AppBottomSheetLayout } from '../AppBottomSheetLayout';
 import { ModalActionBar } from '../ModalActionBar';
 
 export const NEW_CATEGORY_ID = '__new__';
@@ -136,50 +134,20 @@ export function CategoryEditModal({
   const mutedLabel = isDark ? c.textMuted : '#6B7280';
 
   return (
-    <BottomSheetModal open={open} onClose={onClose} sheetStyle={bottomSheetChrome(c)}>
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '12px 20px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 8 }}>
-          <div
-            style={{
-              width: 40,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: isDark ? c.border : '#E5E7EB',
-            }}
-          />
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 16,
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: c.text, margin: 0 }}>
-            {isNew ? 'Add custom category' : 'Edit category'}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: c.inputBg,
-              border: `1px solid ${c.inputBorder}`,
-              borderRadius: 10,
-              width: 32,
-              height: 32,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={16} weight="bold" color={c.textMuted} />
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+    <AppBottomSheetLayout
+      open={open}
+      onClose={onClose}
+      title={isNew ? 'Add custom category' : 'Edit category'}
+      footer={
+        <ModalActionBar
+          onLeft={onClose}
+          leftLabel="CANCEL"
+          onSave={handleSave}
+          saveLabel="SAVE"
+        />
+      }
+    >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <CategoryIconPreview
             iconKey={iconKey}
             color={preset.color}
@@ -196,7 +164,7 @@ export function CategoryEditModal({
               flex: 1,
               minWidth: 0,
               boxSizing: 'border-box',
-              padding: '14px 16px',
+              padding: '12px 14px',
               borderRadius: 14,
               border: `1px solid ${c.inputBorder}`,
               backgroundColor: c.inputBg,
@@ -209,13 +177,13 @@ export function CategoryEditModal({
           />
         </div>
 
-        <p style={{ fontSize: 12, fontWeight: 600, color: mutedLabel, margin: '0 0 10px' }}>Icon</p>
+        <p style={{ fontSize: 12, fontWeight: 600, color: mutedLabel, margin: '0 0 6px' }}>Icon</p>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(9, 1fr)',
-            gap: 4,
-            marginBottom: 20,
+            gridTemplateColumns: 'repeat(10, 1fr)',
+            gap: 3,
+            marginBottom: 12,
           }}
         >
           {CATEGORY_ICON_OPTIONS.map(opt => {
@@ -231,7 +199,7 @@ export function CategoryEditModal({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: 5,
+                  padding: 4,
                   aspectRatio: '1',
                   borderRadius: 8,
                   border: 'none',
@@ -242,7 +210,7 @@ export function CategoryEditModal({
                 }}
               >
                 <Icon
-                  size={18}
+                  size={16}
                   weight={selected ? 'fill' : 'light'}
                   color={selected ? (preset.iconColor ?? preset.color) : c.textFaint}
                 />
@@ -251,14 +219,13 @@ export function CategoryEditModal({
           })}
         </div>
 
-        <p style={{ fontSize: 12, fontWeight: 600, color: mutedLabel, margin: '0 0 10px' }}>Color</p>
+        <p style={{ fontSize: 12, fontWeight: 600, color: mutedLabel, margin: '0 0 6px' }}>Color</p>
         <div
           style={{
             display: 'flex',
             flexWrap: 'nowrap',
-            gap: 6,
+            gap: 5,
             width: '100%',
-            marginBottom: 16,
           }}
         >
           {CATEGORY_COLOR_PRESETS_BY_HUE.map(p => {
@@ -289,14 +256,6 @@ export function CategoryEditModal({
             );
           })}
         </div>
-      </div>
-
-      <ModalActionBar
-        onLeft={onClose}
-        leftLabel="CANCEL"
-        onSave={handleSave}
-        saveLabel="SAVE"
-      />
-    </BottomSheetModal>
+    </AppBottomSheetLayout>
   );
 }

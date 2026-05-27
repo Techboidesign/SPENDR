@@ -185,14 +185,13 @@ export function FeaturedBudgetCard({
           >
             <FeatureCardIcon
               {...icon}
-              compact
               accentColor={accentColor}
               accentBg={accentBg}
               iconSurfaceBg={iconTile.iconSurfaceBg}
               iconGlyphColor={iconTile.iconGlyphColor}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: c.text, lineHeight: 1.25 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: c.text, lineHeight: 1.2 }}>
                 {title}
               </div>
               {subtitle && (

@@ -1,10 +1,16 @@
+import {
+  CURRENT_MONTH_KEY,
+  GOAL_TARGET_MONTH_MAX_KEY,
+  GOAL_TARGET_MONTH_MIN_KEY,
+  monthLabel,
+} from '../utils/periods';
 import type { PrimaryGoalId } from './types';
 
 export interface PrimaryGoalTarget {
   /** User-facing name (e.g. vacation, emergency fund). */
   name: string;
   targetAmount: number;
-  /** ISO date YYYY-MM-DD */
+  /** Target month end — ISO date YYYY-MM-DD (last day of selected month). */
   targetDate: string;
   /** Amount already saved / paid toward the target. */
   currentAmount: number;
@@ -23,6 +29,25 @@ export function goalRequiresTargetSetup(goalId: PrimaryGoalId): boolean {
   return goalId === 'save' || goalId === 'debt' || goalId === 'emergency';
 }
 
+/** YYYY-MM from stored ISO date (or passthrough YYYY-MM). */
+export function targetDateToMonthKey(iso: string): string {
+  if (!iso) return '';
+  return iso.slice(0, 7);
+}
+
+/** Last calendar day of month as YYYY-MM-DD for storage. */
+export function monthKeyToTargetDateEnd(monthKey: string): string {
+  const [y, m] = monthKey.split('-').map(Number);
+  if (!y || !m) return '';
+  const lastDay = new Date(y, m, 0).getDate();
+  return `${monthKey}-${String(lastDay).padStart(2, '0')}`;
+}
+
+export function normalizeTargetDateFromMonthKey(monthKey: string): string {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return '';
+  return monthKeyToTargetDateEnd(monthKey);
+}
+
 export function targetFromProfileFields(profile: {
   primary_goal_name?: string | null;
   primary_goal_target_amount?: number | null;
@@ -32,10 +57,11 @@ export function targetFromProfileFields(profile: {
   const amount = profile.primary_goal_target_amount;
   const date = profile.primary_goal_target_date;
   if (amount == null || amount <= 0 || !date) return null;
+  const monthKey = targetDateToMonthKey(date.slice(0, 10));
   return {
     name: profile.primary_goal_name?.trim() ?? '',
     targetAmount: Number(amount),
-    targetDate: date.slice(0, 10),
+    targetDate: monthKey ? monthKeyToTargetDateEnd(monthKey) : date.slice(0, 10),
     currentAmount: Math.max(0, Number(profile.primary_goal_current_amount ?? 0)),
   };
 }
@@ -71,8 +97,11 @@ export function isPrimaryGoalTargetValid(
 ): boolean {
   if (!goalRequiresTargetSetup(goalId)) return true;
   if (target.targetAmount <= 0) return false;
-  if (!target.targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(target.targetDate)) return false;
-  const end = new Date(`${target.targetDate}T23:59:59`);
+  const monthKey = targetDateToMonthKey(target.targetDate);
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return false;
+  if (monthKey < GOAL_TARGET_MONTH_MIN_KEY || monthKey > GOAL_TARGET_MONTH_MAX_KEY) return false;
+  const endIso = monthKeyToTargetDateEnd(monthKey);
+  const end = new Date(`${endIso}T23:59:59`);
   if (Number.isNaN(end.getTime())) return false;
   if (target.currentAmount < 0 || target.currentAmount > target.targetAmount) return false;
   return true;
@@ -88,8 +117,15 @@ export function daysUntilTargetDate(targetDate: string): number | null {
 }
 
 export function formatTargetDateShort(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(`${iso}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const monthKey = targetDateToMonthKey(iso);
+  if (!monthKey) return '';
+  return monthLabel(monthKey);
 }
+
+/** Month key for the goal date pill (defaults to current month when unset). */
+export function targetDateMonthKeyForPicker(iso: string): string {
+  const key = targetDateToMonthKey(iso);
+  if (key && /^\d{4}-\d{2}$/.test(key)) return key;
+  return CURRENT_MONTH_KEY;
+}
+

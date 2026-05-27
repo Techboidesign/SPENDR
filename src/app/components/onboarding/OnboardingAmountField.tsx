@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import { AUTH_THEME, appPrimaryDarkRgba } from '../../theme/authTheme';
-import { FormInput } from '../shared/FormFields';
+import { CurrencyAmountInput } from '../shared/CurrencyAmountInput';
 import {
   AMOUNT_SLIDER_FINE_FRACTION,
   AMOUNT_SLIDER_FINE_MAX,
@@ -20,6 +20,7 @@ type OnboardingAmountFieldProps = {
   /** When set, slider and input are capped (e.g. budget ≤ income). */
   maxAmount?: number;
   helperText?: string;
+  currencySymbol?: string;
 };
 
 export function OnboardingAmountField({
@@ -28,6 +29,7 @@ export function OnboardingAmountField({
   onChange,
   maxAmount,
   helperText,
+  currencySymbol = '$',
 }: OnboardingAmountFieldProps) {
   const sliderId = useId();
   const scale = resolveAmountSliderScale(maxAmount);
@@ -80,31 +82,18 @@ export function OnboardingAmountField({
         </p>
       ) : null}
 
-      <div style={{ position: 'relative', marginBottom: 14 }}>
-        <span
-          style={{
-            position: 'absolute',
-            left: 16,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: 16,
-            color: AUTH_THEME.textMuted,
-            fontWeight: 700,
-            zIndex: 1,
-          }}
-        >
-          $
-        </span>
-        <FormInput
+      <div style={{ marginBottom: 14 }}>
+        <CurrencyAmountInput
+          currencySymbol={currencySymbol}
           type="number"
           tone="dark"
           className="font-figure"
           min={0}
           max={scale.max > 0 ? scale.max : undefined}
           value={display}
-          onChange={(e) => handleInputChange(e.target.value)}
+          onChange={e => handleInputChange(e.target.value)}
           placeholder="0"
-          style={{ paddingLeft: 34, fontSize: 20 }}
+          style={{ fontSize: 20 }}
         />
       </div>
 

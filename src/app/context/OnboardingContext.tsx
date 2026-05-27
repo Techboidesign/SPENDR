@@ -18,6 +18,7 @@ import { getItem, removeItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
 import { clearLocalUserData } from '../services/migrateLocalStorage';
 import { createEmptyAppState } from '../services/appDataService';
+import { AppProvider } from './AppContext';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
 
@@ -373,7 +374,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         refreshOnboarding,
       }}
     >
-      {children}
+      <AppProvider auth={auth} onboarding={onboarding}>
+        {children}
+      </AppProvider>
     </OnboardingContext.Provider>
   );
 }

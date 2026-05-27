@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router';
 import { Bell, ChartBar, Receipt, Target } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { AUTH_THEME } from '../../../theme/authTheme';
+import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
 import {
-  darkIconChip,
   onboardingSelectableCard,
   onboardingToggleThumb,
   onboardingToggleTrack,
@@ -89,7 +89,6 @@ export default function Step6Notifications() {
         {NOTIFICATION_OPTIONS.map(option => {
           const Icon = option.icon;
           const isEnabled = notifications[option.id];
-          const chip = darkIconChip(option.accent);
           return (
             <button
               key={option.id}
@@ -106,20 +105,7 @@ export default function Step6Notifications() {
                 ...onboardingSelectableCard(isEnabled),
               }}
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: chip.iconBg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={16} color={chip.iconColor} weight="light" />
-              </div>
+              <OnboardingOptionIconChip icon={Icon} accentColor={option.accent} size="sm" />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
                   {option.label}

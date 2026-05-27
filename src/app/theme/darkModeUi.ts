@@ -136,17 +136,14 @@ export function featureIconTile(
   };
 }
 
-/** Budget page featured cards — light mode uses a slightly richer pastel chip on the card. */
+/** Budget featured cards + focus goal — accent gradient (dark → light) with white glyph. */
 export function featuredBudgetIconTile(
   accentColor: string,
-  accentBg: string,
-  isDark: boolean,
+  _accentBg: string,
+  _isDark: boolean,
 ): { iconSurfaceBg: string; iconGlyphColor: string } {
-  if (isDark) {
-    return featureIconTile(accentColor, accentBg, isDark);
-  }
   return {
-    iconSurfaceBg: lightenHex(accentColor, 0.28),
+    iconSurfaceBg: onboardingIconGradient(accentColor),
     iconGlyphColor: ONBOARDING_CHIP_ICON,
   };
 }

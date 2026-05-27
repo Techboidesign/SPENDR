@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { PencilSimple } from '@phosphor-icons/react';
 import type { PrimaryGoalDefinition } from '../../data/primaryGoalConfig';
@@ -6,11 +6,13 @@ import type { PrimaryGoalTarget } from '../../data/primaryGoalTarget';
 import { formatTargetDateShort, goalRequiresTargetSetup } from '../../data/primaryGoalTarget';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { getFeatureCardTokens, featureCardGradient } from '../ui/featureCard';
-import { featuredBudgetIconTile, hexToRgba, lightenHex } from '../../theme/darkModeUi';
+import { editPencilTile, featuredBudgetIconTile, hexToRgba, lightenHex } from '../../theme/darkModeUi';
 import {
+  computePrimaryGoalProgress,
   getPrimaryGoalBarColor,
   type PrimaryGoalProgressResult,
 } from '../../utils/primaryGoalProgress';
+import { GoalTargetProgressSlider } from './GoalTargetProgressSlider';
 
 const BAR_EASE = [0.32, 0.72, 0, 1] as const;
 
@@ -23,6 +25,7 @@ export function PrimaryGoalFocusCard({
   progress,
   animationDelay = 0,
   onEdit,
+  onCurrentAmountChange,
   formatCurrency,
 }: {
   goal: PrimaryGoalDefinition;
@@ -30,6 +33,7 @@ export function PrimaryGoalFocusCard({
   progress: PrimaryGoalProgressResult;
   animationDelay?: number;
   onEdit: () => void;
+  onCurrentAmountChange?: (amount: number) => void;
   formatCurrency: (n: number) => string;
 }) {
   const c = useAppColors();
@@ -37,44 +41,85 @@ export function PrimaryGoalFocusCard({
   const fc = getFeatureCardTokens(c);
   const Icon = goal.Icon;
   const iconTile = featuredBudgetIconTile(goal.accentColor, goal.accentBg, isDark);
+  const pencil = editPencilTile(c, isDark);
   const trackBg = isDark ? hexToRgba(goal.accentBg, 0.2) : goal.accentBg;
   const fillColor = lightenHex(goal.accentColor, 0.28);
-  const barFillPercent = progress.percent;
+
+  const [previewAmount, setPreviewAmount] = useState<number | null>(null);
+
+  const canDragProgress =
+    goal.progressMode === 'target_amount' &&
+    target != null &&
+    target.targetAmount > 0 &&
+    onCurrentAmountChange != null;
+
+  const displayTarget = useMemo(() => {
+    if (!target) return null;
+    if (previewAmount == null) return target;
+    return { ...target, currentAmount: previewAmount };
+  }, [previewAmount, target]);
+
+  const liveProgress = useMemo(
+    () =>
+      displayTarget && canDragProgress
+        ? computePrimaryGoalProgress({
+            goalId: goal.id,
+            primaryGoalTarget: displayTarget,
+            categoryTotals: {},
+            budgetGoals: [],
+            categoryIds: [],
+          })
+        : progress,
+    [canDragProgress, displayTarget, goal.id, progress],
+  );
+
+  const barFillPercent = liveProgress.percent;
 
   const [barPct, setBarPct] = useState(0);
   useEffect(() => {
+    if (canDragProgress) return;
     setBarPct(0);
     const t = window.setTimeout(() => setBarPct(barFillPercent), animationDelay + 40);
     return () => window.clearTimeout(t);
-  }, [barFillPercent, animationDelay]);
+  }, [barFillPercent, animationDelay, canDragProgress]);
 
-  const barColor = getPrimaryGoalBarColor(barFillPercent, progress.invertedBar);
+  const barColor = getPrimaryGoalBarColor(barFillPercent, liveProgress.invertedBar);
 
   const targetLine =
     target && goalRequiresTargetSetup(goal.id) && target.targetAmount > 0
       ? `${target.name ? `${target.name} · ` : ''}${formatCurrency(target.targetAmount)} by ${formatTargetDateShort(target.targetDate)}`
       : null;
 
+  const cardSurface: CSSProperties = {
+    width: '100%',
+    textAlign: 'left',
+    border: `2px solid ${hexToRgba(goal.accentColor, isDark ? 0.45 : 0.28)}`,
+    borderRadius: fc.radius,
+    background: featureCardGradient(goal.accentBg, c.featureCardEnd, isDark),
+    boxShadow: `0 4px 20px ${hexToRgba(goal.accentColor, 0.18)}`,
+    overflow: 'visible',
+    fontFamily: 'inherit',
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      aria-label="Edit your focus goal"
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: 0,
-        border: `2px solid ${hexToRgba(goal.accentColor, isDark ? 0.45 : 0.28)}`,
-        borderRadius: fc.radius,
-        background: featureCardGradient(goal.accentBg, c.featureCardEnd, isDark),
-        boxShadow: `0 4px 20px ${hexToRgba(goal.accentColor, 0.18)}`,
-        overflow: 'hidden',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-      }}
-    >
-      <div style={{ padding: '12px 14px 11px', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+    <div style={cardSurface}>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label="Edit your focus goal"
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: '12px 14px 0',
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
           <div
             style={{
               width: 36,
@@ -90,21 +135,36 @@ export function PrimaryGoalFocusCard({
             <Icon size={18} weight="light" color={iconTile.iconGlyphColor} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: c.textMuted, marginBottom: 2 }}>
-              {goal.shortLabel}
-            </div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
+                gap: 6,
+                flexWrap: 'wrap',
+                rowGap: 4,
               }}
             >
               <span style={{ fontSize: 14, fontWeight: 700, color: c.text, lineHeight: 1.2 }}>
                 {goal.label}
               </span>
-              <PencilSimple size={16} weight="light" color={goal.accentColor} aria-hidden />
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 7px',
+                  borderRadius: 999,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  flexShrink: 0,
+                  backgroundColor: isDark
+                    ? hexToRgba(goal.accentColor, 0.22)
+                    : goal.accentBg,
+                  color: goal.accentColor,
+                }}
+              >
+                {goal.shortLabel}
+              </span>
             </div>
             {targetLine ? (
               <div
@@ -120,43 +180,80 @@ export function PrimaryGoalFocusCard({
               </div>
             ) : null}
           </div>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              backgroundColor: pencil.bg,
+              border: pencil.border,
+              boxShadow: pencil.boxShadow,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+            aria-hidden
+          >
+            <PencilSimple size={14} weight="light" color={pencil.iconColor} />
+          </div>
         </div>
+      </button>
 
-        {progress.emptyHelper ? (
+      <div style={{ padding: '0 14px 11px', boxSizing: 'border-box' }}>
+        {liveProgress.emptyHelper ? (
           <p style={{ fontSize: 11, color: c.textMuted, margin: '0 0 8px', lineHeight: 1.4 }}>
-            {progress.emptyHelper}
+            {liveProgress.emptyHelper}
           </p>
         ) : null}
 
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={barFillPercent}
-          aria-label={`${goal.label} progress`}
-          style={{
-            position: 'relative',
-            height: 8,
-            borderRadius: 999,
-            overflow: 'hidden',
-            backgroundColor: trackBg,
-            backgroundImage: TRACK_STRIPE(goal.accentColor),
-          }}
-        >
-          <motion.div
-            initial={false}
-            animate={{ width: `${barPct}%` }}
-            transition={{ duration: 0.85, ease: BAR_EASE }}
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              backgroundColor: barFillPercent > 0 ? barColor : fillColor,
-              borderRadius: 999,
+        {canDragProgress && target ? (
+          <div style={{ margin: '14px 0 6px', overflow: 'visible' }}>
+          <GoalTargetProgressSlider
+            currentAmount={target.currentAmount}
+            targetAmount={target.targetAmount}
+            accentColor={goal.accentColor}
+            trackBg={trackBg}
+            fillColor={fillColor}
+            animationDelay={animationDelay}
+            onPreview={amount => setPreviewAmount(amount)}
+            onCommit={amount => {
+              setPreviewAmount(null);
+              onCurrentAmountChange(amount);
             }}
           />
-        </div>
+          </div>
+        ) : (
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={barFillPercent}
+            aria-label={`${goal.label} progress`}
+            style={{
+              position: 'relative',
+              height: 8,
+              borderRadius: 999,
+              overflow: 'hidden',
+              backgroundColor: trackBg,
+              backgroundImage: TRACK_STRIPE(goal.accentColor),
+            }}
+          >
+            <motion.div
+              initial={false}
+              animate={{ width: `${barPct}%` }}
+              transition={{ duration: 0.85, ease: BAR_EASE }}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                backgroundColor: barFillPercent > 0 ? barColor : fillColor,
+                borderRadius: 999,
+              }}
+            />
+          </div>
+        )}
 
         <div
           style={{
@@ -169,16 +266,21 @@ export function PrimaryGoalFocusCard({
           }}
         >
           <span className="font-figure" style={{ fontSize: 11, fontWeight: 700, color: c.text }}>
-            {progress.percent}%
+            {liveProgress.percent}%
           </span>
           <span style={{ fontSize: 10, color: c.textMuted, fontWeight: 600 }}>
-            {progress.metricLabel} ·{' '}
+            {liveProgress.metricLabel} ·{' '}
             <span className="font-figure" style={{ color: c.text }}>
-              {progress.metricValue}
+              {liveProgress.metricValue}
             </span>
           </span>
         </div>
+        {canDragProgress ? (
+          <p style={{ margin: '6px 0 0', fontSize: 10, color: c.textFaint, lineHeight: 1.35 }}>
+            Drag the bar to update how much you&apos;ve saved
+          </p>
+        ) : null}
       </div>
-    </button>
+    </div>
   );
 }

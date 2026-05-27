@@ -88,6 +88,7 @@ export function BottomSheetModal({
               right: 0,
               zIndex: zIndex + 1,
               pointerEvents: 'auto',
+              overscrollBehavior: 'none',
               ...sheetStyle,
             }}
           >

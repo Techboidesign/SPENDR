@@ -4,7 +4,8 @@ import { useOnboarding } from '../../../context/OnboardingContext';
 import type { OnboardingGoalChoice } from '../../../data/types';
 import { ONBOARDING_GOAL_CHOICES } from '../../../data/primaryGoalConfig';
 import { AUTH_THEME } from '../../../theme/authTheme';
-import { darkIconChip, onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
+import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
+import { onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
 
@@ -48,7 +49,6 @@ export default function Step2Goal() {
         {ONBOARDING_GOAL_CHOICES.map(goal => {
           const Icon = goal.Icon;
           const selected = selectedGoal === goal.id;
-          const chip = darkIconChip(goal.accent);
           return (
             <button
               key={goal.id}
@@ -65,20 +65,7 @@ export default function Step2Goal() {
                 ...onboardingSelectableCard(selected),
               }}
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: chip.iconBg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={18} weight="light" color={chip.iconColor} />
-              </div>
+              <OnboardingOptionIconChip icon={Icon} accentColor={goal.accent} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
                   {goal.label}

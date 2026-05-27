@@ -12,8 +12,10 @@ import {
 } from '../../../data/primaryGoalTarget';
 import type { PrimaryGoalTarget } from '../../../data/primaryGoalTarget';
 import { AUTH_THEME } from '../../../theme/authTheme';
-import { darkIconChip } from '../../../theme/onboardingDarkUi';
+import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
+import { onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
 import { isGoalSetupComplete, PrimaryGoalSetupForm } from '../../budget/PrimaryGoalSetupForm';
+import { getCurrencySymbol } from '../../../utils/currencySymbol';
 import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 
@@ -31,8 +33,8 @@ export default function Step2GoalSetup() {
     () => onboarding.data.primaryGoalTarget ?? createEmptyPrimaryGoalTarget(),
   );
 
-  const chip = darkIconChip(def.accentColor);
   const Icon = def.Icon;
+  const currencySymbol = getCurrencySymbol(onboarding.data.currency ?? 'USD');
 
   const canContinue = useMemo(
     () => isGoalSetupComplete(resolvedId, target),
@@ -100,24 +102,10 @@ export default function Step2GoalSetup() {
           padding: '10px 12px',
           borderRadius: 14,
           marginBottom: 16,
-          border: `2px solid ${AUTH_THEME.surfaceBorder}`,
-          backgroundColor: AUTH_THEME.surfaceSelected,
+          ...onboardingSelectableCard(true),
         }}
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: chip.iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Icon size={20} weight="light" color={chip.iconColor} />
-        </div>
+        <OnboardingOptionIconChip icon={Icon} accentColor={def.accentColor} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: AUTH_THEME.textMuted }}>Your focus</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
@@ -132,6 +120,7 @@ export default function Step2GoalSetup() {
           target={target}
           onTargetChange={setTarget}
           variant="onboarding"
+          currencySymbol={currencySymbol}
         />
       ) : null}
     </OnboardingLayout>

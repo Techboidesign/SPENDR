@@ -23,6 +23,7 @@ import {
   rebalanceCategoryAllocation,
 } from '../../../utils/budgetAllocation';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
+import { getCurrencySymbol } from '../../../utils/currencySymbol';
 import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
 
 const BUDGET_CATEGORIES = [
@@ -203,6 +204,7 @@ export default function Step4Budget() {
         onChange={handleBudgetChange}
         maxAmount={incomeCap > 0 ? incomeCap : undefined}
         helperText={budgetHelperText}
+        currencySymbol={getCurrencySymbol(onboarding.data.currency ?? 'USD')}
       />
 
       {showOverIncomeWarning && incomeCap > 0 ? (

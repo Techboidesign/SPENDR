@@ -17,6 +17,8 @@ type MonthYearPickerDropdownProps = {
   onClose: () => void;
   anchorRect?: DOMRect | null;
   fullWidth?: boolean;
+  minDate?: Date;
+  maxDate?: Date;
 };
 
 export function MonthYearPickerDropdown({
@@ -25,6 +27,8 @@ export function MonthYearPickerDropdown({
   onClose,
   anchorRect,
   fullWidth = false,
+  minDate = MONTH_PICKER_MIN_DATE,
+  maxDate = MONTH_PICKER_MAX_DATE,
 }: MonthYearPickerDropdownProps) {
   const selectedMonth = monthKeyToDate(monthKey);
 
@@ -60,8 +64,8 @@ export function MonthYearPickerDropdown({
         >
           <MonthPicker
             selectedMonth={selectedMonth}
-            minDate={MONTH_PICKER_MIN_DATE}
-            maxDate={MONTH_PICKER_MAX_DATE}
+            minDate={minDate}
+            maxDate={maxDate}
             onMonthSelect={date => {
               onChange(toYearMonthKey(date));
               onClose();

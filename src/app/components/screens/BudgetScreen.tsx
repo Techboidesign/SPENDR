@@ -18,6 +18,7 @@ import {
   sortCategoriesForPrimaryGoal,
 } from '../../data/primaryGoalConfig';
 import { computePrimaryGoalProgress } from '../../utils/primaryGoalProgress';
+import { getCurrencySymbol } from '../../utils/currencySymbol';
 
 export default function BudgetScreen() {
   const c = useAppColors();
@@ -50,14 +51,7 @@ export default function BudgetScreen() {
           ? (state.budgetGoals.find(g => g.categoryId === editTarget.categoryId)?.amount ?? 0)
           : 0;
 
-  const currencySymbol =
-    state.currency === 'EUR'
-      ? '€'
-      : state.currency === 'GBP'
-        ? '£'
-        : state.currency === 'USD'
-          ? '$'
-          : state.currency;
+  const currencySymbol = getCurrencySymbol(state.currency);
 
   const categoryIds = useMemo(() => categories.map(cat => cat.id), [categories]);
 
@@ -85,6 +79,15 @@ export default function BudgetScreen() {
 
   const handleFocusSave = (nextGoalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => {
     dispatch({ type: 'SET_PRIMARY_GOAL', goal: nextGoalId, target });
+  };
+
+  const handleFocusCurrentAmountChange = (amount: number) => {
+    if (!state.primaryGoalTarget) return;
+    dispatch({
+      type: 'SET_PRIMARY_GOAL',
+      goal: goalId,
+      target: { ...state.primaryGoalTarget, currentAmount: amount },
+    });
   };
 
   const hasCategoriesWithoutBudget = useMemo(
@@ -135,9 +138,11 @@ export default function BudgetScreen() {
   return (
     <div style={{ height: '100%', position: 'relative' }}>
       <div
+        data-app-scroll
         style={{
           height: '100%',
           overflowY: 'auto',
+          overscrollBehavior: 'none',
           backgroundColor: c.canvas,
           paddingBottom: TAB_BAR_CLEARANCE,
         }}
@@ -160,6 +165,7 @@ export default function BudgetScreen() {
             animationDelay={0}
             formatCurrency={formatCurrency}
             onEdit={() => setFocusModalOpen(true)}
+            onCurrentAmountChange={handleFocusCurrentAmountChange}
           />
 
           <FeaturedBudgetCard

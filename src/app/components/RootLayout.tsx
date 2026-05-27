@@ -17,7 +17,13 @@ export default function RootLayout() {
           <BottomTabBar />
           <div
             id="app-modal-host"
-            style={{ position: 'absolute', inset: 0, zIndex: MODAL_OVERLAY_Z, pointerEvents: 'none' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: MODAL_OVERLAY_Z,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+            }}
           />
         </>
       }

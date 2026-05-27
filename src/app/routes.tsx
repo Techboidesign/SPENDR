@@ -1,5 +1,5 @@
 import { createBrowserRouter, Outlet, Navigate, useLocation } from 'react-router';
-import { AppProvider, useApp } from './context/AppContext';
+import { useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
 import { AppearanceProvider, useAppColors } from './context/AppearanceContext';
 import RootLayout from './components/RootLayout';
@@ -29,27 +29,15 @@ import Step5Categories from './components/screens/onboarding/Step5Categories';
 import Step6Notifications from './components/screens/onboarding/Step6Notifications';
 import Step7Complete from './components/screens/onboarding/Step7Complete';
 
-/** Reads onboarding context and passes into AppProvider (avoids AppContext ↔ OnboardingContext cycle). */
-function AppProviderGate({ children }: { children: React.ReactNode }) {
-  const { auth, onboarding } = useOnboarding();
-  return (
-    <AppProvider auth={auth} onboarding={onboarding}>
-      {children}
-    </AppProvider>
-  );
-}
-
-/** Pathless layout route — provides OnboardingProvider and AppProvider to the entire router tree */
+/** Pathless layout route — provides OnboardingProvider (+ AppProvider) to the entire router tree */
 function ProvidersLayout() {
   return (
     <OnboardingProvider>
-      <AppProviderGate>
-        <AppearanceProvider>
-          <AuthLoadingGate>
-            <Outlet />
-          </AuthLoadingGate>
-        </AppearanceProvider>
-      </AppProviderGate>
+      <AppearanceProvider>
+        <AuthLoadingGate>
+          <Outlet />
+        </AuthLoadingGate>
+      </AppearanceProvider>
     </OnboardingProvider>
   );
 }

@@ -7,22 +7,39 @@ type LeftVariant = 'cancel' | 'delete';
 
 export function ModalActionBar({
   onSave,
+  onPrimary,
   onLeft,
+  onSecondary,
   leftLabel,
+  secondaryLabel,
   leftVariant = 'cancel',
-  saveLabel = 'SAVE',
+  saveLabel,
+  primaryLabel,
   saveDisabled = false,
+  primaryDisabled,
   /** Force dark chrome (e.g. avatar crop). Defaults to app appearance. */
   dark,
 }: {
-  onSave: () => void;
-  onLeft: () => void;
-  leftLabel: string;
+  onSave?: () => void;
+  onPrimary?: () => void;
+  onLeft?: () => void;
+  onSecondary?: () => void;
+  leftLabel?: string;
+  secondaryLabel?: string;
   leftVariant?: LeftVariant;
   saveLabel?: string;
+  primaryLabel?: string;
   saveDisabled?: boolean;
+  primaryDisabled?: boolean;
   dark?: boolean;
 }) {
+  const handleSave = onSave ?? onPrimary;
+  const handleLeft = onLeft ?? onSecondary;
+  const resolvedLeftLabel = leftLabel ?? secondaryLabel ?? 'CANCEL';
+  const resolvedSaveLabel = saveLabel ?? primaryLabel ?? 'SAVE';
+  const resolvedSaveDisabled = saveDisabled || Boolean(primaryDisabled);
+
+  if (!handleSave || !handleLeft) return null;
   const c = useAppColors();
   const { isDark: appDark } = useAppearance();
   const isDark = dark ?? appDark;
@@ -43,8 +60,8 @@ export function ModalActionBar({
     <div
       style={{
         flexShrink: 0,
-        padding: isDark ? '12px 20px 24px' : '12px 20px 20px',
-        backgroundColor: isDark ? c.modalSheet : '#FFFFFF',
+        padding: '12px 20px',
+        backgroundColor: c.modalSheet,
         borderTop: `1px solid ${isDark ? c.border : '#F3F4F6'}`,
         boxShadow: isDark ? c.shadow : '0 -8px 24px rgba(0,0,0,0.08)',
       }}
@@ -52,7 +69,7 @@ export function ModalActionBar({
       <div style={{ display: 'flex', gap: 10 }}>
         <button
           type="button"
-          onClick={onLeft}
+          onClick={handleLeft}
           style={{
             flex: 1,
             padding: '14px',
@@ -67,23 +84,23 @@ export function ModalActionBar({
             fontFamily: 'inherit',
           }}
         >
-          {leftLabel}
+          {resolvedLeftLabel}
         </button>
         <button
           type="button"
-          onClick={onSave}
-          disabled={saveDisabled}
+          onClick={handleSave}
+          disabled={resolvedSaveDisabled}
           style={{
             flex: 1,
             padding: '14px',
             borderRadius: 14,
             border: 'none',
-            backgroundColor: saveDisabled ? (isDark ? '#3D3A6E' : '#C7C5FF') : c.accent,
+            backgroundColor: resolvedSaveDisabled ? (isDark ? '#3D3A6E' : '#C7C5FF') : c.accent,
             fontSize: 14,
             fontWeight: 700,
             letterSpacing: 0.6,
             color: c.onAccent,
-            cursor: saveDisabled ? 'not-allowed' : 'pointer',
+            cursor: resolvedSaveDisabled ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
             display: 'flex',
             alignItems: 'center',
@@ -92,7 +109,7 @@ export function ModalActionBar({
           }}
         >
           <FloppyDisk size={18} weight="bold" />
-          {saveLabel}
+          {resolvedSaveLabel}
         </button>
       </div>
     </div>

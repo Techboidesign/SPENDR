@@ -68,6 +68,15 @@ export function monthKeyToDate(yearMonth: string): Date {
   return new Date(y, m - 1, 1);
 }
 
+/** Goal target dates: from this month through 15 years ahead. */
+export const GOAL_TARGET_MONTH_MIN_KEY = CURRENT_MONTH_KEY;
+
+const goalTargetMaxDate = new Date(today.getFullYear() + 15, today.getMonth(), 1);
+export const GOAL_TARGET_MONTH_MAX_KEY = toYearMonthKey(goalTargetMaxDate);
+
+export const GOAL_TARGET_MONTH_MIN_DATE = monthKeyToDate(GOAL_TARGET_MONTH_MIN_KEY);
+export const GOAL_TARGET_MONTH_MAX_DATE = monthKeyToDate(GOAL_TARGET_MONTH_MAX_KEY);
+
 /** Bounds for month pickers (last 12 calendar months). */
 export const MONTH_PICKER_MIN_DATE = monthKeyToDate(MONTH_OPTIONS[0].key);
 export const MONTH_PICKER_MAX_DATE = monthKeyToDate(
