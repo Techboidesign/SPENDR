@@ -10,6 +10,8 @@ export interface PrimaryGoalProgressInput {
   categoryTotals: Record<string, number>;
   budgetGoals: { categoryId: string; amount: number }[];
   categoryIds: string[];
+  /** When set, overrides `primaryGoalTarget.currentAmount` (expense-driven progress). */
+  focusContributions?: number;
 }
 
 export interface PrimaryGoalProgressResult {
@@ -54,7 +56,9 @@ export function computePrimaryGoalProgress(
         invertedBar: true,
       };
     }
-    const percent = clampPercent((target.currentAmount / target.targetAmount) * 100);
+    const fromExpenses = input.focusContributions ?? target.currentAmount;
+    const currentAmount = Math.max(0, fromExpenses);
+    const percent = clampPercent((currentAmount / target.targetAmount) * 100);
     const daysLeft = daysUntilTargetDate(target.targetDate);
     const daysLabel =
       daysLeft == null
@@ -68,7 +72,7 @@ export function computePrimaryGoalProgress(
     return {
       percent,
       metricLabel: 'Toward target',
-      metricValue: `${formatMoney(target.currentAmount)} / ${formatMoney(target.targetAmount)}${daysLabel ? ` · ${daysLabel}` : ''}`,
+      metricValue: `${formatMoney(currentAmount)} / ${formatMoney(target.targetAmount)}${daysLabel ? ` · ${daysLabel}` : ''}`,
       invertedBar: true,
     };
   }

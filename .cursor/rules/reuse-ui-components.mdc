@@ -1,0 +1,41 @@
+---
+description: Reuse shared form and UI primitives — do not one-off duplicate inputs, modals, or field chrome
+alwaysApply: true
+---
+
+# Reuse UI components
+
+## Required
+
+Before adding a new input, picker, modal field, or action bar, **search `src/app/components/shared/` and existing modals** for an existing primitive. Extend it with props instead of styling a one-off.
+
+### Form fields (app + onboarding)
+
+| Use case | Component |
+|----------|-----------|
+| Text | `FormInput` from `FormFields.tsx` |
+| Money | `CurrencyAmountInput` (wraps `FormInput` + currency glyph) |
+| Month/year (looks like other inputs, opens month grid) | `MonthYearFieldInput` |
+| Month filter pill (Expenses header, prev/next) | `MonthYearPill` — **not** for modal forms |
+| App field colors (border, surface) | `appFormFieldStyle(c)` on all three above |
+
+All app modal fields share **`formFieldStyle` height (50px)**. Do **not** use `formFieldStyleCompact` in bottom sheets unless the whole form is explicitly a compact density (and name/amount/date must match).
+
+### Modals
+
+- `BottomSheetModal` + `bottomSheetChrome` + `AppBottomSheetLayout` + `ModalActionBar`
+- Month picker inside a modal: pass `zIndex` ≥ `MODAL_OVERLAY_Z + 50` to `MonthYearPickerDropdown` (default on `MonthYearFieldInput`)
+
+### Do not
+
+- Raw `<input>` with copy-pasted padding, radius, or colors when `FormInput` / `CurrencyAmountInput` fits
+- New date/month controls that look different from `FormInput` in the same form
+- Hard-code picker `z-index: 500` when the anchor is inside `#app-modal-host` (modal host is `z-index: 1000`)
+- Duplicate `fieldStyle` objects — use `appFormFieldStyle(c)`
+
+## Checklist before shipping form UI
+
+- [ ] Text, money, and date fields use shared components above
+- [ ] Same `tone` + `appFormFieldStyle(c)` (or onboarding dark styles) on every field in the form
+- [ ] Dropdowns/portals above modals (`MODAL_OVERLAY_Z + 50` or higher)
+- [ ] No new one-off button styled as an input unless added to `shared/` for reuse

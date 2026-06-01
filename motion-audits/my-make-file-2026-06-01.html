@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spendr — Motion Audit · design-motion-principles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        oklch(0.155 0.006 255);
+    --surface:    oklch(0.195 0.007 255);
+    --surface-2:  oklch(0.235 0.008 255);
+    --paper:      oklch(0.945 0.004 255);
+    --paper-dim:  oklch(0.800 0.006 255);
+    --muted:      oklch(0.680 0.008 255);
+    --faint:      oklch(0.505 0.008 255);
+    --line:       oklch(0.95 0.01 255 / 0.09);
+    --line-strong:oklch(0.95 0.01 255 / 0.16);
+    --accent:      var(--paper);
+    --accent-soft: var(--paper-dim);
+    --accent-tint: color-mix(in oklch, var(--paper) 12%, transparent);
+    --crit:      oklch(0.655 0.185 25);
+    --crit-tint: oklch(0.655 0.185 25 / 0.15);
+    --imp:       oklch(0.805 0.125 78);
+    --imp-tint:  oklch(0.805 0.125 78 / 0.15);
+    --opp:       oklch(0.745 0.135 152);
+    --opp-tint:  oklch(0.745 0.135 152 / 0.15);
+    --t-good:  oklch(0.745 0.135 152);
+    --t-mid:   oklch(0.805 0.125 78);
+    --t-slow:  oklch(0.655 0.185 25);
+    --strong:  var(--opp);
+    --concern: var(--imp);
+    --problem: var(--crit);
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+    --s6:32px; --s7:48px; --s8:64px; --s9:96px;
+    --display: "Familjen Grotesk", system-ui, sans-serif;
+    --sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  }
+  :root:has(#theme-light:checked) {
+    --ink: oklch(0.985 0.003 255);
+    --surface: oklch(0.965 0.004 255);
+    --surface-2: oklch(0.940 0.005 255);
+    --paper: oklch(0.180 0.006 255);
+    --paper-dim: oklch(0.330 0.008 255);
+    --muted: oklch(0.475 0.010 255);
+    --faint: oklch(0.640 0.009 255);
+    --line: oklch(0.180 0.010 255 / 0.12);
+    --line-strong: oklch(0.180 0.010 255 / 0.22);
+    --crit: oklch(0.555 0.195 25);
+    --crit-tint: oklch(0.555 0.195 25 / 0.12);
+    --imp: oklch(0.580 0.155 78);
+    --imp-tint: oklch(0.580 0.155 78 / 0.14);
+    --opp: oklch(0.555 0.140 152);
+    --opp-tint: oklch(0.555 0.140 152 / 0.13);
+    --t-good: oklch(0.555 0.140 152);
+    --t-mid: oklch(0.580 0.155 78);
+    --t-slow: oklch(0.555 0.195 25);
+  }
+  :root:has(#theme-light:checked) .tf-dot-text { fill: oklch(0.985 0.003 255); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--ink); color: var(--paper); font-family: var(--sans); font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-soft); text-underline-offset: 3px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: clamp(40px, 6vw, 72px) clamp(20px, 5vw, 40px) 96px; }
+  .mono-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  code { font-family: var(--mono); font-size: 0.86em; color: var(--paper-dim); }
+  .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .theme-switch { display: flex; justify-content: flex-end; margin-bottom: var(--s5); }
+  .theme-switch__pill { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 100px; overflow: hidden; }
+  .theme-switch__pill label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); padding: 6px 14px; cursor: pointer; }
+  #theme-dark:checked ~ .theme-switch__pill label[for="theme-dark"],
+  #theme-light:checked ~ .theme-switch__pill label[for="theme-light"] { background: var(--accent-tint); color: var(--accent-soft); }
+  header.doc { padding-bottom: var(--s7); margin-bottom: var(--s8); border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: var(--s3); }
+  .eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--accent); }
+  h1.title { font-family: var(--display); font-size: clamp(38px, 6vw, 56px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.05; margin: var(--s5) 0 var(--s4); max-width: 20ch; }
+  .lede { font-size: clamp(17px, 2.2vw, 19px); color: var(--paper-dim); max-width: 66ch; line-height: 1.6; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: var(--s6); margin-top: var(--s6); }
+  .meta-row .k { display: block; margin-bottom: 4px; }
+  .meta-row .v { font-size: 15px; }
+  .stats { display: flex; gap: clamp(20px, 4vw, 44px); margin-top: var(--s7); flex-wrap: wrap; }
+  .stat .num { font-family: var(--display); font-size: 40px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat.crit .num { color: var(--crit); }
+  .stat.imp .num { color: var(--imp); }
+  .stat.opp .num { color: var(--opp); }
+  .stat a { color: inherit; text-decoration: none; }
+  section { margin-bottom: var(--s9); }
+  .sec-index { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--accent-soft); }
+  h2.section-title { font-family: var(--display); font-size: clamp(24px, 3.4vw, 32px); font-weight: 600; letter-spacing: -0.02em; margin: var(--s2) 0 var(--s4); }
+  .section-sub { color: var(--paper-dim); max-width: 74ch; margin: 0 0 var(--s6); }
+  .assessment { border-top: 1px solid var(--line); padding-top: var(--s6); }
+  .assessment p { font-family: var(--display); font-size: clamp(20px, 2.8vw, 26px); line-height: 1.42; max-width: 36ch; margin: var(--s4) 0 0; }
+  .lens-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); }
+  .lens-table th, .lens-table td { padding: var(--s4) var(--s5); text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .lens-table tr:last-child td { border-bottom: none; }
+  .lens-table thead th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+  .lens-name { font-weight: 600; width: 28%; }
+  .lens-name .who { display: block; margin-top: 2px; color: var(--muted); font-weight: 400; font-size: 13.5px; }
+  .lens-name .weight { display: inline-block; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-soft); }
+  .lens-read { color: var(--paper-dim); }
+  .verdict { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .verdict::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+  .v-strong { color: var(--strong); } .v-strong::before { background: var(--strong); }
+  .v-concern { color: var(--concern); } .v-concern::before { background: var(--concern); }
+  .v-problem { color: var(--problem); } .v-problem::before { background: var(--problem); }
+  .v-mixed { color: var(--muted); } .v-mixed::before { background: var(--muted); }
+  .timing-grid { display: grid; grid-template-columns: 1fr 320px; gap: clamp(28px, 5vw, 56px); }
+  @media (max-width: 860px) { .timing-grid { grid-template-columns: 1fr; } }
+  .key-list { list-style: none; margin: 0; padding: 0; }
+  .key-list li { display: grid; grid-template-columns: 22px 1fr auto; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .key-list .kn { font-family: var(--mono); }
+  .kt.good { color: var(--t-good); font-family: var(--mono); font-size: 11px; }
+  .kt.mid { color: var(--t-mid); font-family: var(--mono); font-size: 11px; }
+  .kt.slow { color: var(--t-slow); font-family: var(--mono); font-size: 11px; }
+  .whats-off { margin-top: var(--s5); padding-top: var(--s5); border-top: 1px solid var(--line); font-size: 14px; color: var(--paper-dim); }
+  .lens-sec { margin-bottom: var(--s9); padding-top: var(--s6); border-top: 1px solid var(--line); }
+  .lens-sec__head { display: flex; align-items: baseline; gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s2); }
+  .lens-sec__head h3 { font-family: var(--display); font-size: clamp(22px, 3vw, 28px); font-weight: 600; margin: 0; }
+  .lens-sec__weight { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-soft); border: 1px solid var(--line-strong); border-radius: 100px; padding: 4px 10px; }
+  .lens-block { margin: var(--s6) 0; }
+  .lens-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); max-width: 78ch; }
+  .lens-list li { display: grid; grid-template-columns: 22px 1fr; gap: var(--s2); color: var(--paper-dim); }
+  .lens-list.good .mk { color: var(--strong); font-family: var(--mono); }
+  .lens-list.opp .mk { color: var(--accent-soft); font-family: var(--mono); }
+  .lens-take { margin-top: var(--s6); background: var(--surface-2); border-radius: 10px; padding: var(--s5); }
+  .findings { display: flex; flex-direction: column; gap: var(--s5); }
+  .finding-row { display: grid; grid-template-columns: 1fr 380px; gap: clamp(24px, 3vw, 36px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(22px, 3vw, 30px); }
+  .finding-row[data-sev="crit"] { border-color: var(--crit-tint); }
+  @media (max-width: 860px) { .finding-row { grid-template-columns: 1fr; } }
+  .find-tags { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
+  .severity { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; padding: 4px 9px; border-radius: 100px; }
+  .severity.crit { background: var(--crit-tint); color: var(--crit); }
+  .severity.imp { background: var(--imp-tint); color: var(--imp); }
+  .lens-chip { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; border: 1px solid var(--line-strong); border-radius: 100px; }
+  .find-title { font-family: var(--display); font-size: clamp(19px, 2.4vw, 23px); font-weight: 600; margin: 0 0 var(--s4); }
+  .find-body p { margin: 0 0 var(--s4); color: var(--paper-dim); }
+  .find-body .label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+  .fix { background: var(--surface-2); border-radius: 8px; padding: var(--s4) var(--s5); }
+  .fix p { color: var(--paper); margin: 0; }
+  .rec { margin-bottom: var(--s7); }
+  .rec-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); font-size: 14px; }
+  .rec-table th, .rec-table td { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .rec.crit .mono-label { color: var(--crit); }
+  .rec.imp .mono-label { color: var(--imp); }
+  .rec.opp .mono-label { color: var(--opp); }
+  .ref-summary { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(24px, 4vw, 40px); }
+  footer.doc { margin-top: var(--s8); padding-top: var(--s5); border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .demo { position: relative; align-self: start; }
+  .demo__bar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .demo__title { display: block; font-size: 13.5px; font-weight: 600; }
+  .demo__timing { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 100px; overflow: hidden; }
+  .seg label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; cursor: pointer; }
+  .demo input[id$="-a"]:checked ~ .demo__bar .seg label[for$="-a"],
+  .demo input[id$="-l"]:checked ~ .demo__bar .seg label[for$="-l"],
+  .demo input[id$="-d"]:checked ~ .demo__bar .seg label[for$="-d"] { background: var(--accent-tint); color: var(--accent-soft); }
+  .demo__stage { --st-bg: var(--surface-2); --st-fg: var(--paper); --st-line: var(--line-strong); --st-dim: color-mix(in oklch, var(--paper) 55%, transparent); background: var(--st-bg); color: var(--st-fg); border: 1px solid var(--line); border-radius: 10px; padding: 32px 24px; min-height: 168px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .demo input[id$="-l"]:checked ~ .demo__stage { --st-bg: oklch(0.985 0.003 255); --st-fg: oklch(0.180 0.006 255); --st-line: oklch(0.180 0.010 255 / 0.18); }
+  .demo input[id$="-d"]:checked ~ .demo__stage { --st-bg: oklch(0.180 0.006 255); --st-fg: oklch(0.985 0.003 255); --st-line: oklch(0.985 0.010 255 / 0.18); }
+  .ui-btn { padding: 9px 18px; border-radius: 8px; background: var(--st-fg); color: var(--st-bg); font-size: 13px; font-weight: 600; border: none; }
+  .ui-card { background: var(--st-bg); border: 1px solid var(--st-line); border-radius: 10px; padding: 14px 16px; min-width: 200px; }
+  .ui-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--st-fg); }
+  .fab-dot { width: 44px; height: 44px; border-radius: 50%; background: oklch(0.55 0.22 275); display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: 700; }
+  .fab-wrap { display: flex; gap: 12px; align-items: center; justify-content: center; }
+  .stagger-row { height: 10px; border-radius: 4px; background: color-mix(in oklch, var(--st-fg) 18%, transparent); margin: 6px 0; }
+  .tab-pill { width: 48px; height: 36px; border-radius: 12px; background: color-mix(in oklch, var(--st-fg) 12%, transparent); }
+  .tab-pill.on { background: var(--st-fg); }
+  .bar-track { width: 120px; height: 8px; border-radius: 4px; background: color-mix(in oklch, var(--st-fg) 15%, transparent); overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--st-fg); border-radius: 4px; transform-origin: left center; }
+  @media (prefers-reduced-motion: no-preference) {
+    .lens-table tbody tr, .finding-row { transition: border-color 0.2s ease; }
+    @keyframes m1 { 0% { opacity: 0; transform: translateY(12px); } 60% { opacity: 1; transform: translateY(0); } 100% { opacity: 1; transform: translateY(0); } }
+    .demo-1__mt { animation: m1 3s cubic-bezier(0.22,1,0.36,1) infinite; }
+    @keyframes m2 { 0% { transform: translateY(110%); } 60% { transform: translateY(0); } 100% { transform: translateY(0); } }
+    .demo-2__mt { width: 100%; max-width: 220px; animation: m2 3s cubic-bezier(0.32,0.72,0,1) infinite; }
+    @keyframes m3 { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
+    @keyframes m3fix { 0% { opacity: 0; transform: scale(0.92); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
+    .demo-3__mt .bad { animation: m3 3s cubic-bezier(0.34,1.2,0.64,1) infinite; }
+    .demo-3__mt .good { animation: m3fix 3s cubic-bezier(0.33,1,0.68,1) infinite; }
+    @keyframes m4 { 0% { opacity: 0; transform: translateY(16px); } 60% { opacity: 1; transform: translateY(0); } 100% { opacity: 1; transform: translateY(0); } }
+    .demo-4__mt .stagger-row { animation: m4 3s ease-out infinite; }
+    .demo-4__mt .stagger-row:nth-child(2) { animation-delay: 0.08s; }
+    .demo-4__mt .stagger-row:nth-child(3) { animation-delay: 0.16s; }
+    .demo-4__mt .stagger-row:nth-child(4) { animation-delay: 0.24s; }
+    @keyframes m5 { 0% { transform: translateX(0); } 45% { transform: translateX(52px); } 100% { transform: translateX(52px); } }
+    .demo-5__mt .tab-pill.on { animation: m5 3s cubic-bezier(0.32,0.72,0,1) infinite; }
+    @keyframes m6 { 0% { transform: scaleX(0); } 60% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
+    .demo-6__mt .bar-fill { animation: m6 3s cubic-bezier(0.32,0.72,0,1) infinite; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .demo__loop { display: none; }
+    [class*="__mt"], [class*="__mt"] * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="theme-switch">
+    <input class="vh" type="radio" name="theme" id="theme-dark" checked>
+    <input class="vh" type="radio" name="theme" id="theme-light">
+    <div class="theme-switch__pill">
+      <label for="theme-dark">Dark</label>
+      <label for="theme-light">Light</label>
+    </div>
+  </div>
+
+  <header class="doc">
+    <div class="eyebrow">Motion audit · design-motion-principles</div>
+    <h1 class="title">Spendr — speed where it counts, polish where it earns</h1>
+    <p class="lede">Personal finance PWA (Vite + React + Motion). Motion is strongest in modals and Expenses, but accessibility and frequency rules are uneven: CSS mount choreography on Home/Insights ignores reduced motion, while the FAB and tab bar add bounce to daily actions.</p>
+    <div class="meta-row">
+      <div><span class="mono-label k">What it is</span><span class="v">Mobile-first expense tracker · onboarding + core tabs</span></div>
+      <div><span class="mono-label k">Stack</span><span class="v">Vite · React · motion/react · inline CSS keyframes</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num">10</div><div class="mono-label lbl">Findings</div></div>
+      <div class="stat crit"><a href="#rec-crit"><div class="num">2</div><div class="mono-label lbl">Critical</div></a></div>
+      <div class="stat imp"><a href="#rec-imp"><div class="num">5</div><div class="mono-label lbl">Important</div></a></div>
+      <div class="stat opp"><a href="#rec-opp"><div class="num">3</div><div class="mono-label lbl">Opportunities</div></a></div>
+    </div>
+  </header>
+
+  <section class="assessment">
+    <span class="mono-label">Overall</span>
+    <p>You already have <em>intentional</em> motion in sheets, swipe rows, and Expenses — but two systems fight each other: Motion components with <code>useReducedMotion</code> in a few files, and raw CSS keyframes everywhere else with no OS fallback. Tighten high-frequency paths first (tabs, FAB, list mounts), keep delight for auth and rare wins.</p>
+  </section>
+
+  <section>
+    <div class="sec-index">01</div>
+    <h2 class="section-title">How each practitioner reads the motion</h2>
+    <p class="section-sub">Weighted for a daily-use finance utility: Jakub leads polish, Emil gates frequency, Jhey only where users visit rarely (welcome, erase-data drama).</p>
+    <table class="lens-table">
+      <thead><tr><th>Lens</th><th>Verdict</th><th>One-line read</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="lens-name">Production Polish <span class="who">Jakub Krehel</span><span class="weight">Primary</span></td>
+          <td><span class="verdict v-problem">Problem</span></td>
+          <td class="lens-read">Modals and Expenses feel finished; Home and Insights replay long mount choreography every visit — polish is <em>uneven</em>.</td>
+        </tr>
+        <tr>
+          <td class="lens-name">Restraint &amp; Speed <span class="who">Emil Kowalski</span><span class="weight">Secondary</span></td>
+          <td><span class="verdict v-concern">Concern</span></td>
+          <td class="lens-read">Tab bar springs and 700ms section fades run on actions users fire dozens of times per session.</td>
+        </tr>
+        <tr>
+          <td class="lens-name">Experimentation &amp; Delight <span class="who">Jhey Tompkins</span><span class="weight">Selective</span></td>
+          <td><span class="verdict v-mixed">Mixed</span></td>
+          <td class="lens-read">Auth welcome motion and receipt overlay are appropriate; staggered dashboard reveals feel like default AI polish, not a designed moment.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-index">02</div>
+    <h2 class="section-title">Where the timings land</h2>
+    <div class="timing-grid">
+      <svg class="timing-figure" viewBox="0 0 660 300" xmlns="http://www.w3.org/2000/svg" aria-label="Duration budget diagram">
+        <style>
+          .z-instant { fill: oklch(0.745 0.135 152 / 0.12); }
+          .z-resp { fill: oklch(0.745 0.135 152 / 0.08); }
+          .z-delib { fill: oklch(0.805 0.125 78 / 0.12); }
+          .z-slow { fill: oklch(0.655 0.185 25 / 0.12); }
+          .tf-dot { stroke: var(--line-strong, #444); stroke-width: 1; }
+          .tf-dot-text { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 600; fill: oklch(0.945 0.004 255); }
+        </style>
+        <rect class="z-instant" x="40" y="40" width="70" height="220" rx="4"/>
+        <rect class="z-resp" x="110" y="40" width="220" height="220" rx="4"/>
+        <rect class="z-delib" x="330" y="40" width="110" height="220" rx="4"/>
+        <rect class="z-slow" x="440" y="40" width="180" height="220" rx="4"/>
+        <text x="75" y="28" font-size="10" fill="currentColor" opacity="0.5">0</text>
+        <text x="320" y="28" font-size="10" fill="currentColor" opacity="0.5">300ms</text>
+        <text x="440" y="28" font-size="10" fill="currentColor" opacity="0.5">500ms</text>
+        <circle class="tf-dot" cx="205" cy="120" r="14" fill="oklch(0.745 0.135 152)"/><text class="tf-dot-text" x="201" y="124">1</text>
+        <circle class="tf-dot" cx="235" cy="160" r="14" fill="oklch(0.745 0.135 152)"/><text class="tf-dot-text" x="231" y="164">2</text>
+        <circle class="tf-dot" cx="255" cy="200" r="14" fill="oklch(0.805 0.125 78)"/><text class="tf-dot-text" x="251" y="204">3</text>
+        <circle class="tf-dot" cx="380" cy="100" r="14" fill="oklch(0.805 0.125 78)"/><text class="tf-dot-text" x="376" y="104">4</text>
+        <circle class="tf-dot" cx="420" cy="140" r="14" fill="oklch(0.805 0.125 78)"/><text class="tf-dot-text" x="416" y="144">5</text>
+        <circle class="tf-dot" cx="500" cy="80" r="14" fill="oklch(0.655 0.185 25)"/><text class="tf-dot-text" x="496" y="84">6</text>
+        <circle class="tf-dot" cx="540" cy="180" r="14" fill="oklch(0.655 0.185 25)"/><text class="tf-dot-text" x="536" y="184">7</text>
+        <circle class="tf-dot" cx="55" cy="200" r="12" fill="none" stroke-dasharray="4 3"/><text class="tf-dot-text" x="51" y="204">8</text>
+      </svg>
+      <div>
+        <h4 class="mono-label">Key</h4>
+        <ul class="key-list">
+          <li><span class="kn">1</span><span>Bottom sheet (MODAL_TRANSITION)</span><span class="kt good">300ms</span></li>
+          <li><span class="kn">2</span><span>Chart bar grow (globals.css)</span><span class="kt good">550ms</span></li>
+          <li><span class="kn">3</span><span>Expense row exit</span><span class="kt good">340ms</span></li>
+          <li><span class="kn">4</span><span>Donut wedge fadeIn</span><span class="kt mid">600ms+stagger</span></li>
+          <li><span class="kn">5</span><span>Insights barGrow</span><span class="kt mid">600ms+stagger</span></li>
+          <li><span class="kn">6</span><span>Home slideUpFade sections</span><span class="kt slow">700ms</span></li>
+          <li><span class="kn">7</span><span>Home stat cards (fadeIn + 0.7s delay)</span><span class="kt slow">600–1300ms</span></li>
+          <li><span class="kn">8</span><span>Tab bar layoutId spring</span><span class="kt none">~spring</span></li>
+        </ul>
+        <div class="whats-off"><span class="mono-label">What's off</span><p>Daily navigation and dashboard mounts sit in Deliberate/Sluggish while the sheet (correctly) stays at 300ms. High-frequency paths should cluster under 300ms or be instant when reduced motion is on.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- JAKUB PRIMARY -->
+  <section class="lens-sec" id="jakub">
+    <div class="lens-sec__head"><h3>Jakub Krehel — Production Polish</h3><span class="lens-sec__weight">Primary</span></div>
+    <p class="lens-sec__verdict"><span class="verdict v-problem">Problem</span></p>
+    <div class="lens-block"><span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li><span class="mk">✓</span><span><code>BottomSheetModal.tsx</code> — 300ms custom ease-out-quint, matched backdrop fade.</span></li>
+        <li><span class="mk">✓</span><span><code>ExpensesScreen.tsx</code> — AnimatePresence for search, insights, list filters; honors <code>useReducedMotion</code>.</span></li>
+        <li><span class="mk">✓</span><span><code>ExpenseSwipeRow.tsx</code> — spring snap while dragging, shorter exit when reduced motion.</span></li>
+      </ul>
+    </div>
+    <div class="lens-block"><span class="mono-label">Issues to address</span>
+      <div class="findings">
+        <article class="finding-row" data-sev="crit">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity crit">Critical</span><span class="lens-chip">Jakub</span><span class="lens-chip">Emil</span></div>
+            <h4 class="find-title">No app-wide <code>prefers-reduced-motion</code> fallback</h4>
+            <div class="find-body">
+              <p><span class="label">What</span>Grep shows <strong>zero</strong> reduced-motion rules under <code>src/</code>. Five files use <code>useReducedMotion()</code> from Motion; Home, Insights, globals chart CSS, BottomSheetModal, FabExpenseLauncher, and BottomTabBar do not.</p>
+              <p><span class="label">Why it matters</span>Users with vestibular sensitivity get full 700ms mount fades and spring tab highlights with no OS-level escape hatch.</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>Add <code>@media (prefers-reduced-motion: reduce)</code> in <code>globals.css</code> (collapse durations) <em>and</em> a small <code>useAppMotion()</code> hook that wraps Motion + documents when inline <code>animation:</code> styles should be omitted.</p></div>
+              <p class="find-loc"><code>src/styles/globals.css</code> · <code>HomeScreen.tsx:772</code> · <code>InsightsScreen.tsx:570</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st1" id="st1-a" checked><input class="vh" type="radio" name="st1" id="st1-l"><input class="vh" type="radio" name="st1" id="st1-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">Mount fade (current)</span><span class="demo__timing">700ms · ease-out</span></div><div class="demo__controls"><div class="seg"><label for="st1-a">Auto</label><label for="st1-l">Light</label><label for="st1-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-1__mt ui-card"><div class="ui-label">Section</div><div style="font-weight:600;margin-top:8px">Spending trend</div></div></div>
+          </div>
+        </article>
+        <article class="finding-row" data-sev="imp">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Jakub</span></div>
+            <h4 class="find-title">Home remount choreography on every visit</h4>
+            <div class="find-body">
+              <p><span class="label">What</span><code>slideUpFade 0.7s</code> on hero and sections, donut <code>fadeIn</code> with <code>i * 0.08s</code> stagger, stat cards up to <code>0.7 + i * 0.1s</code> delay — replays whenever Home mounts, not once per session.</p>
+              <p><span class="label">Why it matters</span>Reads as landing-page polish on a screen users open constantly; cumulative delay exceeds 1s before content feels settled.</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>First visit only (session flag), or 180–240ms opacity-only with no stagger; gate with <code>useReducedMotion</code>.</p></div>
+              <p class="find-loc"><code>HomeScreen.tsx:571,691,733</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st4" id="st4-a" checked><input class="vh" type="radio" name="st4" id="st4-l"><input class="vh" type="radio" name="st4" id="st4-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">Staggered list mount</span><span class="demo__timing">600ms + 80ms stagger</span></div><div class="demo__controls"><div class="seg"><label for="st4-a">Auto</label><label for="st4-l">Light</label><label for="st4-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-4__mt ui-card" style="width:100%"><div class="stagger-row"></div><div class="stagger-row"></div><div class="stagger-row"></div><div class="stagger-row"></div></div></div>
+          </div>
+        </article>
+        <article class="finding-row" data-sev="imp">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Jakub</span></div>
+            <h4 class="find-title">Insights: uniform-fade-in on every block</h4>
+            <div class="find-body">
+              <p><span class="label">What</span>Six+ sections share <code>fadeSlideUp 0.5–0.6s</code> with incremental delays; bar chart uses matching <code>barGrow</code> stagger — classic uniformity slop threshold (≥4 identical enters).</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>Animate the chart once; let text blocks appear instantly or share one 200ms container fade.</p></div>
+              <p class="find-loc"><code>InsightsScreen.tsx:312–543</code></p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+    <div class="lens-block"><span class="mono-label">Opportunities</span>
+      <ul class="lens-list opp">
+        <li><span class="mk">💡</span><span>Promote <code>ExpensesScreen</code> motion patterns (shared transitions object + <code>reduceMotion</code> branches) into a <code>src/app/theme/motion.ts</code> module.</span></li>
+      </ul>
+    </div>
+    <div class="lens-take"><span class="mono-label">Through Jakub's lens</span><p>The product already proves you can ship coherent sheet and list motion — extend that discipline to CSS-keyframe screens so polish feels consistent, not accidental.</p></div>
+  </section>
+
+  <!-- EMIL SECONDARY -->
+  <section class="lens-sec" id="emil">
+    <div class="lens-sec__head"><h3>Emil Kowalski — Restraint &amp; Speed</h3><span class="lens-sec__weight">Secondary</span></div>
+    <p class="lens-sec__verdict"><span class="verdict v-concern">Concern</span></p>
+    <div class="lens-block"><span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li><span class="mk">✓</span><span><code>MODAL_TRANSITION</code> at 300ms — appropriate for sheets.</span></li>
+        <li><span class="mk">✓</span><span>FAB color/box-shadow transitions at 70ms — fast utility feedback.</span></li>
+        <li><span class="mk">✓</span><span>Swipe row disables transition duration while dragging (<code>duration: 0</code>).</span></li>
+      </ul>
+    </div>
+    <div class="lens-block"><span class="mono-label">Issues to address</span>
+      <div class="findings">
+        <article class="finding-row" data-sev="crit">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity crit">Critical</span><span class="lens-chip">Emil</span></div>
+            <h4 class="find-title">Bottom sheet ignores reduced motion</h4>
+            <div class="find-body">
+              <p><span class="label">What</span><code>BottomSheetModal</code> always animates <code>y: '100%' → 0</code> with no <code>useReducedMotion</code> branch — high-frequency (add expense, edit category, budget).</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>When reduced: instant mount or max 150ms opacity on backdrop only; sheet at <code>y: 0</code> with no slide.</p></div>
+              <p class="find-loc"><code>BottomSheetModal.tsx:80–86</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st2" id="st2-a" checked><input class="vh" type="radio" name="st2" id="st2-l"><input class="vh" type="radio" name="st2" id="st2-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">Sheet slide (recommended cap)</span><span class="demo__timing">300ms · ease-out-quint</span></div><div class="demo__controls"><div class="seg"><label for="st2-a">Auto</label><label for="st2-l">Light</label><label for="st2-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-2__mt ui-card" style="border-radius:14px 14px 0 0;width:100%">Add expense</div></div>
+          </div>
+        </article>
+        <article class="finding-row" data-sev="imp">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Emil</span></div>
+            <h4 class="find-title">FAB satellites animate from <code>scale(0)</code></h4>
+            <div class="find-body">
+              <p><span class="label">What</span><code>initial={{ scale: 0 }}</code> / <code>exit={{ scale: 0 }}</code> with <code>POP_SPRING</code> (stiffness 620, damping 26) and <code>i * 0.04</code> stagger on a menu opened many times per day.</p>
+              <div class="fix"><p><span class="label">Recommended motion</span><code>scale: 0.92</code>, opacity-only exit, 180ms ease-out; no stagger or cap at 40ms total.</p></div>
+              <p class="find-loc"><code>FabExpenseLauncher.tsx:244–254</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st3" id="st3-a" checked><input class="vh" type="radio" name="st3" id="st3-l"><input class="vh" type="radio" name="st3" id="st3-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">Pop from zero vs subtle</span><span class="demo__timing">180ms · ease-out</span></div><div class="demo__controls"><div class="seg"><label for="st3-a">Auto</label><label for="st3-l">Light</label><label for="st3-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-3__mt fab-wrap"><span class="fab-dot bad">×</span><span style="color:var(--st-dim);font-size:12px">vs</span><span class="fab-dot good">✓</span></div></div>
+          </div>
+        </article>
+        <article class="finding-row" data-sev="imp">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Emil</span></div>
+            <h4 class="find-title">Tab bar <code>layoutId</code> spring on every switch</h4>
+            <div class="find-body">
+              <p><span class="label">What</span>Shared-element spring (<code>stiffness: 420</code>) plus <code>whileHover scale(1.05)</code> on navigation used on every tab change.</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>Instant background swap or 120ms crossfade; reserve motion for first onboarding tour only.</p></div>
+              <p class="find-loc"><code>BottomTabBar.tsx:129–151</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st5" id="st5-a" checked><input class="vh" type="radio" name="st5" id="st5-l"><input class="vh" type="radio" name="st5" id="st5-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">Tab highlight travel</span><span class="demo__timing">120ms · ease-out</span></div><div class="demo__controls"><div class="seg"><label for="st5-a">Auto</label><label for="st5-l">Light</label><label for="st5-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-5__mt" style="display:flex;gap:8px;position:relative"><div class="tab-pill"></div><div class="tab-pill on"></div><div class="tab-pill"></div></div></div>
+          </div>
+        </article>
+      </div>
+    </div>
+    <div class="lens-take"><span class="mono-label">Through Emil's lens</span><p>Spendr is a utility, not a portfolio — speed on tabs, FAB, and list rows matters more than another 700ms hero entrance. Keep sheets at 300ms; shave everything else toward 180ms or off.</p></div>
+  </section>
+
+  <!-- JHEY SELECTIVE -->
+  <section class="lens-sec" id="jhey">
+    <div class="lens-sec__head"><h3>Jhey Tompkins — Experimentation &amp; Delight</h3><span class="lens-sec__weight">Selective</span></div>
+    <p class="lens-sec__verdict"><span class="verdict v-mixed">Mixed</span></p>
+    <div class="lens-block"><span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li><span class="mk">✓</span><span><code>WelcomeBrandSequence.tsx</code> + <code>SplashContourBackground.tsx</code> — rare auth moment, Motion SVG justified.</span></li>
+        <li><span class="mk">✓</span><span><code>ReceiptParseOverlay.tsx</code> — purposeful loading feedback.</span></li>
+        <li><span class="mk">✓</span><span><code>EraseAllDataModal.tsx</code> — AnimatePresence for dramatic rare action.</span></li>
+      </ul>
+    </div>
+    <div class="lens-block"><span class="mono-label">Issues to address</span>
+      <div class="findings">
+        <article class="finding-row" data-sev="imp">
+          <div class="finding-row__prose">
+            <div class="find-tags"><span class="severity imp">Important</span><span class="lens-chip">Jhey</span><span class="lens-chip">Emil</span></div>
+            <h4 class="find-title">Chart width animation (layout property)</h4>
+            <div class="find-body">
+              <p><span class="label">What</span><code>spendr-breakdown-bar-grow</code> animates <code>width: 0 → var(--bar-target)</code> — triggers layout, not compositor-only.</p>
+              <div class="fix"><p><span class="label">Recommended motion</span>Use <code>transform: scaleX()</code> like <code>spendr-chart-bar-grow</code> (already scaleY).</p></div>
+              <p class="find-loc"><code>globals.css:106–117</code></p>
+            </div>
+          </div>
+          <div class="demo">
+            <input class="vh" type="radio" name="st6" id="st6-a" checked><input class="vh" type="radio" name="st6" id="st6-l"><input class="vh" type="radio" name="st6" id="st6-d">
+            <div class="demo__bar"><div class="demo__meta"><span class="demo__title">scaleX bar grow</span><span class="demo__timing">550ms · ease-out-quint</span></div><div class="demo__controls"><div class="seg"><label for="st6-a">Auto</label><label for="st6-l">Light</label><label for="st6-d">Dark</label></div><span class="demo__loop">↻</span></div></div>
+            <div class="demo__stage"><div class="demo-6__mt bar-track"><div class="bar-fill" style="width:100%"></div></div></div>
+          </div>
+        </article>
+      </div>
+    </div>
+    <div class="lens-block"><span class="mono-label">Opportunities</span>
+      <ul class="lens-list opp">
+        <li><span class="mk">💡</span><span>Move <code>bounceIn</code> / unused <code>pulse</code> keyframes off Home — or use once for goal-complete celebration (rare), not dashboard mount.</span></li>
+        <li><span class="mk">💡</span><span>Replace <code>skeleton.tsx</code> <code>animate-pulse</code> with static skeleton when <code>prefers-reduced-motion</code>.</span></li>
+      </ul>
+    </div>
+    <div class="lens-take"><span class="mono-label">Through Jhey's lens</span><p>Save experimentation for auth, receipt parsing, and goal milestones — not every insights row fading in identically. One memorable moment beats six copy-paste entrances.</p></div>
+  </section>
+
+  <section id="rec">
+    <div class="sec-index">06</div>
+    <h2 class="section-title">Combined recommendations</h2>
+    <div class="rec crit" id="rec-crit">
+      <div class="tier-label"><span class="mono-label">Critical · must fix</span><span class="rule"></span><span class="count">2</span></div>
+      <table class="rec-table"><thead><tr><th></th><th>Issue</th><th>File</th><th>Fix</th></tr></thead><tbody>
+        <tr><td>🔴</td><td>No reduced-motion in app CSS; split-brain with partial hooks</td><td><code>globals.css</code></td><td>Global reduce media query + <code>useAppMotion()</code></td></tr>
+        <tr><td>🔴</td><td>Bottom sheet always slides</td><td><code>BottomSheetModal.tsx</code></td><td>Branch on <code>useReducedMotion</code></td></tr>
+      </tbody></table>
+    </div>
+    <div class="rec imp" id="rec-imp">
+      <div class="tier-label"><span class="mono-label">Important · should fix</span><span class="count">5</span></div>
+      <table class="rec-table"><thead><tr><th></th><th>Issue</th><th>File</th><th>Fix</th></tr></thead><tbody>
+        <tr><td>🟡</td><td>FAB <code>scale(0)</code> + spring stagger</td><td><code>FabExpenseLauncher.tsx</code></td><td>0.92 scale, 180ms ease, no stagger</td></tr>
+        <tr><td>🟡</td><td>Home 700ms mount choreography</td><td><code>HomeScreen.tsx</code></td><td>Session-gate or 200ms fade only</td></tr>
+        <tr><td>🟡</td><td>Insights stagger-spam</td><td><code>InsightsScreen.tsx</code></td><td>Chart-only motion</td></tr>
+        <tr><td>🟡</td><td>Tab layoutId spring</td><td><code>BottomTabBar.tsx</code></td><td>120ms fade or instant</td></tr>
+        <tr><td>🟡</td><td>Width-based bar grow</td><td><code>globals.css</code></td><td><code>scaleX</code> transform</td></tr>
+      </tbody></table>
+    </div>
+    <div class="rec opp" id="rec-opp">
+      <div class="tier-label"><span class="mono-label">Opportunities · could enhance</span><span class="count">3</span></div>
+      <table class="rec-table"><thead><tr><th></th><th>Enhancement</th><th>Where</th><th>Impact</th></tr></thead><tbody>
+        <tr><td>🟢</td><td>Centralize <code>MODAL_TRANSITION</code> + Expenses transitions</td><td><code>theme/motion.ts</code></td><td>Consistent timing tokens</td></tr>
+        <tr><td>🟢</td><td>Goal-complete uses <code>bounceIn</code> once</td><td><code>PrimaryGoalFocusCard</code></td><td>Rare delight</td></tr>
+        <tr><td>🟢</td><td>Static skeletons under reduced motion</td><td><code>skeleton.tsx</code></td><td>Less visual noise</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="ref-summary">
+    <div class="sec-index">07</div>
+    <h2 class="section-title">Lens reference summary</h2>
+    <p class="big">Lens referenced most: Jakub Krehel — Production Polish</p>
+    <p class="why">Spendr is a shipped consumer PWA where continuity (sheets, swipes) already works; the gap is consistent polish and accessibility, not more effects.</p>
+    <ul class="ref-lean">
+      <li><span class="nm">Emil stricter</span><span>Remove tab/FAB springs; cap all utility UI at 300ms; gate Home mount.</span></li>
+      <li><span class="nm">Jakub stricter</span><span>Wire every CSS keyframe screen to reduced motion; subtler exits than enters.</span></li>
+      <li><span class="nm">Jhey more</span><span>One celebration path for primary-goal hit; keep auth SVG motion.</span></li>
+    </ul>
+  </section>
+
+  <footer class="doc">
+    <span>Spendr · 2 critical · 5 important · 3 opportunities</span>
+    <span>2026-06-01 · design-motion-principles</span>
+  </footer>
+</div>
+</body>
+</html>

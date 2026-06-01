@@ -100,7 +100,18 @@ export default function HelpScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
+    <div
+      data-app-scroll
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'none',
+        backgroundColor: c.canvas,
+        paddingBottom: TAB_BAR_CLEARANCE,
+        position: 'relative',
+      }}
+    >
 
       {toast && (
         <div style={{

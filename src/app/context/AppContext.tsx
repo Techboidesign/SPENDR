@@ -42,35 +42,67 @@ import { parseReceiptFiles, parseReceiptImage } from '../services/receiptParseSe
 import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { generateId } from '../utils/id';
 import {
+  buildFocusCategory,
+  createFocusGoalAdjustmentExpense,
+  focusCategoryId,
+  focusGoalIdFromCategoryId,
+  getActiveFocusCategoryId,
+  isFocusCategoryId,
+  isSpendingExpense,
+  sumFocusCategoryContributions,
+  syncPrimaryGoalTargetFromExpenses,
+  type FocusGoalId,
+} from '../data/focusCategory';
+import { parsePrimaryGoal } from '../data/primaryGoalConfig';
+import { goalRequiresTargetSetup } from '../data/primaryGoalTarget';
+import {
   buildCanonicalRecurringMap,
   recurringAppliesToMonth,
   applyRecurringSeriesUpdate,
 } from '../utils/recurringExpense';
 
+function withSyncedFocusContributions(state: AppState): AppState {
+  return syncPrimaryGoalTargetFromExpenses(state);
+}
+
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE_STATE':
-      return normalizeAppState(action.state);
+      return syncPrimaryGoalTargetFromExpenses(normalizeAppState(action.state));
     case 'RESET_STATE':
       return createEmptyAppState();
     case 'ADD_EXPENSE':
-      return { ...state, expenses: [action.expense, ...state.expenses] };
+      return withSyncedFocusContributions({
+        ...state,
+        expenses: [action.expense, ...state.expenses],
+      });
     case 'ADD_EXPENSES':
-      return { ...state, expenses: [...action.expenses, ...state.expenses] };
+      return withSyncedFocusContributions({
+        ...state,
+        expenses: [...action.expenses, ...state.expenses],
+      });
     case 'UPDATE_EXPENSE':
-      return {
+      return withSyncedFocusContributions({
         ...state,
         expenses: applyRecurringSeriesUpdate(state.expenses, action.expense),
-      };
+      });
     case 'DELETE_EXPENSE':
-      return { ...state, expenses: state.expenses.filter(e => e.id !== action.id) };
+      return withSyncedFocusContributions({
+        ...state,
+        expenses: state.expenses.filter(e => e.id !== action.id),
+      });
     case 'DELETE_EXPENSES':
-      return { ...state, expenses: state.expenses.filter(e => !action.ids.includes(e.id)) };
+      return withSyncedFocusContributions({
+        ...state,
+        expenses: state.expenses.filter(e => !action.ids.includes(e.id)),
+      });
     case 'SET_INCOME':
       return { ...state, income: action.amount };
     case 'SET_BUDGET': {
       const monthlyBudget = action.amount;
-      const categoryIds = action.categoryIds ?? getDefaultCategoryIds();
+      const categoryIds = (action.categoryIds ?? getDefaultCategoryIds()).filter(
+        id => !isFocusCategoryId(id),
+      );
       const budgetGoals =
         monthlyBudget > 0
           ? buildBudgetGoalsForMonthlyBudget(
@@ -83,6 +115,7 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, monthlyBudget, budgetGoals };
     }
     case 'SET_CATEGORY_BUDGET': {
+      if (isFocusCategoryId(action.categoryId)) return state;
       const budgetGoals =
         action.amount <= 0
           ? state.budgetGoals.filter(g => g.categoryId !== action.categoryId)
@@ -141,13 +174,34 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, appearance: action.mode };
     case 'SET_DISABLED_CATEGORY_IDS':
       return { ...state, disabledCategoryIds: action.categoryIds };
-    case 'SET_PRIMARY_GOAL':
-      return {
+    case 'SET_PRIMARY_GOAL': {
+      const nextState: AppState = {
         ...state,
         primaryGoal: action.goal,
         primaryGoalTarget:
           action.target !== undefined ? action.target : state.primaryGoalTarget,
       };
+      return withSyncedFocusContributions(nextState);
+    }
+    case 'SET_FOCUS_GOAL_PROGRESS': {
+      const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
+      if (!goalRequiresTargetSetup(goalId) || !state.primaryGoalTarget) return state;
+      const focusId = focusCategoryId(goalId);
+      if (!focusId) return state;
+      const current = sumFocusCategoryContributions(state.expenses, focusId);
+      const delta = action.totalAmount - current;
+      if (delta === 0) return withSyncedFocusContributions(state);
+      const adjustment = createFocusGoalAdjustmentExpense(
+        focusId,
+        goalId as FocusGoalId,
+        delta,
+      );
+      if (!adjustment) return withSyncedFocusContributions(state);
+      return withSyncedFocusContributions({
+        ...state,
+        expenses: [adjustment, ...state.expenses],
+      });
+    }
     default:
       return state;
   }
@@ -161,7 +215,12 @@ interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
   categories: ResolvedCategory[];
+  /** Built-in + custom categories for the budget grid (no focus category). */
+  budgetCategories: ResolvedCategory[];
+  /** Categories in the add-expense picker (active focus category last when applicable). */
+  expensePickerCategories: ResolvedCategory[];
   getCategory: (id: string) => ResolvedCategory;
+  getFocusContributions: () => number;
   showAddModal: boolean;
   editingExpense: Expense | null;
   addModalDraft: ExpenseFormDraft | null;
@@ -420,8 +479,29 @@ export function AppProvider({
     [state.categoryCustomizations, state.customCategories, state.disabledCategoryIds],
   );
 
+  const activeFocusCategoryId = useMemo(
+    () => getActiveFocusCategoryId(parsePrimaryGoal(state.primaryGoal ?? undefined)),
+    [state.primaryGoal],
+  );
+
+  const budgetCategories = useMemo(
+    () => categories.filter(c => !isFocusCategoryId(c.id)),
+    [categories],
+  );
+
+  const expensePickerCategories = useMemo(() => {
+    if (!activeFocusCategoryId) return categories;
+    const focus = buildFocusCategory(
+      parsePrimaryGoal(state.primaryGoal ?? undefined) as 'save' | 'debt' | 'emergency',
+    );
+    return [...categories, focus];
+  }, [activeFocusCategoryId, categories, state.primaryGoal]);
+
   const getCategory = useCallback(
     (id: string) => {
+      const focusGoal = focusGoalIdFromCategoryId(id);
+      if (focusGoal) return buildFocusCategory(focusGoal);
+
       const found = categories.find(c => c.id === id);
       if (found) return found;
       const custom = state.customCategories.find(c => c.id === id);
@@ -433,13 +513,22 @@ export function AppProvider({
     [categories, state.categoryCustomizations, state.customCategories],
   );
 
+  const getFocusContributions = useCallback(() => {
+    const id = activeFocusCategoryId;
+    if (!id) return 0;
+    return sumFocusCategoryContributions(state.expenses, id);
+  }, [activeFocusCategoryId, state.expenses]);
+
   return (
     <AppContext.Provider
       value={{
         state,
         dispatch,
         categories,
+        budgetCategories,
+        expensePickerCategories,
         getCategory,
+        getFocusContributions,
         showAddModal,
         editingExpense,
         addModalDraft,
@@ -497,8 +586,16 @@ export function getCategoryTotals(expenses: AppState['expenses'], yearMonth: str
   const monthExp = getMonthExpenses(expenses, yearMonth);
   const totals: Record<string, number> = {};
   for (const e of monthExp) {
+    if (!isSpendingExpense(e)) continue;
     const amount = getMonthlyAmount(e);
     totals[e.categoryId] = (totals[e.categoryId] ?? 0) + amount;
   }
   return totals;
+}
+
+/** Month spend total — excludes goal/debt/emergency progress entries. */
+export function getMonthSpendingTotal(expenses: AppState['expenses'], yearMonth: string) {
+  return getMonthExpenses(expenses, yearMonth)
+    .filter(isSpendingExpense)
+    .reduce((sum, e) => sum + getMonthlyAmount(e), 0);
 }

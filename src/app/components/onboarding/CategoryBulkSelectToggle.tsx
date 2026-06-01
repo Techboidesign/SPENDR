@@ -1,4 +1,5 @@
-import { AUTH_THEME, appPrimaryDarkRgba } from '../../theme/authTheme';
+import { useOnboardingChrome } from '../../context/OnboardingThemeContext';
+import { appPrimaryDarkRgba } from '../../theme/authTheme';
 
 type CategoryBulkSelectToggleProps = {
   allSelected: boolean;
@@ -12,6 +13,8 @@ export function CategoryBulkSelectToggle({
   onSelectAll,
   onDeselectAll,
 }: CategoryBulkSelectToggleProps) {
+  const { theme, isLight } = useOnboardingChrome();
+
   return (
     <div
       role="group"
@@ -20,9 +23,11 @@ export function CategoryBulkSelectToggle({
         display: 'inline-flex',
         padding: 3,
         borderRadius: 999,
-        backgroundColor: AUTH_THEME.surface,
-        border: `1px solid ${AUTH_THEME.surfaceBorder}`,
-        boxShadow: `0 2px 12px ${appPrimaryDarkRgba(0.2)}`,
+        backgroundColor: theme.surface,
+        border: `1px solid ${theme.surfaceBorder}`,
+        boxShadow: isLight
+          ? '0 2px 12px rgba(62, 55, 255, 0.08)'
+          : `0 2px 12px ${appPrimaryDarkRgba(0.2)}`,
       }}
     >
       {(
@@ -44,9 +49,13 @@ export function CategoryBulkSelectToggle({
             fontFamily: 'inherit',
             fontSize: 12,
             fontWeight: 700,
-            color: active ? AUTH_THEME.buttonPrimaryText : AUTH_THEME.textMuted,
-            backgroundColor: active ? AUTH_THEME.buttonPrimary : 'transparent',
-            boxShadow: active ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
+            color: active ? theme.buttonPrimaryText : theme.textMuted,
+            backgroundColor: active ? theme.buttonPrimary : 'transparent',
+            boxShadow: active
+              ? isLight
+                ? '0 2px 8px rgba(62, 55, 255, 0.2)'
+                : '0 2px 8px rgba(0,0,0,0.2)'
+              : 'none',
             transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease',
           }}
         >

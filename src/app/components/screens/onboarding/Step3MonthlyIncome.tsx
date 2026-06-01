@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { AUTH_THEME } from '../../../theme/authTheme';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import { FormSelect } from '../../shared/FormFields';
 import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import { getCurrencySymbol } from '../../../utils/currencySymbol';
-import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
+import { onboardingSelectableCard } from '../../../theme/onboardingUi';
+import OnboardingLayout, { useOnboardingLabelStyle, useOnboardingTitleStyle } from './OnboardingLayout';
 
 export default function Step3MonthlyIncome() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
+  const labelStyle = useOnboardingLabelStyle();
 
   const [amountType, setAmountType] = useState<'income' | 'available_to_spend'>(
     onboarding.data.monthlyAmount?.type || 'income',
@@ -41,6 +45,18 @@ export default function Step3MonthlyIncome() {
     navigate('/');
   };
 
+  const typeButtonStyle = (active: boolean) => ({
+    flex: 1,
+    padding: '12px',
+    borderRadius: 14,
+    color: active ? theme.textPrimary : theme.textMuted,
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    ...onboardingSelectableCard(theme, active, isLight),
+  });
+
   return (
     <OnboardingLayout
       currentStep={3}
@@ -51,47 +67,18 @@ export default function Step3MonthlyIncome() {
       nextDisabled={amount <= 0}
       nextLabel="Continue"
     >
-      <h1 style={onboardingTitleStyle}>Let&apos;s talk money</h1>
+      <h1 style={titleStyle}>Let&apos;s talk money</h1>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>I want to enter my</label>
+        <label style={labelStyle}>I want to enter my</label>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => setAmountType('income')}
-            style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: 14,
-              border: `2px solid ${amountType === 'income' ? AUTH_THEME.accent : AUTH_THEME.surfaceBorder}`,
-              backgroundColor: amountType === 'income' ? AUTH_THEME.surfaceSelected : AUTH_THEME.surface,
-              color: amountType === 'income' ? AUTH_THEME.textPrimary : AUTH_THEME.textMuted,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.2s ease',
-            }}
-          >
+          <button type="button" onClick={() => setAmountType('income')} style={typeButtonStyle(amountType === 'income')}>
             Monthly income
           </button>
           <button
             type="button"
             onClick={() => setAmountType('available_to_spend')}
-            style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: 14,
-              border: `2px solid ${amountType === 'available_to_spend' ? AUTH_THEME.accent : AUTH_THEME.surfaceBorder}`,
-              backgroundColor:
-                amountType === 'available_to_spend' ? AUTH_THEME.surfaceSelected : AUTH_THEME.surface,
-              color: amountType === 'available_to_spend' ? AUTH_THEME.textPrimary : AUTH_THEME.textMuted,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.2s ease',
-            }}
+            style={typeButtonStyle(amountType === 'available_to_spend')}
           >
             Available to spend
           </button>
@@ -106,9 +93,9 @@ export default function Step3MonthlyIncome() {
       />
 
       <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>How often do you get paid?</label>
+        <label style={labelStyle}>How often do you get paid?</label>
         <FormSelect
-          tone="dark"
+          tone="light"
           value={frequency}
           onChange={e => setFrequency(e.target.value as typeof frequency)}
         >

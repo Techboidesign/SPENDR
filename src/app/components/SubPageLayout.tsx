@@ -5,10 +5,9 @@ import { BottomTabBar } from './BottomTabBar';
 import DeviceShell from './DeviceShell';
 import SettingsScreen from './screens/SettingsScreen';
 import { useAppColors } from '../context/AppearanceContext';
+import { useAppMotion } from '../hooks/useAppMotion';
+import { SLIDE_DURATION, SLIDE_EASE } from '../theme/motion';
 import { MODAL_HOST_ID, MODAL_OVERLAY_Z } from './BottomSheetModal';
-
-const SLIDE_EASE = [0.32, 0.72, 0, 1] as const;
-const SLIDE_DURATION = 0.32;
 const SETTINGS_PATH = '/settings';
 
 interface SubPageNavCtx {
@@ -21,6 +20,7 @@ export default function SubPageLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const c = useAppColors();
+  const { reduceMotion } = useAppMotion();
   const [exiting, setExiting] = useState(false);
   const exitTargetRef = useRef(SETTINGS_PATH);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,9 +84,11 @@ export default function SubPageLayout() {
           {isSubPage && (
             <motion.div
               key={location.pathname}
-              initial={{ x: '100%' }}
+              initial={reduceMotion ? false : { x: '100%' }}
               animate={{ x: exiting ? '100%' : 0 }}
-              transition={{ duration: SLIDE_DURATION, ease: SLIDE_EASE }}
+              transition={
+                reduceMotion ? { duration: 0 } : { duration: SLIDE_DURATION, ease: SLIDE_EASE }
+              }
               style={{
                 position: 'absolute',
                 inset: 0,

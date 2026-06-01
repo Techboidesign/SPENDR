@@ -55,8 +55,8 @@ export function appPrimaryDarkRgba(alpha: number): string {
 export const AUTH_WELCOME_GRADIENT =
   'linear-gradient(179deg, #05053A 0.56%, #3E37FF 165.61%)';
 
-/** Dark auth / onboarding visual system (splash & setup flow). */
-export const AUTH_THEME = {
+/** Dark auth visual system (welcome splash, sign-in, sign-up). */
+export const AUTH_THEME_DARK = {
   bgGradient:
     'radial-gradient(ellipse 120% 80% at 50% 0%, #2a2860 0%, #1a1838 42%, #141328 100%)',
   welcomeGradient: AUTH_WELCOME_GRADIENT,
@@ -75,6 +75,9 @@ export const AUTH_THEME = {
   buttonPrimaryText: '#1a1830',
   buttonGhost: 'rgba(255, 255, 255, 0.12)',
 } as const;
+
+/** @deprecated Use AUTH_THEME_DARK for auth screens or useOnboardingTheme() in onboarding. */
+export const AUTH_THEME = AUTH_THEME_DARK;
 
 export const ONBOARDING_FIRST_STEP = 'goal';
 export const ONBOARDING_LAST_PROFILE_STEP = 'name-basics';

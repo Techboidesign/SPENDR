@@ -1,12 +1,14 @@
 import { WarningCircle } from '@phosphor-icons/react';
-import { AUTH_THEME } from '../../theme/authTheme';
-import { onboardingDangerColor } from '../../theme/onboardingDarkUi';
+import { useOnboardingTheme } from '../../context/OnboardingThemeContext';
+import { onboardingDangerColor } from '../../theme/onboardingUi';
 
 type IncomeBudgetWarningProps = {
   message: string;
 };
 
 export function IncomeBudgetWarning({ message }: IncomeBudgetWarningProps) {
+  const theme = useOnboardingTheme();
+
   return (
     <div
       role="alert"
@@ -18,8 +20,8 @@ export function IncomeBudgetWarning({ message }: IncomeBudgetWarningProps) {
         marginBottom: 16,
         padding: '12px 14px',
         borderRadius: 14,
-        backgroundColor: 'rgba(239, 68, 68, 0.12)',
-        border: `1px solid rgba(239, 68, 68, 0.35)`,
+        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+        border: '1px solid rgba(239, 68, 68, 0.28)',
       }}
     >
       <WarningCircle
@@ -34,11 +36,11 @@ export function IncomeBudgetWarning({ message }: IncomeBudgetWarningProps) {
           fontSize: 13,
           lineHeight: 1.45,
           fontWeight: 600,
-          color: AUTH_THEME.textPrimary,
+          color: theme.textPrimary,
         }}
       >
         <span style={{ color: onboardingDangerColor }}>You can&apos;t spend more than you earned.</span>{' '}
-        <span style={{ color: AUTH_THEME.textMuted, fontWeight: 500 }}>{message}</span>
+        <span style={{ color: theme.textMuted, fontWeight: 500 }}>{message}</span>
       </p>
     </div>
   );

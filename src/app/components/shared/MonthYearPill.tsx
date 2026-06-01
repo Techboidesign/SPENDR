@@ -133,12 +133,20 @@ export function MonthYearPill({
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           width: '100%',
-          gap: 12,
+          gap: trailingSlot != null ? 12 : 6,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            minWidth: 0,
+            flex: 1,
+            width: trailingSlot == null ? '100%' : undefined,
+          }}
+        >
           <MonthNavButton
             onClick={goPrev}
             disabled={disabled || !canGoPrev}

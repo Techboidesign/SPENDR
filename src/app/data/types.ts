@@ -103,4 +103,5 @@ export type Action =
       type: 'SET_PRIMARY_GOAL';
       goal: PrimaryGoalId | null;
       target?: PrimaryGoalTarget | null;
-    };
+    }
+  | { type: 'SET_FOCUS_GOAL_PROGRESS'; totalAmount: number };

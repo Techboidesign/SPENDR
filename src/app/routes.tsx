@@ -1,6 +1,7 @@
 import { createBrowserRouter, Outlet, Navigate, useLocation } from 'react-router';
 import { useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
+import { OnboardingThemeProvider } from './context/OnboardingThemeContext';
 import { AppearanceProvider, useAppColors } from './context/AppearanceContext';
 import RootLayout from './components/RootLayout';
 import SubPageLayout from './components/SubPageLayout';
@@ -103,6 +104,14 @@ function AuthGuard() {
   return <Outlet />;
 }
 
+function OnboardingFlowLayout() {
+  return (
+    <OnboardingThemeProvider mode="light">
+      <Outlet />
+    </OnboardingThemeProvider>
+  );
+}
+
 /** Onboarding requires a signed-in account */
 function OnboardingAuthGuard() {
   const { auth, authLoading } = useOnboarding();
@@ -190,8 +199,11 @@ export const router = createBrowserRouter([
         Component: OnboardingAuthGuard,
         children: [
           {
-            Component: PhoneFrameLayout,
+            Component: OnboardingFlowLayout,
             children: [
+              {
+                Component: PhoneFrameLayout,
+                children: [
           { path: 'name-basics', Component: Step1NameBasics },
           { path: 'goal', Component: Step2Goal },
           { path: 'goal-setup', Component: Step2GoalSetup },
@@ -200,6 +212,8 @@ export const router = createBrowserRouter([
           { path: 'categories', Component: Step5Categories },
           { path: 'notifications', Component: Step6Notifications },
           { path: 'complete', Component: Step7Complete },
+                ],
+              },
             ],
           },
         ],

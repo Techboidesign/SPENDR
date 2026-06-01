@@ -1,4 +1,5 @@
 import { PieChart, Pie } from 'recharts';
+import { INSIGHTS_CHOREOGRAPHY } from '../../theme/motion';
 
 type SplitRow = { name: string; value: number; color: string; fill: string };
 
@@ -74,7 +75,8 @@ export function RecurringSplitCard({
                 width: grandTotal > 0 ? `${(d.value / grandTotal) * 100}%` : '0%',
                 backgroundColor: d.color,
                 borderRadius: 2,
-                animation: 'progressBarFill 0.8s ease-out both',
+                transformOrigin: 'left center',
+                animation: INSIGHTS_CHOREOGRAPHY.progressBar,
               }} />
             </div>
           </div>

@@ -9,10 +9,10 @@ import { PrimaryGoalFocusCard } from '../budget/PrimaryGoalFocusCard';
 import { PrimaryGoalSetupModal } from '../budget/PrimaryGoalSetupModal';
 import { BudgetEditModal, type BudgetEditTarget } from '../budget/BudgetEditModal';
 import type { PrimaryGoalId } from '../../data/types';
-import type { PrimaryGoalTarget } from '../../data/primaryGoalTarget';
+import { goalRequiresTargetSetup, type PrimaryGoalTarget } from '../../data/primaryGoalTarget';
 import { SectionTitle } from '../ui/SectionTitle';
+import { focusCategoryId, isFocusCategoryId } from '../../data/focusCategory';
 import {
-  getFocusCategoryId,
   getPrimaryGoalDefinition,
   parsePrimaryGoal,
   sortCategoriesForPrimaryGoal,
@@ -22,7 +22,7 @@ import { getCurrencySymbol } from '../../utils/currencySymbol';
 
 export default function BudgetScreen() {
   const c = useAppColors();
-  const { state, dispatch, formatCurrency, categories } = useApp();
+  const { state, dispatch, formatCurrency, budgetCategories, getFocusContributions } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
   const [focusModalOpen, setFocusModalOpen] = useState(false);
 
@@ -35,7 +35,11 @@ export default function BudgetScreen() {
   );
 
   const totalSpent = useMemo(
-    () => Object.values(categoryTotals).reduce((s, v) => s + v, 0),
+    () =>
+      Object.entries(categoryTotals).reduce(
+        (s, [id, v]) => (isFocusCategoryId(id) ? s : s + v),
+        0,
+      ),
     [categoryTotals],
   );
 
@@ -53,17 +57,17 @@ export default function BudgetScreen() {
 
   const currencySymbol = getCurrencySymbol(state.currency);
 
-  const categoryIds = useMemo(() => categories.map(cat => cat.id), [categories]);
+  const categoryIds = useMemo(
+    () => budgetCategories.map(cat => cat.id),
+    [budgetCategories],
+  );
 
   const sortedCategories = useMemo(
-    () => sortCategoriesForPrimaryGoal(categories, goalId, categoryTotals),
-    [categories, goalId, categoryTotals],
+    () => sortCategoriesForPrimaryGoal(budgetCategories, goalId, categoryTotals),
+    [budgetCategories, goalId, categoryTotals],
   );
 
-  const focusCategoryId = useMemo(
-    () => getFocusCategoryId(goalId, categoryIds),
-    [goalId, categoryIds],
-  );
+  const focusContributions = getFocusContributions();
 
   const goalProgress = useMemo(
     () =>
@@ -73,21 +77,35 @@ export default function BudgetScreen() {
         categoryTotals,
         budgetGoals: state.budgetGoals,
         categoryIds,
+        focusContributions:
+          goalId === 'save' || goalId === 'debt' || goalId === 'emergency'
+            ? focusContributions
+            : undefined,
       }),
-    [goalId, state.primaryGoalTarget, categoryTotals, state.budgetGoals, categoryIds],
+    [
+      goalId,
+      state.primaryGoalTarget,
+      categoryTotals,
+      state.budgetGoals,
+      categoryIds,
+      focusContributions,
+    ],
   );
 
   const handleFocusSave = (nextGoalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => {
-    dispatch({ type: 'SET_PRIMARY_GOAL', goal: nextGoalId, target });
+    if (target && goalRequiresTargetSetup(nextGoalId)) {
+      dispatch({ type: 'SET_FOCUS_GOAL_PROGRESS', totalAmount: target.currentAmount });
+    }
+    dispatch({
+      type: 'SET_PRIMARY_GOAL',
+      goal: nextGoalId,
+      target,
+    });
   };
 
   const handleFocusCurrentAmountChange = (amount: number) => {
     if (!state.primaryGoalTarget) return;
-    dispatch({
-      type: 'SET_PRIMARY_GOAL',
-      goal: goalId,
-      target: { ...state.primaryGoalTarget, currentAmount: amount },
-    });
+    dispatch({ type: 'SET_FOCUS_GOAL_PROGRESS', totalAmount: amount });
   };
 
   const hasCategoriesWithoutBudget = useMemo(
@@ -136,12 +154,13 @@ export default function BudgetScreen() {
         : undefined;
 
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
+    <>
       <div
         data-app-scroll
         style={{
           height: '100%',
           overflowY: 'auto',
+          overflowX: 'hidden',
           overscrollBehavior: 'none',
           backgroundColor: c.canvas,
           paddingBottom: TAB_BAR_CLEARANCE,
@@ -162,6 +181,7 @@ export default function BudgetScreen() {
             goal={goalDef}
             target={state.primaryGoalTarget}
             progress={goalProgress}
+            focusContributions={focusContributions}
             animationDelay={0}
             formatCurrency={formatCurrency}
             onEdit={() => setFocusModalOpen(true)}
@@ -210,7 +230,6 @@ export default function BudgetScreen() {
                     spent={spent}
                     budgeted={goal?.amount ?? 0}
                     formatCurrency={formatCurrency}
-                    showFocusBadge={cat.id === focusCategoryId}
                     animationDelay={400 + index * 55}
                     onClick={() =>
                       setEditTarget({
@@ -245,6 +264,6 @@ export default function BudgetScreen() {
         onSave={handleFocusSave}
         onClose={() => setFocusModalOpen(false)}
       />
-    </div>
+    </>
   );
 }

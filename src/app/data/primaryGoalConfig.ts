@@ -51,7 +51,7 @@ export const PRIMARY_GOAL_BY_ID: Record<PrimaryGoalId, PrimaryGoalDefinition> = 
     accentColor: '#F7A54D',
     accentBg: '#FEF5EC',
     progressMode: 'target_amount',
-    categoriesSectionTitle: 'Where you can still save',
+    categoriesSectionTitle: 'Where your money goes',
     emphasizedCategoryIds: ['other', 'groceries', 'utilities'],
   },
   track: {

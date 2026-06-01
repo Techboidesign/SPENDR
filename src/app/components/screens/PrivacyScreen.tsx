@@ -47,7 +47,17 @@ export default function PrivacyScreen() {
   const { exit } = useSubPageNav();
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE }}>
+    <div
+      data-app-scroll
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'none',
+        backgroundColor: c.canvas,
+        paddingBottom: TAB_BAR_CLEARANCE,
+      }}
+    >
 
       {/* Header */}
       <div style={{

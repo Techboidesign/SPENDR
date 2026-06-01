@@ -99,7 +99,7 @@ export function BudgetEditModal({
           borderRadius: 14,
           padding: '12px 14px',
           marginBottom: showCurrentLine ? 6 : 0,
-          border: categoryLimitError ? `2px solid ${c.danger}` : '2px solid transparent',
+          border: categoryLimitError ? `1px solid ${c.danger}` : '1px solid transparent',
           transition: 'border-color 0.15s ease, background-color 0.15s ease',
         }}
       >

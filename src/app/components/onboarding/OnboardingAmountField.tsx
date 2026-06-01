@@ -1,5 +1,7 @@
 import { useId, useMemo } from 'react';
-import { AUTH_THEME, appPrimaryDarkRgba } from '../../theme/authTheme';
+import { useOnboardingChrome } from '../../context/OnboardingThemeContext';
+import { APP_PRIMARY } from '../../theme/authTheme';
+import { hexToRgba } from '../../theme/onboardingUi';
 import { CurrencyAmountInput } from '../shared/CurrencyAmountInput';
 import {
   AMOUNT_SLIDER_FINE_FRACTION,
@@ -31,6 +33,7 @@ export function OnboardingAmountField({
   helperText,
   currencySymbol = '$',
 }: OnboardingAmountFieldProps) {
+  const { theme, isLight } = useOnboardingChrome();
   const sliderId = useId();
   const scale = resolveAmountSliderScale(maxAmount);
   const tickPositions = useMemo(() => buildSliderTickPositions(maxAmount), [maxAmount]);
@@ -38,6 +41,10 @@ export function OnboardingAmountField({
   const safeValue = clampSliderAmount(value, maxAmount);
   const display = safeValue > 0 ? String(safeValue) : '';
   const fillPercent = amountToSliderPosition(safeValue, maxAmount) * 100;
+
+  const tickActive = isLight ? hexToRgba(APP_PRIMARY, 0.42) : hexToRgba(APP_PRIMARY, 0.42);
+  const tickInactive = isLight ? hexToRgba(APP_PRIMARY, 0.14) : hexToRgba(APP_PRIMARY, 0.14);
+  const thumbShadow = isLight ? '0 2px 8px rgba(62, 55, 255, 0.25)' : '0 2px 8px rgba(0, 0, 0, 0.35)';
 
   const handleInputChange = (raw: string) => {
     if (raw === '') {
@@ -62,7 +69,7 @@ export function OnboardingAmountField({
           fontSize: 13,
           fontWeight: 700,
           marginBottom: 8,
-          color: AUTH_THEME.textPrimary,
+          color: theme.textPrimary,
         }}
       >
         {label}
@@ -74,7 +81,7 @@ export function OnboardingAmountField({
             margin: '0 0 10px',
             fontSize: 12,
             lineHeight: 1.45,
-            color: AUTH_THEME.textMuted,
+            color: theme.textMuted,
             fontWeight: 500,
           }}
         >
@@ -86,7 +93,7 @@ export function OnboardingAmountField({
         <CurrencyAmountInput
           currencySymbol={currencySymbol}
           type="number"
-          tone="dark"
+          tone="light"
           className="font-figure"
           min={0}
           max={scale.max > 0 ? scale.max : undefined}
@@ -107,7 +114,7 @@ export function OnboardingAmountField({
             transform: 'translateY(-50%)',
             height: 6,
             borderRadius: 999,
-            background: AUTH_THEME.progressTrack,
+            background: theme.progressTrack,
             overflow: 'visible',
           }}
         >
@@ -116,7 +123,7 @@ export function OnboardingAmountField({
               width: `${fillPercent}%`,
               height: '100%',
               borderRadius: 999,
-              background: AUTH_THEME.accent,
+              background: theme.accent,
               transition: 'width 0.05s ease-out',
             }}
           />
@@ -137,10 +144,7 @@ export function OnboardingAmountField({
                 width: 1,
                 height: isTenK ? 12 : 7,
                 borderRadius: 1,
-                background:
-                  pos * 100 <= fillPercent + 0.5
-                    ? appPrimaryDarkRgba(0.42)
-                    : appPrimaryDarkRgba(0.14),
+                background: pos * 100 <= fillPercent + 0.5 ? tickActive : tickInactive,
                 pointerEvents: 'none',
                 zIndex: 1,
               }}
@@ -158,9 +162,9 @@ export function OnboardingAmountField({
             width: 22,
             height: 22,
             borderRadius: '50%',
-            background: AUTH_THEME.buttonPrimary,
-            border: `2px solid ${AUTH_THEME.accent}`,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
+            background: isLight ? '#FFFFFF' : theme.buttonPrimary,
+            border: `1px solid ${theme.accent}`,
+            boxShadow: thumbShadow,
             pointerEvents: 'none',
             zIndex: 3,
           }}
@@ -203,7 +207,7 @@ export function OnboardingAmountField({
           height: 18,
           marginTop: 8,
           fontSize: 11,
-          color: AUTH_THEME.textFaint,
+          color: theme.textFaint,
           fontWeight: 600,
         }}
       >

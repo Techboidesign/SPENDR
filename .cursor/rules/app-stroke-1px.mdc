@@ -1,0 +1,25 @@
+---
+description: Global 1px strokes for borders, outlines, and ring shadows
+globs:
+  - src/**/*
+---
+
+# App strokes: 1px only
+
+All UI **strokes** use **`1px`** — never `2px`, `1.5px`, `2.5px`, or `3px` for borders, outlines, or `box-shadow` rings that act as borders.
+
+## Use
+
+- Constants/helpers in `src/app/theme/strokes.ts`: `APP_STROKE_WIDTH_PX`, `appBorder()`, `appStrokeRing()`
+- CSS: `1px solid`, `1px dashed`, `outline: 1px solid …`
+- Focus/selection rings: `0 0 0 1px ${color}` (not `2px`)
+
+## Not a stroke (do not change for this rule)
+
+- `box-shadow` blur/spread for elevation only (e.g. `0 2px 10px rgba(…)`)
+- `padding`, `margin`, `gap`, `height`, `borderRadius`
+- SVG `strokeWidth` on charts/icons unless explicitly a UI chrome border
+
+## When editing
+
+If you see `2px solid`, `2px dashed`, `border: 2px`, `0 0 0 2px`, or `inset 0 0 0 2px`, change to **1px**.

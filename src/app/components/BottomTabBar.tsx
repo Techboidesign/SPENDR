@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router';
 import { motion } from 'motion/react';
 import { House, Receipt, Target, Gear } from '@phosphor-icons/react';
+import { useAppMotion } from '../hooks/useAppMotion';
+import { TAB_LAYOUT_INSTANT, TAB_LAYOUT_SPRING, TAB_PRESS_TRANSITION } from '../theme/motion';
 import { FabExpenseLauncher, FAB_SIZE } from './FabExpenseLauncher';
 
 /** Reserve this at the bottom of scroll areas so content clears the floating bar */
@@ -111,6 +113,8 @@ function TabLink({
   Icon: typeof House;
   end: boolean;
 }) {
+  const { reduceMotion } = useAppMotion();
+
   return (
     <NavLink
       to={to}
@@ -127,13 +131,8 @@ function TabLink({
     >
       {({ isActive }) => (
         <motion.div
-          whileTap={{ scale: 0.88 }}
-          whileHover={
-            isActive
-              ? { scale: 1.06 }
-              : { scale: 1.05, backgroundColor: 'var(--tab-hover-bg)' }
-          }
-          transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.92 }}
+          transition={TAB_PRESS_TRANSITION}
           style={{
             width: ICON_SLOT,
             height: ICON_SLOT,
@@ -148,7 +147,7 @@ function TabLink({
           {isActive && (
             <motion.div
               layoutId="tab-icon-highlight"
-              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              transition={reduceMotion ? TAB_LAYOUT_INSTANT : TAB_LAYOUT_SPRING}
               style={{
                 position: 'absolute',
                 inset: 0,

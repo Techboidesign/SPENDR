@@ -117,7 +117,7 @@ function FieldRow({
               onKeyDown={e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') cancel(); }}
               style={{
                 flex: 1, height: 40, padding: '0 12px',
-                borderRadius: 10, border: '2px solid #3E37FF',
+                borderRadius: 10, border: '1px solid #3E37FF',
                 fontSize: 14, color: c.text,
                 outline: 'none', background: c.surface,
                 fontFamily: 'inherit',
@@ -166,7 +166,7 @@ function PasswordField({
             height: 44,
             padding: '0 44px 0 14px',
             borderRadius: 12,
-            border: '1.5px solid #E5E7EB',
+            border: '1px solid #E5E7EB',
             fontSize: 14,
             color: c.text,
             outline: 'none',
@@ -369,7 +369,18 @@ export default function UserProfileScreen() {
   const savePhone = (v: string) => { dispatch({ type: 'SET_USER_PHONE', phone: v }); showToast('Phone updated'); };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE, position: 'relative' }}>
+    <div
+      data-app-scroll
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'none',
+        backgroundColor: c.canvas,
+        paddingBottom: TAB_BAR_CLEARANCE,
+        position: 'relative',
+      }}
+    >
 
       {/* Hidden file input */}
       <input
@@ -449,7 +460,7 @@ export default function UserProfileScreen() {
               position: 'absolute', bottom: -2, right: -2,
               width: 28, height: 28, borderRadius: 14,
               backgroundColor: c.surface,
-              border: '2px solid #F7F7FA',
+              border: '1px solid #F7F7FA',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
             }}

@@ -1,13 +1,16 @@
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { useAppColors } from '../context/AppearanceContext';
 import { Expense, ExpenseType } from '../data/types';
 import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { CategoryIcon } from './CategoryIcon';
+import { CategorySelectPill } from './shared/CategorySelectPill';
 import { AppBottomSheetLayout } from './AppBottomSheetLayout';
 import { ModalActionBar } from './ModalActionBar';
 import { generateId } from '../utils/id';
+import { getActiveFocusCategoryId, isFocusCategoryId } from '../data/focusCategory';
+import { parsePrimaryGoal } from '../data/primaryGoalConfig';
 
 const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
   { value: 'one-time', label: 'One-time' },
@@ -24,6 +27,25 @@ const fieldLabel: CSSProperties = {
   display: 'block',
 };
 
+function RequiredFieldLabel({
+  children,
+  color,
+  dangerColor,
+}: {
+  children: string;
+  color: string;
+  dangerColor: string;
+}) {
+  return (
+    <span style={{ ...fieldLabel, color }}>
+      {children}
+      <span style={{ color: dangerColor, marginLeft: 2 }} aria-hidden>
+        *
+      </span>
+    </span>
+  );
+}
+
 export function AddExpenseModal() {
   const {
     showAddModal,
@@ -31,8 +53,9 @@ export function AddExpenseModal() {
     addModalDraft,
     closeAddModal,
     dispatch,
-    categories,
+    expensePickerCategories,
     getCategory,
+    state,
   } = useApp();
   const c = useAppColors();
 
@@ -48,6 +71,7 @@ export function AddExpenseModal() {
   const [notes, setNotes] = useState('');
   const [showCatPicker, setShowCatPicker] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [touched, setTouched] = useState({ name: false, amount: false });
 
   useEffect(() => {
     if (editingExpense) {
@@ -71,9 +95,12 @@ export function AddExpenseModal() {
       setNotes(addModalDraft.notes ?? '');
       setShowNotes(Boolean(addModalDraft.notes?.trim()));
     } else {
+      const defaultFocusId = getActiveFocusCategoryId(
+        parsePrimaryGoal(state.primaryGoal ?? undefined),
+      );
       setAmount('');
       setName('');
-      setCategoryId('other');
+      setCategoryId(defaultFocusId ?? 'other');
       setDate(today);
       setType('one-time');
       setStartDate(today);
@@ -82,13 +109,43 @@ export function AddExpenseModal() {
       setShowNotes(false);
     }
     setShowCatPicker(false);
-  }, [editingExpense, addModalDraft, showAddModal, today]);
+    setTouched({ name: false, amount: false });
+  }, [editingExpense, addModalDraft, showAddModal, today, state.primaryGoal]);
 
   const selectedCategory = getCategory(categoryId);
+  const isFocusContribution = isFocusCategoryId(categoryId);
+
+  const parsedAmount = parseFloat(amount);
+  const hasValidName = name.trim().length > 0;
+  const hasValidAmount =
+    amount.trim() !== '' &&
+    !Number.isNaN(parsedAmount) &&
+    (isFocusContribution ? parsedAmount !== 0 : parsedAmount > 0);
+
+  const canSave = hasValidName && hasValidAmount;
+  const saveDisabled = !canSave;
+
+  const nameError = useMemo(() => {
+    if (hasValidName) return null;
+    return 'Name is required';
+  }, [hasValidName]);
+
+  const amountError = useMemo(() => {
+    if (hasValidAmount) return null;
+    if (amount.trim() === '') return 'Amount is required';
+    if (Number.isNaN(parsedAmount)) return 'Enter a valid number';
+    if (isFocusContribution) return 'Enter a non-zero amount';
+    return 'Enter an amount greater than zero';
+  }, [amount, hasValidAmount, isFocusContribution, parsedAmount]);
+
+  const showNameError = Boolean(nameError && touched.name);
+  const showAmountError = Boolean(amountError && touched.amount);
 
   const handleSave = () => {
-    const parsedAmount = parseFloat(amount);
-    if (!name.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (!canSave) {
+      setTouched({ name: true, amount: true });
+      return;
+    }
 
     const expense: Expense = {
       id: editingExpense?.id ?? generateId(),
@@ -133,20 +190,21 @@ export function AddExpenseModal() {
     closeAddModal();
   };
 
-  const inputStyle: CSSProperties = {
+  const inputStyle = (invalid: boolean): CSSProperties => ({
     display: 'block',
     width: '100%',
     marginTop: 0,
     padding: '10px 12px',
-    backgroundColor: c.inputBg,
-    border: 'none',
+    backgroundColor: invalid ? c.dangerSoft : c.inputBg,
+    border: invalid ? `1px solid ${c.danger}` : '1px solid transparent',
     borderRadius: 12,
     fontSize: 15,
     color: c.text,
     outline: 'none',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
-  };
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+  });
 
   return (
     <AppBottomSheetLayout
@@ -160,89 +218,124 @@ export function AddExpenseModal() {
           leftVariant={showCatPicker || !editingExpense ? 'cancel' : 'delete'}
           onSave={handleSave}
           saveLabel="SAVE"
+          saveDisabled={saveDisabled}
         />
       }
     >
       {showCatPicker ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: 6,
-          }}
-        >
-          {categories.map(cat => (
-            <button
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {expensePickerCategories.map(cat => (
+            <CategorySelectPill
               key={cat.id}
-              type="button"
-              onClick={() => {
+              categoryId={cat.id}
+              name={cat.name}
+              bg={cat.bg}
+              color={cat.color}
+              iconColor={cat.iconColor}
+              selected={categoryId === cat.id}
+              onSelect={() => {
                 setCategoryId(cat.id);
                 setShowCatPicker(false);
               }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 3,
-                padding: '6px 2px',
-                borderRadius: 10,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: categoryId === cat.id ? cat.bg : 'transparent',
-                outline: categoryId === cat.id ? `2px solid ${cat.color}` : 'none',
-                fontFamily: 'inherit',
-              }}
-            >
-              <CategoryIcon categoryId={cat.id} size="xs" />
-              <span
-                style={{
-                  fontSize: 9,
-                  color: c.textMuted,
-                  textAlign: 'center',
-                  lineHeight: 1.15,
-                }}
-              >
-                {cat.name.split('/')[0].split(' ')[0]}
-              </span>
-            </button>
+            />
           ))}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ backgroundColor: c.inputBg, borderRadius: 14, padding: '10px 16px', textAlign: 'center' }}>
-            <p style={{ fontSize: 11, color: c.textFaint, margin: '0 0 2px', fontWeight: 600 }}>AMOUNT</p>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              <span style={{ fontSize: 28, fontWeight: 700, color: c.accent }}>€</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                style={{
-                  fontSize: 32,
-                  fontWeight: 800,
-                  color: c.text,
-                  border: 'none',
-                  background: 'transparent',
-                  outline: 'none',
-                  width: '55%',
-                  textAlign: 'center',
-                  fontFamily: 'inherit',
-                }}
-              />
+          <div>
+            <RequiredFieldLabel color={c.textMuted} dangerColor={c.danger}>
+              AMOUNT
+            </RequiredFieldLabel>
+            <div
+              style={{
+                backgroundColor: showAmountError ? c.dangerSoft : c.inputBg,
+                borderRadius: 14,
+                padding: '10px 16px',
+                textAlign: 'center',
+                border: showAmountError ? `1px solid ${c.danger}` : '1px solid transparent',
+                transition: 'border-color 0.15s ease, background-color 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    color: showAmountError ? c.danger : c.accent,
+                  }}
+                >
+                  €
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  onBlur={() => setTouched(prev => ({ ...prev, amount: true }))}
+                  aria-invalid={showAmountError}
+                  aria-describedby={showAmountError ? 'expense-amount-error' : undefined}
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 800,
+                    color: c.text,
+                    border: 'none',
+                    background: 'transparent',
+                    outline: 'none',
+                    width: '55%',
+                    textAlign: 'center',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
             </div>
+            {showAmountError ? (
+              <p
+                id="expense-amount-error"
+                style={{
+                  fontSize: 11,
+                  color: c.danger,
+                  margin: '4px 0 0',
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                }}
+              >
+                {amountError}
+              </p>
+            ) : null}
           </div>
 
           <div>
-            <label style={{ ...fieldLabel, color: c.textMuted }}>NAME</label>
+            <label htmlFor="expense-name" style={{ display: 'block' }}>
+              <RequiredFieldLabel color={c.textMuted} dangerColor={c.danger}>
+                NAME
+              </RequiredFieldLabel>
+            </label>
             <input
+              id="expense-name"
               type="text"
               placeholder="e.g. Dinner"
               value={name}
               onChange={e => setName(e.target.value)}
-              style={inputStyle}
+              onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+              aria-invalid={showNameError}
+              aria-describedby={showNameError ? 'expense-name-error' : undefined}
+              style={inputStyle(showNameError)}
             />
+            {showNameError ? (
+              <p
+                id="expense-name-error"
+                style={{
+                  fontSize: 11,
+                  color: c.danger,
+                  margin: '4px 0 0',
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                }}
+              >
+                {nameError}
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -325,13 +418,18 @@ export function AddExpenseModal() {
                 onChange={e =>
                   type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
                 }
-                style={inputStyle}
+                style={inputStyle(false)}
               />
             </div>
             {type !== 'one-time' ? (
               <div>
                 <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={inputStyle} />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  style={inputStyle(false)}
+                />
               </div>
             ) : null}
           </div>
@@ -344,7 +442,7 @@ export function AddExpenseModal() {
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={2}
-                style={{ ...inputStyle, resize: 'none' }}
+                style={{ ...inputStyle(false), resize: 'none' }}
               />
             </div>
           ) : (
@@ -366,6 +464,12 @@ export function AddExpenseModal() {
               + Add note
             </button>
           )}
+
+          {!canSave && (touched.name || touched.amount) ? (
+            <p style={{ fontSize: 11, color: c.textFaint, margin: 0, lineHeight: 1.4 }}>
+              Fill in name and amount to save.
+            </p>
+          ) : null}
         </div>
       )}
     </AppBottomSheetLayout>

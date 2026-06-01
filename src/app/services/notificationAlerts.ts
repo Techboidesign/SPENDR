@@ -5,7 +5,12 @@ import {
   recurringAppliesToMonth,
   recurringSeriesKey,
 } from '../utils/recurringExpense';
-import { getCategoryTotals, getMonthExpenses, getMonthlyAmount } from '../context/AppContext';
+import {
+  getCategoryTotals,
+  getMonthSpendingTotal,
+  getMonthlyAmount,
+} from '../context/AppContext';
+import { isSpendingExpense } from '../data/focusCategory';
 
 export type NotificationBannerVariant = 'info' | 'warning' | 'success';
 
@@ -82,10 +87,7 @@ function markSupersededMilestonesSeen(
 }
 
 function monthSpendTotal(state: AppState, monthKey: string): number {
-  return getMonthExpenses(state.expenses, monthKey).reduce(
-    (sum, e) => sum + getMonthlyAmount(e),
-    0,
-  );
+  return getMonthSpendingTotal(state.expenses, monthKey);
 }
 
 function weekSpendTotal(state: AppState, weekStart: string): number {
@@ -94,6 +96,7 @@ function weekSpendTotal(state: AppState, weekStart: string): number {
   end.setDate(end.getDate() + 7);
   return state.expenses
     .filter(e => {
+      if (!isSpendingExpense(e)) return false;
       const d = new Date(`${e.date}T12:00:00`);
       return d >= start && d < end;
     })

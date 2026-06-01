@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppColors, useAppearance } from '../../context/AppearanceContext';
-import { expenseTypeBadge } from '../../theme/darkModeUi';
+import { useAppColors } from '../../context/AppearanceContext';
 import { motion, useReducedMotion } from 'motion/react';
 import { CaretRight, CheckSquare, Square, Trash } from '@phosphor-icons/react';
 import { CategoryIcon } from '../CategoryIcon';
-import { getCategoryById } from '../../data/categories';
+import { isFocusCategoryId } from '../../data/focusCategory';
 import type { Expense } from '../../data/types';
+import { ExpenseRowMetaBadges } from './ExpenseRowMetaBadges';
+
+function formatExpenseRowAmount(
+  expense: Expense,
+  formatCurrency: (n: number) => string,
+): string {
+  if (isFocusCategoryId(expense.categoryId)) {
+    if (expense.amount >= 0) return `+${formatCurrency(expense.amount)}`;
+    return `-${formatCurrency(Math.abs(expense.amount))}`;
+  }
+  return `-${formatCurrency(expense.amount)}`;
+}
 
 const SELECT_WIDTH = 76;
 const DELETE_WIDTH = 76;
@@ -74,9 +85,7 @@ export function ExpenseSwipeRow({
   formatCurrency,
 }: ExpenseSwipeRowProps) {
   const c = useAppColors();
-  const { isDark } = useAppearance();
   const reduceMotion = useReducedMotion();
-  const cat = getCategoryById(expense.categoryId);
   const [offset, setOffset] = useState(0);
   const offsetRef = useRef(0);
   const draggingRef = useRef(false);
@@ -280,7 +289,7 @@ export function ExpenseSwipeRow({
             alignItems: 'center',
             justifyContent: 'center',
             opacity: isDeleteRevealed ? 1 : 0,
-            boxShadow: isDeleteActive ? 'inset 0 0 0 2px rgba(255,255,255,0.35)' : 'none',
+            boxShadow: isDeleteActive ? 'inset 0 0 0 1px rgba(255,255,255,0.35)' : 'none',
             transition: isDragging ? 'none' : 'opacity 0.15s ease, background-color 0.12s ease, box-shadow 0.12s ease',
           }}
         >
@@ -345,7 +354,7 @@ export function ExpenseSwipeRow({
           cursor: isMultiSelect ? 'pointer' : 'default',
           touchAction: 'pan-y',
           userSelect: 'none',
-          outline: isMultiSelect && isSelected ? '2px solid #3E37FF' : 'none',
+          outline: isMultiSelect && isSelected ? '1px solid #3E37FF' : 'none',
           outlineOffset: -2,
         }}
       >
@@ -361,7 +370,8 @@ export function ExpenseSwipeRow({
 
         <CategoryIcon categoryId={expense.categoryId} size="sm" />
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <ExpenseRowMetaBadges categoryId={expense.categoryId} expenseType={expense.type} />
           <p
             style={{
               fontSize: 14,
@@ -375,34 +385,12 @@ export function ExpenseSwipeRow({
           >
             {expense.name}
           </p>
-          <p style={{ fontSize: 11, color: c.textFaint, margin: '2px 0 0' }}>{cat.name}</p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          <div style={{ textAlign: 'right' }}>
-            <p className="font-figure" style={{ fontSize: 15, color: c.text, margin: 0 }}>
-              -{formatCurrency(expense.amount)}
-            </p>
-            {expense.type !== 'one-time' && (() => {
-              const badge = expenseTypeBadge(expense.type, c, isDark);
-              return (
-              <span
-                style={{
-                  display: 'inline-block',
-                  marginTop: 2,
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: badge.color,
-                  backgroundColor: badge.bg,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                {expense.type === 'monthly' ? 'Monthly' : 'Yearly'}
-              </span>
-              );
-            })()}
-          </div>
+          <p className="font-figure" style={{ fontSize: 15, color: c.text, margin: 0 }}>
+            {formatExpenseRowAmount(expense, formatCurrency)}
+          </p>
           <CaretRight size={16} weight="bold" color={c.textFaint} aria-hidden />
         </div>
       </motion.div>

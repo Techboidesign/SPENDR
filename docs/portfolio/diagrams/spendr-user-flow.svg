@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg-h" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F7FA"/>
+      <stop offset="1" stop-color="#EDEDFF"/>
+    </linearGradient>
+    <marker id="arrow-h" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#9CA3AF"/>
+    </marker>
+    <filter id="shadow-h" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#1A1A2E" flood-opacity="0.07"/>
+    </filter>
+    <style type="text/css">
+      @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;display=swap');
+      .title { font: 700 32px 'Helvetica Neue', Arial, sans-serif; fill: #1A1A2E; }
+      .subtitle { font: 500 13px 'Geist Mono', ui-monospace, Menlo, monospace; fill: #6B7280; }
+      .lane { font: 700 10px 'Helvetica Neue', Arial, sans-serif; fill: #3E37FF; letter-spacing: 0.08em; }
+      .box-title { font: 700 10.5px 'Helvetica Neue', Arial, sans-serif; fill: #1A1A2E; }
+      .box-title-sm { font: 600 9.5px 'Helvetica Neue', Arial, sans-serif; fill: #1A1A2E; }
+      .box-body { font: 500 8.75px 'Geist Mono', ui-monospace, Menlo, monospace; fill: #6B7280; }
+      .diamond { font: 700 9.5px 'Helvetica Neue', Arial, sans-serif; fill: #1A1A2E; }
+      .pill-label { font: 700 10.5px 'Helvetica Neue', Arial, sans-serif; fill: #FFFFFF; }
+      .footer-note { font: 500 9.5px 'Geist Mono', ui-monospace, Menlo, monospace; fill: #6B7280; }
+      .edge-label { font: 500 9px 'Geist Mono', ui-monospace, Menlo, monospace; fill: #6B7280; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg-h)"/>
+
+  <text x="48" y="48" class="title">Spendr — User flow</text>
+  <text x="48" y="72" class="subtitle">Auth → daily use (expenses, budget, settings) → Supabase sync</text>
+
+  <rect x="40" y="92" width="1840" height="148" rx="14" fill="#FFFFFF" fill-opacity="0.6"/>
+  <rect x="40" y="260" width="1840" height="380" rx="14" fill="#FFFFFF" fill-opacity="0.6"/>
+  <rect x="40" y="660" width="1840" height="128" rx="14" fill="#FFFFFF" fill-opacity="0.6"/>
+
+  <text x="56" y="112" class="lane">AUTH &amp; ENTRY</text>
+  <text x="56" y="280" class="lane">CORE APP</text>
+  <text x="56" y="680" class="lane">SETTINGS</text>
+
+  <!-- CONNECTORS (drawn first, behind nodes) -->
+  <g id="connectors" fill="none" stroke="#9CA3AF" stroke-width="1.5">
+    <line x1="168" y1="158" x2="188" y2="158" marker-end="url(#arrow-h)"/>
+    <line x1="288" y1="158" x2="448" y2="158" marker-end="url(#arrow-h)"/>
+    <line x1="578" y1="158" x2="598" y2="158" marker-end="url(#arrow-h)"/>
+
+    <path d="M238,176 V208 H308 V200" marker-end="url(#arrow-h)"/>
+    <path d="M438,200 H448 V158" marker-end="url(#arrow-h)"/>
+    <path d="M288,158 H298 V124 H618 V144" marker-end="url(#arrow-h)"/>
+
+    <path d="M638,176 V214" marker-end="url(#arrow-h)"/>
+    <path d="M638,238 V296 H518" marker-end="url(#arrow-h)"/>
+    <path d="M688,158 H518 V296" marker-end="url(#arrow-h)"/>
+
+    <path d="M608,176 C552,208 552,112 112,112 C70,112 62,132 62,148" stroke-dasharray="5 4"/>
+
+    <line x1="596" y1="328" x2="616" y2="328" marker-end="url(#arrow-h)"/>
+    <line x1="748" y1="328" x2="768" y2="328" marker-end="url(#arrow-h)"/>
+    <line x1="928" y1="328" x2="948" y2="328" marker-end="url(#arrow-h)"/>
+    <line x1="1078" y1="328" x2="1098" y2="328" marker-end="url(#arrow-h)"/>
+    <line x1="1228" y1="328" x2="1248" y2="328" marker-end="url(#arrow-h)"/>
+    <line x1="1398" y1="328" x2="1418" y2="328" marker-end="url(#arrow-h)"/>
+
+    <line x1="518" y1="354" x2="518" y2="374" marker-end="url(#arrow-h)"/>
+    <line x1="1354" y1="372" x2="1354" y2="408" marker-end="url(#arrow-h)"/>
+    <path d="M1354,456 C1354,512 860,512 518,452 C494,440 518,392 518,354" marker-end="url(#arrow-h)"/>
+    <path d="M1162,354 V692" marker-end="url(#arrow-h)"/>
+    <line x1="1240" y1="716" x2="1260" y2="716" marker-end="url(#arrow-h)"/>
+  </g>
+
+  <text x="252" y="204" class="edge-label">No</text>
+  <text x="440" y="118" class="edge-label">Yes</text>
+  <text x="648" y="200" class="edge-label">No</text>
+  <text x="694" y="150" class="edge-label">Yes</text>
+  <text x="280" y="102" class="edge-label">Returning user</text>
+  <text x="920" y="500" class="edge-label">Return visits</text>
+
+  <!-- NODES -->
+  <g id="nodes">
+    <g filter="url(#shadow-h)">
+      <rect x="72" y="140" width="96" height="36" rx="18" fill="#3E37FF"/>
+      <text x="120" y="162" text-anchor="middle" class="pill-label">Open app</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <polygon points="238,140 288,158 238,176 188,158" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="238" y="161" text-anchor="middle" class="diamond">Signed in?</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="308" y="200" width="130" height="40" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="373" y="218" text-anchor="middle" class="box-title">Welcome</text>
+      <text x="373" y="230" text-anchor="middle" class="box-body">Sign up · Log in</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="448" y="140" width="130" height="36" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="513" y="162" text-anchor="middle" class="box-title">Auth callback</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <polygon points="638,136 688,158 638,180 588,158" fill="#FFF7ED" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="638" y="161" text-anchor="middle" class="diamond">Onboarded?</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="578" y="214" width="120" height="24" rx="6" fill="#FFFFFF" stroke="#D1D5DB"/>
+      <text x="638" y="230" text-anchor="middle" class="box-title-sm">Onboarding flow</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="440" y="302" width="156" height="52" rx="10" fill="#EDEBFF" stroke="#3E37FF"/>
+      <text x="518" y="322" text-anchor="middle" class="box-title">Home dashboard</text>
+      <text x="518" y="336" text-anchor="middle" class="box-body">Trends · spend · insights</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="440" y="374" width="156" height="50" rx="10" fill="#FEF3C7" stroke="#F59E0B"/>
+      <text x="518" y="392" text-anchor="middle" class="box-title">FAB · Add expense</text>
+      <text x="518" y="406" text-anchor="middle" class="box-body">Receipt · doc · modal</text>
+      <text x="518" y="418" text-anchor="middle" class="box-body">Save → Supabase</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="616" y="302" width="132" height="52" rx="10" fill="#EDEBFF" stroke="#3E37FF"/>
+      <text x="682" y="322" text-anchor="middle" class="box-title">Expenses tab</text>
+      <text x="682" y="336" text-anchor="middle" class="box-body">List · month · search</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="768" y="288" width="160" height="80" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="848" y="308" text-anchor="middle" class="box-title">Manage expenses</text>
+      <text x="848" y="322" text-anchor="middle" class="box-body">Tap row · edit modal</text>
+      <text x="848" y="334" text-anchor="middle" class="box-body">Swipe delete · undo</text>
+      <text x="848" y="346" text-anchor="middle" class="box-body">Long-press · bulk</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="948" y="304" width="130" height="48" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="1013" y="324" text-anchor="middle" class="box-title">Insights swipe</text>
+      <text x="1013" y="338" text-anchor="middle" class="box-body">Category breakdown</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="1098" y="302" width="130" height="52" rx="10" fill="#EDEBFF" stroke="#3E37FF"/>
+      <text x="1163" y="322" text-anchor="middle" class="box-title">Budget &amp; Goals</text>
+      <text x="1163" y="336" text-anchor="middle" class="box-body">Focus · income · limits</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="1248" y="282" width="176" height="90" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="1336" y="302" text-anchor="middle" class="box-title">Goals &amp; budgets</text>
+      <text x="1336" y="316" text-anchor="middle" class="box-body">Drag goal · income bar</text>
+      <text x="1336" y="328" text-anchor="middle" class="box-body">Edit modals · caps</text>
+      <text x="1336" y="340" text-anchor="middle" class="box-body">Tap · set limit</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="1262" y="408" width="168" height="48" rx="10" fill="#D1FAE5" stroke="#10B981"/>
+      <text x="1346" y="428" text-anchor="middle" class="box-title">Sync to Supabase</text>
+      <text x="1346" y="442" text-anchor="middle" class="box-body">Session · data · budgets</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="1098" y="692" width="142" height="48" rx="10" fill="#EDEBFF" stroke="#3E37FF"/>
+      <text x="1169" y="712" text-anchor="middle" class="box-title">Settings tab</text>
+      <text x="1169" y="726" text-anchor="middle" class="box-body">Profile · prefs · data</text>
+    </g>
+
+    <g filter="url(#shadow-h)">
+      <rect x="1260" y="668" width="260" height="104" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
+      <text x="1390" y="688" text-anchor="middle" class="box-title">Settings actions</text>
+      <text x="1390" y="702" text-anchor="middle" class="box-body">Profile · avatar · sign out</text>
+      <text x="1390" y="714" text-anchor="middle" class="box-body">Currency · theme · alerts</text>
+      <text x="1390" y="726" text-anchor="middle" class="box-body">Categories · export</text>
+      <text x="1390" y="738" text-anchor="middle" class="box-body">Erase · help · privacy</text>
+    </g>
+  </g>
+
+  <rect x="48" y="868" width="1824" height="56" rx="12" fill="#FFFFFF" stroke="#E5E7EB"/>
+  <text x="72" y="892" class="footer-note">Tab bar: Home · Expenses · [FAB] · Budget · Settings</text>
+  <text x="72" y="908" class="footer-note">Insights via swipe on Expenses · Data syncs across devices after login</text>
+</svg>

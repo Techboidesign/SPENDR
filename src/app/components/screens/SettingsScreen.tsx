@@ -165,7 +165,7 @@ function InlineEditRow({
         }}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
             style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-            <path d="M2 3.5l3 3 3-3" stroke={open ? c.onAccent : c.textFaint} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 3.5l3 3 3-3" stroke={open ? c.onAccent : c.textFaint} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
       </button>
@@ -196,7 +196,7 @@ function InlineEditRow({
                 onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setOpen(false); }}
                 style={{
                   width: '100%', height: 44, paddingLeft: 28, paddingRight: 12,
-                  borderRadius: 10, border: `2px solid ${c.accent}`,
+                  borderRadius: 10, border: `1px solid ${c.accent}`,
                   fontSize: 16, fontWeight: 700, color: c.text,
                   outline: 'none', background: c.surface,
                   fontFamily: 'inherit', boxSizing: 'border-box',
@@ -374,7 +374,17 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: TAB_BAR_CLEARANCE }}>
+    <div
+      data-app-scroll
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'none',
+        backgroundColor: c.canvas,
+        paddingBottom: TAB_BAR_CLEARANCE,
+      }}
+    >
       {/* Header */}
       <div style={{ backgroundColor: c.surface, padding: '20px 20px 16px', borderBottom: `1px solid ${c.border}` }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Settings</h1>
@@ -490,7 +500,7 @@ export default function SettingsScreen() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {CURRENCIES.map(code => {
                     const selected = state.currency === code;
-                    const shadow = selected ? `0 0 0 2px ${c.accent}` : c.shadowSm;
+                    const shadow = selected ? `0 0 0 1px ${c.accent}` : c.shadowSm;
                     return (
                       <button
                         key={code}

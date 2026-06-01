@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import type { OnboardingGoalChoice } from '../../../data/types';
 import { ONBOARDING_GOAL_CHOICES } from '../../../data/primaryGoalConfig';
-import { AUTH_THEME } from '../../../theme/authTheme';
 import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
-import { onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
+import { onboardingSelectableCard } from '../../../theme/onboardingUi';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
-import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingTitleStyle } from './OnboardingLayout';
 
 export default function Step2Goal() {
   const navigate = useNavigate();
   const { updateData, next, skipAll, onboarding } = useOnboarding();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
 
   const [selectedGoal, setSelectedGoal] = useState<OnboardingGoalChoice | null>(
     (onboarding.data.primaryGoal as OnboardingGoalChoice | undefined) ?? null,
@@ -43,7 +45,7 @@ export default function Step2Goal() {
       onSkip={handleSkipAll}
       nextDisabled={!selectedGoal}
     >
-      <h1 style={onboardingTitleStyle}>What&apos;s your main goal?</h1>
+      <h1 style={titleStyle}>What&apos;s your main goal?</h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ONBOARDING_GOAL_CHOICES.map(goal => {
@@ -62,12 +64,12 @@ export default function Step2Goal() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                ...onboardingSelectableCard(selected),
+                ...onboardingSelectableCard(theme, selected, isLight),
               }}
             >
               <OnboardingOptionIconChip icon={Icon} accentColor={goal.accent} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>
                   {goal.label}
                 </div>
               </div>

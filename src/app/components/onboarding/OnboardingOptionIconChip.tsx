@@ -1,5 +1,6 @@
 import type { Icon } from '@phosphor-icons/react';
-import { darkIconChip } from '../../theme/onboardingDarkUi';
+import { useOnboardingChrome } from '../../context/OnboardingThemeContext';
+import { onboardingIconChip } from '../../theme/onboardingUi';
 
 const CHIP = {
   md: { outer: 36, icon: 18, radius: 10 },
@@ -7,7 +8,7 @@ const CHIP = {
   xs: { outer: 30, icon: 14, radius: 8 },
 } as const;
 
-/** Rounded gradient icon tile — matches goal + notification onboarding rows. */
+/** Rounded icon tile — pastel in light onboarding, gradient in dark. */
 export function OnboardingOptionIconChip({
   icon: IconComp,
   accentColor,
@@ -17,7 +18,8 @@ export function OnboardingOptionIconChip({
   accentColor: string;
   size?: keyof typeof CHIP;
 }) {
-  const chip = darkIconChip(accentColor);
+  const { isLight } = useOnboardingChrome();
+  const chip = onboardingIconChip(accentColor, isLight);
   const dim = CHIP[size];
 
   return (

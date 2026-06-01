@@ -276,7 +276,7 @@ export function GoalTargetProgressSlider({
             marginTop: -THUMB_SIZE / 2,
             borderRadius: '50%',
             backgroundColor: thumbColor,
-            border: '2px solid #FFFFFF',
+            border: '1px solid #FFFFFF',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
             zIndex: 1,
           }}

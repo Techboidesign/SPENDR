@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Camera, Plus, UploadSimple, X } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { useAppColors } from '../context/AppearanceContext';
+import { useAppMotion } from '../hooks/useAppMotion';
+import { FAB_COLOR_TRANSITION, FAB_ICON_SWAP_TRANSITION } from '../theme/motion';
 export const FAB_SIZE = 68;
 const FAB_BORDER = 2;
 const SAT_SIZE = 52;
@@ -35,10 +37,8 @@ const SLOTS: {
   { id: 'upload', label: 'Upload document', Icon: UploadSimple, offsetX: SPREAD_X, offsetY: LIFT_Y },
 ];
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 620, damping: 26, mass: 0.72 };
-const TAP_SPRING = { type: 'spring' as const, stiffness: 700, damping: 22 };
-const FAB_COLOR_TRANSITION = { duration: 0.07, ease: [0.4, 0, 0.2, 1] as const };
-const ICON_SWAP_TRANSITION = { duration: 0.09, ease: [0.33, 1, 0.32, 1] as const };
+const TAP_TRANSITION = { duration: 0.1, ease: [0.4, 0, 0.2, 1] as const };
+const POP_SCALE_FROM = 0.92;
 
 function slotIndexFromX(dx: number): number {
   if (dx < -SPREAD_X * 0.45) return 0;
@@ -50,6 +50,7 @@ export function FabExpenseLauncher() {
   const { openAddModal, showAddModal, scanReceiptFromCamera, uploadReceiptDocuments, isParsingReceipt } =
     useApp();
   const c = useAppColors();
+  const { reduceMotion, fabPopTransition, popScale } = useAppMotion();
   const brand = c.fab;
   const brandActive = c.accent;
 
@@ -241,17 +242,27 @@ export function FabExpenseLauncher() {
                 <motion.button
                   key={slot.id}
                   type="button"
-                  initial={{ scale: 0, x: 0, y: 0, opacity: 0 }}
+                  initial={{
+                    scale: POP_SCALE_FROM,
+                    x: 0,
+                    y: 0,
+                    opacity: 0,
+                  }}
                   animate={{
                     scale: isActive ? 1.14 : 1,
                     x: slot.offsetX,
                     y: slot.offsetY,
                     opacity: 1,
                   }}
-                  exit={{ scale: 0, x: 0, y: 0, opacity: 0 }}
+                  exit={{
+                    scale: POP_SCALE_FROM,
+                    x: 0,
+                    y: 0,
+                    opacity: 0,
+                  }}
                   transition={{
-                    ...POP_SPRING,
-                    delay: i * 0.04,
+                    ...fabPopTransition,
+                    delay: reduceMotion ? 0 : i * 0.02,
                   }}
                   onClick={e => {
                     e.stopPropagation();
@@ -272,7 +283,7 @@ export function FabExpenseLauncher() {
                     width: SAT_SIZE,
                     height: SAT_SIZE,
                     borderRadius: '50%',
-                    border: `2px solid ${isHover ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
+                    border: `1px solid ${isHover ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
                     backgroundColor: isHover ? brandActive : brand,
                     cursor: 'pointer',
                     display: 'flex',
@@ -286,9 +297,9 @@ export function FabExpenseLauncher() {
                     transition: 'background-color 0.12s ease',
                   }}
                   whileHover={
-                    !dragging
+                    !dragging && !reduceMotion
                       ? {
-                          scale: 1.08,
+                          scale: 1.06,
                           backgroundColor: '#7068FF',
                         }
                       : undefined
@@ -321,11 +332,11 @@ export function FabExpenseLauncher() {
               : '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)',
           }}
           transition={{
-            scale: TAP_SPRING,
+            scale: TAP_TRANSITION,
             backgroundColor: FAB_COLOR_TRANSITION,
             boxShadow: FAB_COLOR_TRANSITION,
           }}
-          whileTap={{ scale: 0.9 }}
+          whileTap={reduceMotion ? undefined : { scale: 0.9 }}
           style={{
             position: 'absolute',
             left: '50%',
@@ -359,10 +370,10 @@ export function FabExpenseLauncher() {
               {open ? (
                 <motion.span
                   key="close"
-                  initial={{ scale: 0.35, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.35, opacity: 0 }}
-                  transition={ICON_SWAP_TRANSITION}
+                  initial={popScale.initial}
+                  animate={popScale.animate}
+                  exit={popScale.exit}
+                  transition={FAB_ICON_SWAP_TRANSITION}
                   style={{
                     position: 'absolute',
                     display: 'flex',
@@ -375,10 +386,10 @@ export function FabExpenseLauncher() {
               ) : (
                 <motion.span
                   key="plus"
-                  initial={{ scale: 0.35, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.35, opacity: 0 }}
-                  transition={ICON_SWAP_TRANSITION}
+                  initial={popScale.initial}
+                  animate={popScale.animate}
+                  exit={popScale.exit}
+                  transition={FAB_ICON_SWAP_TRANSITION}
                   style={{
                     position: 'absolute',
                     display: 'flex',

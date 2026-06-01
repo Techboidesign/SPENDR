@@ -1,7 +1,8 @@
 import type { Icon } from '@phosphor-icons/react';
 import type { CSSProperties, ReactNode } from 'react';
-import { AUTH_THEME } from '../../theme/authTheme';
-import { darkIconChip, onboardingRowCard } from '../../theme/onboardingDarkUi';
+import { useOnboardingChrome } from '../../context/OnboardingThemeContext';
+import type { OnboardingTheme } from '../../theme/onboardingTheme';
+import { onboardingIconChip, onboardingRowCard } from '../../theme/onboardingUi';
 
 export function OnboardingSummaryRow({
   icon: IconComp,
@@ -21,7 +22,8 @@ export function OnboardingSummaryRow({
   /** Tighter card for 2-column setup grid */
   compact?: boolean;
 }) {
-  const chip = darkIconChip(accent);
+  const { theme, isLight } = useOnboardingChrome();
+  const chip = onboardingIconChip(accent, isLight);
   const iconSize = compact ? 32 : 40;
   const glyphSize = compact ? 16 : 20;
 
@@ -29,7 +31,7 @@ export function OnboardingSummaryRow({
     return (
       <div
         style={{
-          ...onboardingRowCard(),
+          ...onboardingRowCard(theme),
           padding: '10px 10px 9px',
           display: 'flex',
           flexDirection: 'column',
@@ -57,7 +59,7 @@ export function OnboardingSummaryRow({
             style={{
               fontSize: 10,
               fontWeight: 600,
-              color: AUTH_THEME.textMuted,
+              color: theme.textMuted,
               letterSpacing: 0.02,
               marginBottom: 2,
             }}
@@ -68,7 +70,7 @@ export function OnboardingSummaryRow({
             style={{
               fontSize: 13,
               fontWeight: 700,
-              color: AUTH_THEME.textPrimary,
+              color: theme.textPrimary,
               lineHeight: 1.2,
             }}
           >
@@ -78,7 +80,7 @@ export function OnboardingSummaryRow({
             <div
               style={{
                 fontSize: 11,
-                color: AUTH_THEME.textFaint,
+                color: theme.textFaint,
                 marginTop: 2,
                 lineHeight: 1.3,
                 overflow: 'hidden',
@@ -98,7 +100,7 @@ export function OnboardingSummaryRow({
   return (
     <div
       style={{
-        ...onboardingRowCard(),
+        ...onboardingRowCard(theme),
         padding: '12px 14px',
         display: 'flex',
         alignItems: 'center',
@@ -124,7 +126,7 @@ export function OnboardingSummaryRow({
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: AUTH_THEME.textMuted,
+            color: theme.textMuted,
             letterSpacing: 0.02,
             marginBottom: 2,
           }}
@@ -135,7 +137,7 @@ export function OnboardingSummaryRow({
           style={{
             fontSize: 15,
             fontWeight: 700,
-            color: AUTH_THEME.textPrimary,
+            color: theme.textPrimary,
             lineHeight: 1.25,
           }}
         >
@@ -145,7 +147,7 @@ export function OnboardingSummaryRow({
           <div
             style={{
               fontSize: 12,
-              color: AUTH_THEME.textFaint,
+              color: theme.textFaint,
               marginTop: 3,
               lineHeight: 1.35,
             }}
@@ -159,13 +161,18 @@ export function OnboardingSummaryRow({
   );
 }
 
-export function onboardingSectionLabelStyle(): CSSProperties {
+export function onboardingSectionLabelStyle(theme: OnboardingTheme): CSSProperties {
   return {
     fontSize: 11,
     fontWeight: 700,
     letterSpacing: 0.08,
     textTransform: 'uppercase',
-    color: AUTH_THEME.textFaint,
+    color: theme.textFaint,
     margin: '0 0 6px 2px',
   };
+}
+
+export function useOnboardingSectionLabelStyle() {
+  const { theme } = useOnboardingChrome();
+  return onboardingSectionLabelStyle(theme);
 }

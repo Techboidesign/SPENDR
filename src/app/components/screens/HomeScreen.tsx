@@ -19,6 +19,7 @@ import { budgetRingTrackColor, chartTooltipStyle } from '../../theme/darkModeUi'
 import { categoryChartColor } from '../../theme/categoryDisplayColor';
 import { CATEGORY_ICON_MAP, type CategoryIconKey } from '../../data/categoryConfig';
 import { AppIconChip } from '../ui/AppIconChip';
+import { HOME_CHOREOGRAPHY } from '../../theme/motion';
 
 /* ─── SVG donut constants ─────────────────────────────── */
 const SVG_W   = 362;   // full card width
@@ -282,7 +283,7 @@ function DonutChart({
             fill={w.fill}
             fillOpacity={hoveredIdx === null || hoveredIdx === i ? 1 : 0.4}
             style={{
-              animation: `fadeIn 0.6s ease-out ${i * 0.08}s both`,
+              animation: HOME_CHOREOGRAPHY.donutWedge(i),
               cursor: 'pointer',
               transition: 'fill-opacity 0.2s ease',
             }}
@@ -332,7 +333,7 @@ function DonutChart({
           boxShadow: chartTooltipStyle().boxShadow,
           zIndex: 100,
           pointerEvents: 'none',
-          animation: 'fadeIn 0.2s ease-out',
+          animation: HOME_CHOREOGRAPHY.tooltip,
         }}>
           <div style={{ fontSize: 11, color: chartTooltipStyle().labelColor, marginBottom: 2 }}>
             {hoveredSegment.name}
@@ -460,13 +461,14 @@ export default function HomeScreen() {
     <div style={{ height: '100%', position: 'relative', overflowX: 'hidden' }}>
       <div
         className="home-screen-scroll"
+        data-app-scroll
         style={{
           height: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',
           backgroundColor: c.canvasHome,
           paddingBottom: TAB_BAR_CLEARANCE,
-          overscrollBehaviorX: 'none',
+          overscrollBehavior: 'none',
         }}
       >
 
@@ -537,7 +539,7 @@ export default function HomeScreen() {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                border: '2.5px solid rgba(255,255,255,0.9)',
+                border: '1px solid rgba(255,255,255,0.9)',
                 cursor: 'pointer',
                 overflow: 'hidden',
                 padding: 0,
@@ -568,7 +570,7 @@ export default function HomeScreen() {
             overflow: 'hidden',
             position: 'relative',
             zIndex: 5,
-            animation: 'slideUpFade 0.7s ease-out both',
+            animation: HOME_CHOREOGRAPHY.slideUp,
           }}>
 
             {/* ══ SVG DONUT — edge-to-edge, no padding waste ══ */}
@@ -618,7 +620,7 @@ export default function HomeScreen() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 pointerEvents: 'none',
-                animation: 'fadeIn 0.8s ease-out 0.4s both',
+                animation: HOME_CHOREOGRAPHY.centreOverlay,
               }}>
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                   <span style={{
@@ -688,7 +690,7 @@ export default function HomeScreen() {
                 <div key={s.label} style={{
                   flex:1, padding:'13px 8px 14px', textAlign:'center',
                   borderRight: i < 2 ? `1px solid ${c.divider}` : 'none',
-                  animation: `fadeIn 0.6s ease-out ${0.7 + i * 0.1}s both`,
+                  animation: HOME_CHOREOGRAPHY.statsCell(i),
                 }}>
                   <div style={{ margin:'0 auto 7px', display:'flex', justifyContent:'center' }}>
                     <AppIconChip icon={s.Icon} accentColor={s.accentColor} lightBg={s.lightBg} size={30} iconSize={13} />
@@ -730,7 +732,7 @@ export default function HomeScreen() {
             </section>
           )}
 
-          <section style={{ animation: 'slideUpFade 0.7s ease-out 0.3s both' }}>
+          <section style={{ animation: HOME_CHOREOGRAPHY.slideUpDelayed }}>
             <SectionTitle
               action={
                 <button
@@ -802,38 +804,16 @@ export default function HomeScreen() {
           to { transform: scaleY(1); }
         }
 
+        @keyframes progressBarFill {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+        }
+
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes bounceIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.3);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.1);
-          }
-          70% {
-            transform: scale(0.95);
-          }
-          100% {
-            transform: scale(1);
-          }
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: scale(0.95);
-          }
-        }
       `}</style>
     </div>
   );

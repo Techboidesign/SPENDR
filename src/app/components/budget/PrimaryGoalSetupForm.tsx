@@ -16,8 +16,8 @@ import {
 import { useEffect } from 'react';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { CurrencyAmountInput } from '../shared/CurrencyAmountInput';
-import { FormInput } from '../shared/FormFields';
-import { MonthYearPill } from '../shared/MonthYearPill';
+import { appFormFieldStyle, FormInput } from '../shared/FormFields';
+import { MonthYearFieldInput } from '../shared/MonthYearFieldInput';
 import {
   GOAL_TARGET_MONTH_MAX_DATE,
   GOAL_TARGET_MONTH_MAX_KEY,
@@ -25,9 +25,10 @@ import {
   GOAL_TARGET_MONTH_MIN_KEY,
 } from '../../utils/periods';
 import { featuredBudgetIconTile } from '../../theme/darkModeUi';
-import { AUTH_THEME } from '../../theme/authTheme';
+import { useOnboardingChromeOptional } from '../../context/OnboardingThemeContext';
+import { ONBOARDING_THEME_LIGHT } from '../../theme/onboardingTheme';
 import { OnboardingOptionIconChip } from '../onboarding/OnboardingOptionIconChip';
-import { onboardingSelectableCard } from '../../theme/onboardingDarkUi';
+import { onboardingSelectableCard } from '../../theme/onboardingUi';
 import { Check } from '@phosphor-icons/react';
 
 export function PrimaryGoalSetupForm({
@@ -38,7 +39,6 @@ export function PrimaryGoalSetupForm({
   variant = 'app',
   compact = false,
   showGoalPicker = false,
-  formatMoney,
   currencySymbol = '$',
 }: {
   goalId: PrimaryGoalId;
@@ -49,27 +49,28 @@ export function PrimaryGoalSetupForm({
   /** Tighter layout for bottom sheets (no inner scroll). */
   compact?: boolean;
   showGoalPicker?: boolean;
-  formatMoney?: (n: number) => string;
   currencySymbol?: string;
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
+  const onboardingChrome = useOnboardingChromeOptional();
   const isOnboarding = variant === 'onboarding';
+  const obTheme = isOnboarding ? (onboardingChrome?.theme ?? ONBOARDING_THEME_LIGHT) : null;
+  const obLight = isOnboarding ? (onboardingChrome?.isLight ?? true) : false;
   const def = getPrimaryGoalDefinition(goalId);
   const needsTarget = goalRequiresTargetSetup(goalId);
   const copy = getGoalTargetFieldCopy(goalId);
-  const fmt = formatMoney ?? ((n: number) => `$${Math.round(n).toLocaleString()}`);
 
-  const fieldStyle = isOnboarding
-    ? undefined
-    : {
-        borderColor: c.border,
-        backgroundColor: c.surfaceAlt,
-        color: c.text,
-      };
+  const fieldStyle = isOnboarding ? undefined : appFormFieldStyle(c);
 
   const labelStyle = isOnboarding
-    ? { display: 'block' as const, fontSize: 13, fontWeight: 700, color: AUTH_THEME.textPrimary, marginBottom: 8 }
+    ? {
+        display: 'block' as const,
+        fontSize: 13,
+        fontWeight: 700,
+        color: obTheme!.textPrimary,
+        marginBottom: 8,
+      }
     : { display: 'block' as const, fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 8 };
 
   const stackGap = compact ? 8 : isOnboarding ? 14 : 12;
@@ -124,9 +125,9 @@ export function PrimaryGoalSetupForm({
                   gap: compact ? 8 : 12,
                   fontFamily: 'inherit',
                   ...(isOnboarding
-                    ? onboardingSelectableCard(selected)
+                    ? onboardingSelectableCard(obTheme!, selected, obLight)
                     : {
-                        border: `2px solid ${selected ? option.accentColor : c.border}`,
+                        border: `1px solid ${selected ? option.accentColor : c.border}`,
                         backgroundColor: selected ? `${option.accentBg}` : c.surface,
                       }),
                 }}
@@ -162,7 +163,7 @@ export function PrimaryGoalSetupForm({
                     flex: 1,
                     fontSize: compact ? 12 : 14,
                     fontWeight: 700,
-                    color: isOnboarding ? AUTH_THEME.textPrimary : c.text,
+                    color: isOnboarding ? obTheme!.textPrimary : c.text,
                     lineHeight: 1.2,
                   }}
                 >
@@ -184,7 +185,7 @@ export function PrimaryGoalSetupForm({
             margin: 0,
             fontSize: 13,
             lineHeight: 1.45,
-            color: isOnboarding ? AUTH_THEME.textMuted : c.textMuted,
+            color: isOnboarding ? obTheme!.textMuted : c.textMuted,
           }}
         >
           We&apos;ll map your spending across categories so you can see where money goes each month.
@@ -194,7 +195,7 @@ export function PrimaryGoalSetupForm({
           <div>
             <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.nameLabel}</label>
             <FormInput
-              tone={isOnboarding ? 'dark' : 'light'}
+              tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
               placeholder={copy.namePlaceholder}
               value={target.name}
               onChange={e => onTargetChange({ ...target, name: e.target.value })}
@@ -202,79 +203,139 @@ export function PrimaryGoalSetupForm({
             />
           </div>
           <div>
-            <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.amountLabel}</label>
-            <CurrencyAmountInput
-              currencySymbol={currencySymbol}
-              tone={isOnboarding ? 'dark' : 'light'}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              placeholder="0"
-              value={target.targetAmount > 0 ? String(target.targetAmount) : ''}
-              onChange={e => {
-                const v = parseFloat(e.target.value);
+            <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.dateLabel}</label>
+            <MonthYearFieldInput
+              monthKey={targetMonthKey}
+              onMonthChange={key =>
                 onTargetChange({
                   ...target,
-                  targetAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
-                });
-              }}
+                  targetDate: monthKeyToTargetDateEnd(key),
+                })
+              }
+              tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
               style={fieldStyle}
+              minDate={GOAL_TARGET_MONTH_MIN_DATE}
+              maxDate={GOAL_TARGET_MONTH_MAX_DATE}
             />
           </div>
-          <div
-            style={
-              compact
-                ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'start' }
-                : undefined
-            }
-          >
-            <div style={compact ? { gridColumn: '1 / -1' } : undefined}>
-              <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.dateLabel}</label>
-              <MonthYearPill
-                monthKey={targetMonthKey}
-                onMonthChange={key =>
-                  onTargetChange({
-                    ...target,
-                    targetDate: monthKeyToTargetDateEnd(key),
-                  })
-                }
-                minMonthKey={GOAL_TARGET_MONTH_MIN_KEY}
-                maxMonthKey={GOAL_TARGET_MONTH_MAX_KEY}
-                minDate={GOAL_TARGET_MONTH_MIN_DATE}
-                maxDate={GOAL_TARGET_MONTH_MAX_DATE}
-                dropdownZIndex={1200}
-              />
+          {compact ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+                alignItems: 'start',
+              }}
+            >
+              <div>
+                <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.amountLabel}</label>
+                <CurrencyAmountInput
+                  currencySymbol={currencySymbol}
+                  tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  placeholder="0"
+                  value={target.targetAmount > 0 ? String(target.targetAmount) : ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    onTargetChange({
+                      ...target,
+                      targetAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
+                    });
+                  }}
+                  style={fieldStyle}
+                />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.currentLabel}</label>
+                <CurrencyAmountInput
+                  currencySymbol={currencySymbol}
+                  tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  placeholder="0"
+                  value={target.currentAmount > 0 ? String(target.currentAmount) : ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    onTargetChange({
+                      ...target,
+                      currentAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
+                    });
+                  }}
+                  style={fieldStyle}
+                />
+              </div>
             </div>
-            <div style={compact ? { gridColumn: '1 / -1' } : undefined}>
-              <label style={{ ...labelStyle, marginBottom: labelMb, marginTop: 16 }}>{copy.currentLabel}</label>
-              <CurrencyAmountInput
-                currencySymbol={currencySymbol}
-                tone={isOnboarding ? 'dark' : 'light'}
-                type="number"
-                inputMode="decimal"
-                min={0}
-                placeholder="0"
-                value={target.currentAmount > 0 ? String(target.currentAmount) : ''}
-                onChange={e => {
-                  const v = parseFloat(e.target.value);
-                  onTargetChange({
-                    ...target,
-                    currentAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
-                  });
-                }}
-                style={fieldStyle}
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.amountLabel}</label>
+                <CurrencyAmountInput
+                  currencySymbol={currencySymbol}
+                  tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  placeholder="0"
+                  value={target.targetAmount > 0 ? String(target.targetAmount) : ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    onTargetChange({
+                      ...target,
+                      targetAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
+                    });
+                  }}
+                  style={fieldStyle}
+                />
+              </div>
+              <div>
+                <label style={{ ...labelStyle, marginBottom: labelMb }}>{copy.currentLabel}</label>
+                <CurrencyAmountInput
+                  currencySymbol={currencySymbol}
+                  tone={isOnboarding ? 'light' : isDark ? 'dark' : 'light'}
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  placeholder="0"
+                  value={target.currentAmount > 0 ? String(target.currentAmount) : ''}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    onTargetChange({
+                      ...target,
+                      currentAmount: Number.isNaN(v) ? 0 : Math.max(0, v),
+                    });
+                  }}
+                  style={fieldStyle}
+                />
+              </div>
+            </>
+          )}
+          {compact ? (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 10,
+                color: c.textFaint,
+                lineHeight: 1.35,
+              }}
+            >
+              Also updates when you log expenses in{' '}
+              {goalId === 'save' ? 'Goal' : goalId === 'debt' ? 'Debt' : 'Emergency'}.
+            </p>
+          ) : null}
           {!compact && target.targetAmount > 0 ? (
             <p
               style={{
                 margin: 0,
                 fontSize: 11,
-                color: isOnboarding ? AUTH_THEME.textFaint : c.textFaint,
+                color: isOnboarding ? obTheme!.textFaint : c.textFaint,
+                lineHeight: 1.45,
               }}
             >
-              {fmt(target.currentAmount)} of {fmt(target.targetAmount)} so far
+              Progress updates when you log expenses in your focus category (
+              {goalId === 'save' ? 'Goal' : goalId === 'debt' ? 'Debt' : 'Emergency'}).
             </p>
           ) : null}
         </>

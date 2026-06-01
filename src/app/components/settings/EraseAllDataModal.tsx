@@ -3,8 +3,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { Warning, DownloadSimple, Trash, ArrowLeft } from '@phosphor-icons/react';
 import { useAppColors } from '../../context/AppearanceContext';
+import { useAppMotion } from '../../hooks/useAppMotion';
 import { useScrollLock } from '../../hooks/useScrollLock';
-import { MODAL_HOST_ID, MODAL_TRANSITION } from '../BottomSheetModal';
+import { MODAL_HOST_ID } from '../BottomSheetModal';
 
 type Step = 'overview' | 'confirm';
 
@@ -26,6 +27,7 @@ export function EraseAllDataModal({
   customizationCount: number;
 }) {
   const c = useAppColors();
+  const { modalTransition, backdropMotion, reduceMotion } = useAppMotion();
   const [step, setStep] = useState<Step>('overview');
   const [exportAcknowledged, setExportAcknowledged] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
@@ -116,10 +118,10 @@ export function EraseAllDataModal({
           ref={captureRef}
           key="erase-overlay"
           role="presentation"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={MODAL_TRANSITION}
+          initial={backdropMotion.initial}
+          animate={backdropMotion.animate}
+          exit={backdropMotion.exit}
+          transition={modalTransition}
           onClick={handleBackdrop}
           style={{
             position: 'absolute',
@@ -141,10 +143,14 @@ export function EraseAllDataModal({
             aria-modal="true"
             aria-labelledby="erase-data-title"
             aria-describedby="erase-data-desc"
-            initial={{ opacity: 0, scale: 0.94, y: 8 }}
+            initial={
+              reduceMotion
+                ? { opacity: 1, scale: 1, y: 0 }
+                : { opacity: 0, scale: 0.94, y: 8 }
+            }
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 6 }}
-            transition={MODAL_TRANSITION}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 6 }}
+            transition={modalTransition}
             onClick={e => e.stopPropagation()}
             style={{
               width: '100%',
@@ -237,7 +243,7 @@ export function EraseAllDataModal({
                     width: '100%',
                     padding: '13px 14px',
                     borderRadius: 14,
-                    border: `1.5px solid ${c.border}`,
+                    border: `1px solid ${c.border}`,
                     backgroundColor: c.surface,
                     cursor: 'pointer',
                     fontFamily: 'inherit',

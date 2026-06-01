@@ -1,14 +1,11 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppMotion } from '../hooks/useAppMotion';
 import { useScrollLock } from '../hooks/useScrollLock';
+import { MODAL_ANIMATION_MS, MODAL_TRANSITION } from '../theme/motion';
 
-export const MODAL_ANIMATION_MS = 0.3;
-
-export const MODAL_TRANSITION = {
-  duration: MODAL_ANIMATION_MS,
-  ease: [0.32, 0.72, 0, 1] as const,
-};
+export { MODAL_ANIMATION_MS, MODAL_TRANSITION } from '../theme/motion';
 
 export const MODAL_HOST_ID = 'app-modal-host';
 
@@ -22,6 +19,7 @@ export function BottomSheetModal({
   zIndex = 200,
   sheetStyle,
   scrollLockRef,
+  lockBackgroundScroll = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,11 +27,14 @@ export function BottomSheetModal({
   zIndex?: number;
   sheetStyle?: CSSProperties;
   scrollLockRef?: RefObject<HTMLElement | null>;
+  /** When false, background scroll is not locked (rare; prefer marking scroll roots with data-app-scroll). */
+  lockBackgroundScroll?: boolean;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState<HTMLElement | null>(null);
+  const { modalTransition, sheetMotion, backdropMotion } = useAppMotion();
 
-  useScrollLock(open, scrollLockRef);
+  useScrollLock(lockBackgroundScroll && open, scrollLockRef);
 
   useEffect(() => {
     setHost(document.getElementById(MODAL_HOST_ID));
@@ -59,10 +60,10 @@ export function BottomSheetModal({
             ref={backdropRef}
             key="modal-backdrop"
             role="presentation"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={MODAL_TRANSITION}
+            initial={backdropMotion.initial}
+            animate={backdropMotion.animate}
+            exit={backdropMotion.exit}
+            transition={modalTransition}
             style={{
               position: 'absolute',
               inset: 0,
@@ -77,10 +78,10 @@ export function BottomSheetModal({
           <motion.div
             key="modal-sheet"
             role="dialog"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={MODAL_TRANSITION}
+            initial={sheetMotion.initial}
+            animate={sheetMotion.animate}
+            exit={sheetMotion.exit}
+            transition={modalTransition}
             style={{
               position: 'absolute',
               bottom: 0,

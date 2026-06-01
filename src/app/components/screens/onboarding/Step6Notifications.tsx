@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Bell, ChartBar, Receipt, Target } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { AUTH_THEME } from '../../../theme/authTheme';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
 import {
   onboardingSelectableCard,
   onboardingToggleThumb,
   onboardingToggleTrack,
-} from '../../../theme/onboardingDarkUi';
+} from '../../../theme/onboardingUi';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
-import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingTitleStyle } from './OnboardingLayout';
 
 const NOTIFICATION_OPTIONS = [
   {
@@ -46,6 +46,8 @@ const NOTIFICATION_OPTIONS = [
 export default function Step6Notifications() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
 
   const [notifications, setNotifications] = useState({
     budgetAlerts: onboarding.data.notifications?.budgetAlerts ?? true,
@@ -83,7 +85,7 @@ export default function Step6Notifications() {
       onSkip={handleSkipAll}
       nextLabel="Continue"
     >
-      <h1 style={onboardingTitleStyle}>Stay on track</h1>
+      <h1 style={titleStyle}>Stay on track</h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {NOTIFICATION_OPTIONS.map(option => {
@@ -102,17 +104,17 @@ export default function Step6Notifications() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                ...onboardingSelectableCard(isEnabled),
+                ...onboardingSelectableCard(theme, isEnabled, isLight),
               }}
             >
               <OnboardingOptionIconChip icon={Icon} accentColor={option.accent} size="sm" />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>
                   {option.label}
                 </div>
               </div>
-              <div style={onboardingToggleTrack(isEnabled)}>
-                <div style={onboardingToggleThumb(isEnabled)} />
+              <div style={onboardingToggleTrack(theme, isEnabled)}>
+                <div style={onboardingToggleThumb(theme, isEnabled)} />
               </div>
             </button>
           );

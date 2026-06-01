@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { PencilSimple } from '@phosphor-icons/react';
 import type { PrimaryGoalDefinition } from '../../data/primaryGoalConfig';
@@ -23,6 +23,7 @@ export function PrimaryGoalFocusCard({
   goal,
   target,
   progress,
+  focusContributions = 0,
   animationDelay = 0,
   onEdit,
   onCurrentAmountChange,
@@ -31,6 +32,7 @@ export function PrimaryGoalFocusCard({
   goal: PrimaryGoalDefinition;
   target: PrimaryGoalTarget | null;
   progress: PrimaryGoalProgressResult;
+  focusContributions?: number;
   animationDelay?: number;
   onEdit: () => void;
   onCurrentAmountChange?: (amount: number) => void;
@@ -47,6 +49,8 @@ export function PrimaryGoalFocusCard({
 
   const [previewAmount, setPreviewAmount] = useState<number | null>(null);
 
+  const effectiveCurrent = focusContributions;
+
   const canDragProgress =
     goal.progressMode === 'target_amount' &&
     target != null &&
@@ -55,9 +59,9 @@ export function PrimaryGoalFocusCard({
 
   const displayTarget = useMemo(() => {
     if (!target) return null;
-    if (previewAmount == null) return target;
-    return { ...target, currentAmount: previewAmount };
-  }, [previewAmount, target]);
+    const amount = previewAmount ?? effectiveCurrent;
+    return { ...target, currentAmount: amount };
+  }, [previewAmount, target, effectiveCurrent]);
 
   const liveProgress = useMemo(
     () =>
@@ -68,9 +72,10 @@ export function PrimaryGoalFocusCard({
             categoryTotals: {},
             budgetGoals: [],
             categoryIds: [],
+            focusContributions,
           })
         : progress,
-    [canDragProgress, displayTarget, goal.id, progress],
+    [canDragProgress, displayTarget, focusContributions, goal.id, progress],
   );
 
   const barFillPercent = liveProgress.percent;
@@ -90,19 +95,21 @@ export function PrimaryGoalFocusCard({
       ? `${target.name ? `${target.name} · ` : ''}${formatCurrency(target.targetAmount)} by ${formatTargetDateShort(target.targetDate)}`
       : null;
 
-  const cardSurface: CSSProperties = {
-    width: '100%',
-    textAlign: 'left',
-    border: `2px solid ${hexToRgba(goal.accentColor, isDark ? 0.45 : 0.28)}`,
-    borderRadius: fc.radius,
-    background: featureCardGradient(goal.accentBg, c.featureCardEnd, isDark),
-    boxShadow: `0 4px 20px ${hexToRgba(goal.accentColor, 0.18)}`,
-    overflow: 'visible',
-    fontFamily: 'inherit',
-  };
+  const sliderAmount = previewAmount ?? effectiveCurrent;
 
   return (
-    <div style={cardSurface}>
+    <div
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        border: `1px solid ${hexToRgba(goal.accentColor, isDark ? 0.45 : 0.28)}`,
+        borderRadius: fc.radius,
+        background: featureCardGradient(goal.accentBg, c.featureCardEnd, isDark),
+        boxShadow: `0 4px 20px ${hexToRgba(goal.accentColor, 0.18)}`,
+        overflow: 'hidden',
+        fontFamily: 'inherit',
+      }}
+    >
       <button
         type="button"
         onClick={onEdit}
@@ -200,7 +207,7 @@ export function PrimaryGoalFocusCard({
         </div>
       </button>
 
-      <div style={{ padding: '0 14px 11px', boxSizing: 'border-box' }}>
+      <div style={{ padding: '0 14px 14px', boxSizing: 'border-box', overflow: 'visible' }}>
         {liveProgress.emptyHelper ? (
           <p style={{ fontSize: 11, color: c.textMuted, margin: '0 0 8px', lineHeight: 1.4 }}>
             {liveProgress.emptyHelper}
@@ -208,20 +215,20 @@ export function PrimaryGoalFocusCard({
         ) : null}
 
         {canDragProgress && target ? (
-          <div style={{ margin: '14px 0 6px', overflow: 'visible' }}>
-          <GoalTargetProgressSlider
-            currentAmount={target.currentAmount}
-            targetAmount={target.targetAmount}
-            accentColor={goal.accentColor}
-            trackBg={trackBg}
-            fillColor={fillColor}
-            animationDelay={animationDelay}
-            onPreview={amount => setPreviewAmount(amount)}
-            onCommit={amount => {
-              setPreviewAmount(null);
-              onCurrentAmountChange(amount);
-            }}
-          />
+          <div style={{ margin: '0 0 6px', overflow: 'visible' }}>
+            <GoalTargetProgressSlider
+              currentAmount={sliderAmount}
+              targetAmount={target.targetAmount}
+              accentColor={goal.accentColor}
+              trackBg={trackBg}
+              fillColor={fillColor}
+              animationDelay={animationDelay}
+              onPreview={amount => setPreviewAmount(amount)}
+              onCommit={amount => {
+                setPreviewAmount(null);
+                onCurrentAmountChange(amount);
+              }}
+            />
           </div>
         ) : (
           <div
@@ -277,7 +284,7 @@ export function PrimaryGoalFocusCard({
         </div>
         {canDragProgress ? (
           <p style={{ margin: '6px 0 0', fontSize: 10, color: c.textFaint, lineHeight: 1.35 }}>
-            Drag the bar to update how much you&apos;ve saved
+            Drag to adjust · updates from Goal expenses too
           </p>
         ) : null}
       </div>

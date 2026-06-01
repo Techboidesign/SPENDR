@@ -79,15 +79,15 @@ export function PrimaryGoalSetupModal({
     <AppBottomSheetLayout
       open={open}
       onClose={onClose}
-      titleSubline="Your focus"
       title={draftDef.label}
       headerLeading={headerLeading}
+      bodyScroll
       footer={
         <ModalActionBar
           onLeft={onClose}
           leftLabel="CANCEL"
           onSave={handleSave}
-          saveLabel="SAVE FOCUS"
+          saveLabel="SAVE"
           saveDisabled={saveDisabled}
         />
       }
@@ -99,7 +99,6 @@ export function PrimaryGoalSetupModal({
         onTargetChange={setDraftTarget}
         showGoalPicker
         compact
-        formatMoney={formatCurrency}
         currencySymbol={currencySymbol}
         variant="app"
       />

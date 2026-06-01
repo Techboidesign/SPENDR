@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft } from '@phosphor-icons/react';
 import { Button } from '../../ui/button';
 import { SpendrLogo } from '../../auth/SpendrLogo';
-import {
-  APP_PRIMARY_DARK,
-  APP_PRIMARY_DARK_BRIGHT,
-  AUTH_THEME,
-  appPrimaryDarkRgba,
-} from '../../../theme/authTheme';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import { ONBOARDING_STEPS } from '../../../theme/onboardingSteps';
+import {
+  onboardingLabelStyle,
+  onboardingStepSegmentStyle,
+  onboardingTitleStyle,
+} from '../../../theme/onboardingUi';
 
 interface OnboardingLayoutProps {
   children: ReactNode;
@@ -22,35 +22,6 @@ interface OnboardingLayoutProps {
   nextDisabled?: boolean;
   showSkip?: boolean;
   showBack?: boolean;
-}
-
-function stepSegmentStyle(stepNumber: number, currentStep: number): React.CSSProperties {
-  const isCurrent = stepNumber === currentStep;
-  const isCompleted = stepNumber < currentStep;
-
-  if (isCurrent) {
-    return {
-      height: 7,
-      borderRadius: 4,
-      backgroundColor: APP_PRIMARY_DARK_BRIGHT,
-      boxShadow: `0 0 14px ${appPrimaryDarkRgba(0.65)}`,
-    };
-  }
-
-  if (isCompleted) {
-    return {
-      height: 5,
-      borderRadius: 4,
-      backgroundColor: APP_PRIMARY_DARK,
-      opacity: 0.72,
-    };
-  }
-
-  return {
-    height: 5,
-    borderRadius: 4,
-    backgroundColor: AUTH_THEME.progressTrack,
-  };
 }
 
 export default function OnboardingLayout({
@@ -66,6 +37,7 @@ export default function OnboardingLayout({
   showBack = true,
 }: OnboardingLayoutProps) {
   const navigate = useNavigate();
+  const { theme, isLight } = useOnboardingChrome();
   const steps = ONBOARDING_STEPS.slice(0, totalSteps);
 
   const handleStepClick = (index: number) => {
@@ -80,8 +52,8 @@ export default function OnboardingLayout({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: AUTH_THEME.bgGradient,
-        color: AUTH_THEME.textPrimary,
+        background: theme.bgGradient,
+        color: theme.textPrimary,
       }}
     >
       <div
@@ -102,8 +74,8 @@ export default function OnboardingLayout({
               width: 36,
               height: 36,
               borderRadius: 20,
-              backgroundColor: AUTH_THEME.buttonGhost,
-              border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+              backgroundColor: theme.buttonGhost,
+              border: `1px solid ${theme.surfaceBorder}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -111,7 +83,7 @@ export default function OnboardingLayout({
               flexShrink: 0,
             }}
           >
-            <ArrowLeft size={18} color={AUTH_THEME.textPrimary} weight="light" />
+            <ArrowLeft size={18} color={theme.textPrimary} weight="light" />
           </button>
         ) : null}
 
@@ -159,8 +131,9 @@ export default function OnboardingLayout({
                   style={{
                     display: 'block',
                     width: '100%',
-                    transition: 'height 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease',
-                    ...stepSegmentStyle(stepNumber, currentStep),
+                    transition:
+                      'height 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease',
+                    ...onboardingStepSegmentStyle(stepNumber, currentStep, theme, isLight),
                   }}
                 />
               </button>
@@ -185,8 +158,8 @@ export default function OnboardingLayout({
           style={{
             flexShrink: 0,
             padding: '12px 20px 28px',
-            borderTop: `1px solid ${AUTH_THEME.surfaceBorder}`,
-            background: 'rgba(0, 0, 0, 0.12)',
+            borderTop: `1px solid ${theme.surfaceBorder}`,
+            background: theme.footerBg,
           }}
         >
           <Button
@@ -197,11 +170,15 @@ export default function OnboardingLayout({
               height: 52,
               fontSize: 16,
               fontWeight: 700,
-              backgroundColor: nextDisabled ? AUTH_THEME.progressTrack : AUTH_THEME.buttonPrimary,
-              color: nextDisabled ? AUTH_THEME.textFaint : AUTH_THEME.buttonPrimaryText,
+              backgroundColor: nextDisabled ? theme.progressTrack : theme.buttonPrimary,
+              color: nextDisabled ? theme.textFaint : theme.buttonPrimaryText,
               cursor: nextDisabled ? 'not-allowed' : 'pointer',
               borderRadius: 20,
-              boxShadow: nextDisabled ? 'none' : '0 4px 20px rgba(0,0,0,0.25)',
+              boxShadow: nextDisabled
+                ? 'none'
+                : isLight
+                  ? '0 4px 20px rgba(62, 55, 255, 0.25)'
+                  : '0 4px 20px rgba(0,0,0,0.25)',
             }}
           >
             {nextLabel}
@@ -217,7 +194,7 @@ export default function OnboardingLayout({
                 padding: '8px 0',
                 background: 'none',
                 border: 'none',
-                color: AUTH_THEME.textMuted,
+                color: theme.textMuted,
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -234,19 +211,12 @@ export default function OnboardingLayout({
   );
 }
 
-/** Shared typography for onboarding step content on dark background. */
-export const onboardingTitleStyle: React.CSSProperties = {
-  fontSize: 26,
-  fontWeight: 800,
-  color: AUTH_THEME.textPrimary,
-  margin: '0 0 16px',
-  letterSpacing: -0.5,
-};
+export function useOnboardingTitleStyle() {
+  const { theme } = useOnboardingChrome();
+  return onboardingTitleStyle(theme);
+}
 
-export const onboardingLabelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 13,
-  fontWeight: 700,
-  color: AUTH_THEME.textPrimary,
-  marginBottom: 8,
-};
+export function useOnboardingLabelStyle() {
+  const { theme } = useOnboardingChrome();
+  return onboardingLabelStyle(theme);
+}

@@ -47,7 +47,7 @@ export default function WelcomeScreen() {
               fontWeight: 700,
               backgroundColor: 'rgba(5, 5, 58, 0.35)',
               color: AUTH_THEME.textPrimary,
-              border: `2px solid ${AUTH_THEME.surfaceBorder}`,
+              border: `1px solid ${AUTH_THEME.surfaceBorder}`,
               borderRadius: 20,
               cursor: 'pointer',
               backdropFilter: 'blur(8px)',

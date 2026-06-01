@@ -7,7 +7,8 @@ import type {
   PrimaryGoalId,
 } from '../data/types';
 import { parsePrimaryGoal } from '../data/primaryGoalConfig';
-import { targetFromProfileFields, targetToProfileFields } from '../data/primaryGoalTarget';
+import { isFocusCategoryId, syncPrimaryGoalTargetFromExpenses } from '../data/focusCategory';
+import { goalRequiresTargetSetup, targetFromProfileFields, targetToProfileFields } from '../data/primaryGoalTarget';
 import { updateProfileSafe } from './profileUpdates';
 import { fetchOnboarding } from './onboardingService';
 import type {
@@ -275,7 +276,13 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     }
   }
 
-  return base;
+  return syncPrimaryGoalTargetFromExpenses(base);
+}
+
+async function syncPrimaryGoalProfileIfNeeded(userId: string, state: AppState): Promise<void> {
+  if (!state.primaryGoalTarget || !state.primaryGoal) return;
+  const fields = targetToProfileFields(state.primaryGoalTarget, state.primaryGoal);
+  await updateProfileSafe(userId, fields);
 }
 
 /** Persist a single reducer action to Supabase (no-op if offline config). */
@@ -291,6 +298,7 @@ export async function syncActionToSupabase(
       const row = expenseToRow(userId, action.expense);
       const { error } = await supabase.from('expenses').upsert(row);
       if (error) throw error;
+      await syncPrimaryGoalProfileIfNeeded(userId, state);
       break;
     }
     case 'ADD_EXPENSES': {
@@ -299,6 +307,7 @@ export async function syncActionToSupabase(
         const { error } = await supabase.from('expenses').upsert(rows);
         if (error) throw error;
       }
+      await syncPrimaryGoalProfileIfNeeded(userId, state);
       break;
     }
     case 'UPDATE_EXPENSE': {
@@ -316,16 +325,19 @@ export async function syncActionToSupabase(
         const { error } = await supabase.from('expenses').upsert(rows);
         if (error) throw error;
       }
+      await syncPrimaryGoalProfileIfNeeded(userId, state);
       break;
     }
     case 'DELETE_EXPENSE': {
       const { error } = await supabase.from('expenses').delete().eq('id', action.id).eq('user_id', userId);
       if (error) throw error;
+      await syncPrimaryGoalProfileIfNeeded(userId, state);
       break;
     }
     case 'DELETE_EXPENSES': {
       const { error } = await supabase.from('expenses').delete().in('id', action.ids).eq('user_id', userId);
       if (error) throw error;
+      await syncPrimaryGoalProfileIfNeeded(userId, state);
       break;
     }
     case 'SET_INCOME': {
@@ -460,9 +472,28 @@ export async function syncActionToSupabase(
       if (error) throw error;
       break;
     }
+    case 'SET_FOCUS_GOAL_PROGRESS': {
+      const expense = state.expenses[0];
+      if (expense && isFocusCategoryId(expense.categoryId)) {
+        const { error } = await supabase.from('expenses').upsert(expenseToRow(userId, expense));
+        if (error) throw error;
+      }
+      const targetFields = targetToProfileFields(state.primaryGoalTarget, state.primaryGoal);
+      await updateProfileSafe(userId, targetFields);
+      break;
+    }
     case 'SET_PRIMARY_GOAL': {
       const targetFields = targetToProfileFields(action.target ?? null, action.goal);
       await updateProfileSafe(userId, { primary_goal: action.goal, ...targetFields });
+      const expense = state.expenses[0];
+      if (
+        expense &&
+        isFocusCategoryId(expense.categoryId) &&
+        goalRequiresTargetSetup(action.goal)
+      ) {
+        const { error } = await supabase.from('expenses').upsert(expenseToRow(userId, expense));
+        if (error) throw error;
+      }
       break;
     }
     case 'HYDRATE_STATE':

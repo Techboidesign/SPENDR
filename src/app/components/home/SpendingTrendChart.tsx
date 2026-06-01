@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { INSIGHTS_CHOREOGRAPHY } from '../../theme/motion';
 
 export function SpendingTrendChart({
   data,
@@ -55,12 +56,12 @@ export function SpendingTrendChart({
                   width: '100%',
                   height: emptyBarH,
                   borderRadius: '5px 5px 0 0',
-                  border: '1.5px dashed #D1D5DB',
+                  border: '1px dashed #D1D5DB',
                   backgroundColor: '#FAFAFA',
                   backgroundImage:
                     'repeating-linear-gradient(45deg, transparent, transparent 6px, #E5E7EB 6px, #E5E7EB 8px)',
                   transformOrigin: 'bottom',
-                  animation: `barGrow 0.6s ease-out ${i * 0.05}s both`,
+                  animation: INSIGHTS_CHOREOGRAPHY.barGrow(i),
                 }} />
               ) : (
                 <div style={{
@@ -69,7 +70,7 @@ export function SpendingTrendChart({
                   backgroundColor: d.isLast ? '#3E37FF' : '#EDEDFF',
                   borderRadius: '5px 5px 0 0',
                   transformOrigin: 'bottom',
-                  animation: `barGrow 0.6s ease-out ${i * 0.05}s both`,
+                  animation: INSIGHTS_CHOREOGRAPHY.barGrow(i),
                 }} />
               )}
             </div>

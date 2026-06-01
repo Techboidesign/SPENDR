@@ -3,6 +3,7 @@ import {
   getCategoryTotals,
   getMonthExpenses,
   getMonthlyAmount,
+  getMonthSpendingTotal,
   useApp,
 } from '../context/AppContext';
 import type { CategoryIconKey } from '../data/categoryConfig';
@@ -44,7 +45,7 @@ function buildCandidates({
   const prevKey = getPreviousMonthKey(monthKey);
   const prevExpenses = getMonthExpenses(expenses, prevKey);
   const curExpenses = getMonthExpenses(expenses, monthKey);
-  const prevTotal = prevExpenses.reduce((s, e) => s + getMonthlyAmount(e), 0);
+  const prevTotal = getMonthSpendingTotal(expenses, prevKey);
 
   if (monthTotal > 0 && prevTotal > 0) {
     const pctChange = ((monthTotal - prevTotal) / prevTotal) * 100;

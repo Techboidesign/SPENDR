@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { ExpenseType } from '../data/types';
 import type { AppColorPalette } from './appColors';
 import { categoryDisplayColor } from './categoryDisplayColor';
 import { ONBOARDING_CHIP_ICON, onboardingIconGradient } from './onboardingDarkUi';
@@ -177,11 +178,22 @@ export function rowHoverBg(isDark: boolean, c: AppColorPalette): string {
   return isDark ? c.tabHoverBg : '#FAFAFC';
 }
 
+export const EXPENSE_TYPE_LABEL: Record<ExpenseType, string> = {
+  'one-time': 'One-time',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+};
+
 export function expenseTypeBadge(
-  type: 'monthly' | 'yearly',
+  type: ExpenseType,
   c: AppColorPalette,
   isDark: boolean,
 ): { color: string; bg: string } {
+  if (type === 'one-time') {
+    return isDark
+      ? { color: '#22D3EE', bg: 'rgba(6, 182, 212, 0.18)' }
+      : { color: '#0891B2', bg: '#CFFAFE' };
+  }
   if (type === 'monthly') {
     return isDark
       ? { color: c.warning, bg: c.warningSoft }
@@ -191,6 +203,27 @@ export function expenseTypeBadge(
     ? { color: '#C4B5FD', bg: 'rgba(124, 58, 237, 0.18)' }
     : { color: '#7C3AED', bg: '#EDE9FE' };
 }
+
+export function categoryExpenseBadge(
+  category: { id: string; color: string; bg: string; iconColor?: string },
+  isDark: boolean,
+): { color: string; bg: string } {
+  const accent = categoryDisplayColor(category, isDark);
+  if (isDark) {
+    return { color: accent, bg: hexToRgba(accent, 0.18) };
+  }
+  return { color: accent, bg: category.bg };
+}
+
+export const expenseMetaBadgeStyle: CSSProperties = {
+  display: 'inline-block',
+  fontSize: 9,
+  fontWeight: 600,
+  padding: '2px 6px',
+  borderRadius: 4,
+  lineHeight: 1.2,
+  whiteSpace: 'nowrap',
+};
 
 export function changeBadgeColors(
   direction: 'up' | 'down' | 'neutral',

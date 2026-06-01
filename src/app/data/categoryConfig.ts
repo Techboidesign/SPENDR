@@ -140,6 +140,9 @@ export const DEFAULT_ICON_BY_CATEGORY_ID: Record<string, CategoryIconKey> = {
   shopping: 'bag',
   utilities: 'bolt',
   other: 'package',
+  'focus-save': 'piggy',
+  'focus-debt': 'card',
+  'focus-emergency': 'bank',
 };
 
 export const CATEGORY_COLOR_PRESETS = [
@@ -241,4 +244,22 @@ export function getCategoryIconKey(
     DEFAULT_ICON_BY_CATEGORY_ID[categoryId] ??
     'package'
   );
+}
+
+/** Icon keys already assigned to other categories (excludes `excludeCategoryId` when editing). */
+export function getUsedCategoryIconKeys(
+  categories: { id: string; iconKey: CategoryIconKey }[],
+  excludeCategoryId?: string | null,
+): Set<CategoryIconKey> {
+  const used = new Set<CategoryIconKey>();
+  for (const cat of categories) {
+    if (excludeCategoryId && cat.id === excludeCategoryId) continue;
+    used.add(cat.iconKey);
+  }
+  return used;
+}
+
+export function firstAvailableCategoryIconKey(used: Set<CategoryIconKey>): CategoryIconKey {
+  const free = CATEGORY_ICON_OPTIONS.find(opt => !used.has(opt.key));
+  return free?.key ?? 'package';
 }

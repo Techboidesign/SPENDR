@@ -6,6 +6,8 @@ import { TrendUp, TrendDown, ChartPieSlice } from '@phosphor-icons/react';
 import { useApp, getMonthExpenses, getMonthlyAmount } from '../../context/AppContext';
 import { CATEGORIES, getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
+import { useReducedMotion } from 'motion/react';
+import { INSIGHTS_CHOREOGRAPHY } from '../../theme/motion';
 
 type Range = '1m' | '6m' | '1y';
 
@@ -72,14 +74,14 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
                 <div style={{
                   width: '100%', height: emptyBarH,
                   borderRadius: '5px 5px 0 0',
-                  border: `1.5px dashed ${c.borderSubtle}`,
+                  border: `1px dashed ${c.borderSubtle}`,
                   backgroundColor: c.surfaceInset,
                   backgroundImage: isDark
                     ? undefined
                     : 'repeating-linear-gradient(45deg, transparent, transparent 6px, #E5E7EB 6px, #E5E7EB 8px)',
                   cursor: 'default',
                   transformOrigin: 'bottom',
-                  animation: `barGrow 0.6s ease-out ${i * 0.05}s both`,
+                  animation: INSIGHTS_CHOREOGRAPHY.barGrow(i),
                 }} />
               ) : (
                 <div style={{
@@ -88,7 +90,7 @@ function CssBarChart({ data }: { data: { month: string; total: number; isLast: b
                   borderRadius: '5px 5px 0 0',
                   cursor: 'default',
                   transformOrigin: 'bottom',
-                  animation: `barGrow 0.6s ease-out ${i * 0.05}s both`,
+                  animation: INSIGHTS_CHOREOGRAPHY.barGrow(i),
                 }} />
               )}
             </div>
@@ -164,7 +166,7 @@ function MonthlyStackedBar({
                 borderRadius: '5px 5px 0 0',
                 cursor: 'default',
                 transformOrigin: 'bottom',
-                animation: `barGrow 0.6s ease-out ${i * 0.04}s both`,
+                animation: INSIGHTS_CHOREOGRAPHY.barGrow(i),
                 opacity: dimmed ? 0.45 : 1,
                 transition: 'opacity 0.15s',
               }} />
@@ -305,19 +307,29 @@ export default function InsightsScreen() {
     [monthlySegments]
   );
 
+  const reduceMotion = useReducedMotion() ?? false;
+
   return (
-    <div style={{ height: '100%', overflowY: 'auto', backgroundColor: c.canvas, paddingBottom: 24 }}>
+    <div
+      data-app-scroll
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        overscrollBehavior: 'none',
+        backgroundColor: c.canvas,
+        paddingBottom: 24,
+      }}
+    >
       {/* Header */}
       <div style={{ backgroundColor: c.surface, padding: '20px 20px 16px', borderBottom: `1px solid ${c.border}`,
-        animation: 'fadeIn 0.5s ease-out both' }}>
+        animation: INSIGHTS_CHOREOGRAPHY.header }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Insights</h1>
         <div style={{ display: 'flex', backgroundColor: c.canvas, borderRadius: 12, padding: 4, gap: 4 }}>
-          {(Object.keys(RANGE_LABELS) as Range[]).map((r, i) => (
+          {(Object.keys(RANGE_LABELS) as Range[]).map(r => (
             <button
               key={r}
               onClick={() => setRange(r)}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               style={{
                 flex: 1, padding: '8px 0',
                 borderRadius: 9, border: 'none', cursor: 'pointer',
@@ -325,9 +337,8 @@ export default function InsightsScreen() {
                 backgroundColor: range === r ? c.surface : 'transparent',
                 color: range === r ? c.accent : c.textMuted,
                 boxShadow: range === r ? c.shadowSm : 'none',
-                transition: 'all 0.2s',
+                transition: 'background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease',
                 fontFamily: 'inherit',
-                animation: `fadeIn 0.4s ease-out ${0.1 + i * 0.05}s both`,
               }}
             >
               {RANGE_LABELS[r]}
@@ -339,7 +350,7 @@ export default function InsightsScreen() {
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Spending Trend */}
         <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
-          animation: 'fadeSlideUp 0.6s ease-out 0.1s both' }}>
+          animation: INSIGHTS_CHOREOGRAPHY.chartCard }}>
           <div style={{ marginBottom: 14 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 2px' }}>Spending Trend</p>
             <p style={{ fontSize: 12, color: c.textFaint, margin: 0 }}>
@@ -356,7 +367,7 @@ export default function InsightsScreen() {
                   backgroundColor: isDark ? c.surfaceInset : '#FAFAFA',
                   margin: '0 auto 12px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: `2px dashed ${c.borderSubtle}`,
+                  border: `1px dashed ${c.borderSubtle}`,
                   backgroundImage: isDark
                     ? undefined
                     : 'repeating-linear-gradient(45deg, transparent, transparent 8px, #F3F4F6 8px, #F3F4F6 10px)',
@@ -381,7 +392,7 @@ export default function InsightsScreen() {
 
         {/* Category Breakdown */}
         <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
-          animation: 'fadeSlideUp 0.6s ease-out 0.2s both' }}>
+          animation: INSIGHTS_CHOREOGRAPHY.sectionCard }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Category Breakdown</p>
           {categoryTotals.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center' }}>
@@ -394,7 +405,7 @@ export default function InsightsScreen() {
               {categoryTotals.map((cat, idx) => {
                 const share = grandTotal > 0 ? ((cat.amount / grandTotal) * 100).toFixed(1) : '0.0';
                 return (
-                  <div key={`${cat.id}-${range}`} style={{ animation: `fadeSlideUp 0.5s ease-out ${idx * 0.05}s both` }}>
+                  <div key={`${cat.id}-${range}`}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                       <CategoryIcon categoryId={cat.id} size="xs" />
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: c.text }}>{cat.name}</span>
@@ -407,7 +418,8 @@ export default function InsightsScreen() {
                       <div style={{
                         height: '100%', width: `${cat.pct}%`,
                         backgroundColor: cat.color, borderRadius: 3,
-                        animation: 'progressBarFill 0.8s ease-out both',
+                        transformOrigin: 'left center',
+                        animation: INSIGHTS_CHOREOGRAPHY.progressBar,
                       }} />
                     </div>
                   </div>
@@ -419,7 +431,7 @@ export default function InsightsScreen() {
 
         {/* Recurring vs One-time */}
         <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
-          animation: 'fadeSlideUp 0.6s ease-out 0.3s both' }}>
+          animation: INSIGHTS_CHOREOGRAPHY.sectionCard }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Recurring vs One-time</p>
           {grandTotal === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center' }}>
@@ -440,7 +452,7 @@ export default function InsightsScreen() {
                     paddingAngle={3}
                     dataKey="value"
                     strokeWidth={0}
-                    animationDuration={600}
+                    animationDuration={reduceMotion ? 0 : 400}
                   />
                 </PieChart>
                 {/* Perfect center using inset + flex */}
@@ -474,7 +486,8 @@ export default function InsightsScreen() {
                         height: '100%',
                         width: grandTotal > 0 ? `${(d.value / grandTotal) * 100}%` : '0%',
                         backgroundColor: d.color, borderRadius: 2,
-                        animation: 'progressBarFill 0.8s ease-out both',
+                        transformOrigin: 'left center',
+                        animation: INSIGHTS_CHOREOGRAPHY.progressBar,
                       }} />
                     </div>
                   </div>
@@ -486,7 +499,7 @@ export default function InsightsScreen() {
 
         {/* Top Single Expenses */}
         <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
-          animation: 'fadeSlideUp 0.6s ease-out 0.4s both' }}>
+          animation: INSIGHTS_CHOREOGRAPHY.sectionCard }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 14px' }}>Top Single Expenses</p>
           {top3Expenses.length === 0 ? (
             <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '16px 0' }}>No one-time expenses in this period</p>
@@ -499,7 +512,6 @@ export default function InsightsScreen() {
                   backgroundColor: i === 0
                     ? (isDark ? hexToRgba('#3E37FF', 0.14) : '#EDEDFF')
                     : c.surfaceMuted,
-                  animation: `fadeSlideUp 0.5s ease-out ${i * 0.1}s both`,
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 800, color: i === 0 ? c.accent : c.textFaint, width: 20 }}>#{i + 1}</span>
                   <CategoryIcon categoryId={exp.categoryId} size="xs" />
@@ -520,7 +532,7 @@ export default function InsightsScreen() {
 
         {/* Month-over-Month */}
         <div style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, boxShadow: c.shadowCard,
-          animation: 'fadeSlideUp 0.6s ease-out 0.5s both' }}>
+          animation: INSIGHTS_CHOREOGRAPHY.sectionCard }}>
           <div style={{ marginBottom: 14 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: c.text, margin: '0 0 2px' }}>Month-over-Month</p>
             <p style={{ fontSize: 12, color: c.textFaint, margin: 0 }}>{momLabel}</p>
@@ -540,7 +552,6 @@ export default function InsightsScreen() {
                   border: `1px solid ${isUp
                     ? (isDark ? hexToRgba('#EF4444', 0.22) : '#FEE2E2')
                     : (isDark ? hexToRgba('#10B981', 0.22) : '#D1FAE5')}`,
-                  animation: `fadeSlideUp 0.5s ease-out ${idx * 0.1}s both`,
                 }}>
                   <CategoryIcon categoryId={ins.cat} size="xs" />
                   <div style={{ flex: 1 }}>
@@ -575,7 +586,7 @@ export default function InsightsScreen() {
         @keyframes fadeSlideUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -584,7 +595,8 @@ export default function InsightsScreen() {
         }
 
         @keyframes progressBarFill {
-          from { width: 0; }
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
         }
 
         @keyframes barGrow {

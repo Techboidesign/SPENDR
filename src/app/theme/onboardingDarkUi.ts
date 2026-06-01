@@ -1,5 +1,4 @@
-import type { CSSProperties } from 'react';
-import { AUTH_THEME, appPrimaryDarkRgba } from './authTheme';
+/** Dark onboarding icon chips — used by CategoryIcon tone="dark" and legacy gradients. */
 
 /** Icon stroke on gradient chips in dark onboarding */
 export const ONBOARDING_CHIP_ICON = '#FFFFFF';
@@ -32,6 +31,11 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${clamp(r)}${clamp(g)}${clamp(b)}`;
 }
 
+export function hexToRgba(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** ~2× darker: half brightness per channel */
 export function darkenHex(hex: string, factor = 0.5): string {
   const { r, g, b } = hexToRgb(hex);
@@ -52,7 +56,7 @@ export function onboardingIconGradient(accentColor: string): string {
   return `linear-gradient(135deg, ${dark} 0%, ${base} 100%)`;
 }
 
-/** Gradient chip + white icon */
+/** Gradient chip + white icon (dark surfaces) */
 export function darkIconChip(accentColor: string): {
   iconBg: string;
   iconColor: string;
@@ -62,48 +66,3 @@ export function darkIconChip(accentColor: string): {
     iconColor: ONBOARDING_CHIP_ICON,
   };
 }
-
-export function onboardingSelectableCard(selected: boolean): CSSProperties {
-  return {
-    border: `2px solid ${selected ? AUTH_THEME.accent : AUTH_THEME.surfaceBorder}`,
-    backgroundColor: selected ? AUTH_THEME.surfaceSelected : AUTH_THEME.surface,
-    boxShadow: selected ? `0 2px 16px ${appPrimaryDarkRgba(0.4)}` : 'none',
-    transition: 'all 0.2s ease',
-  };
-}
-
-export function onboardingRowCard(): CSSProperties {
-  return {
-    backgroundColor: AUTH_THEME.surface,
-    border: `2px solid ${AUTH_THEME.surfaceBorder}`,
-    borderRadius: 12,
-  };
-}
-
-export function onboardingToggleTrack(enabled: boolean): CSSProperties {
-  return {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: enabled ? AUTH_THEME.accent : AUTH_THEME.progressTrack,
-    position: 'relative' as const,
-    transition: 'background-color 0.2s ease',
-    flexShrink: 0,
-  };
-}
-
-export function onboardingToggleThumb(enabled: boolean): CSSProperties {
-  return {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: AUTH_THEME.textPrimary,
-    position: 'absolute' as const,
-    top: 2,
-    left: enabled ? 22 : 2,
-    transition: 'left 0.2s ease',
-  };
-}
-
-export const onboardingSuccessColor = '#6EE7B7';
-export const onboardingDangerColor = '#FCA5A5';

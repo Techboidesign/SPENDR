@@ -2,15 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { House, ForkKnife, Car, Lightning, ShoppingBag, FilmSlate, PiggyBank } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
-import { AUTH_THEME } from '../../../theme/authTheme';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import {
-  darkIconChip,
   onboardingDangerColor,
+  onboardingIconChip,
   onboardingRowCard,
   onboardingSuccessColor,
-} from '../../../theme/onboardingDarkUi';
+} from '../../../theme/onboardingUi';
 import { formatSliderAmountLabel } from '../../../utils/nonLinearAmountScale';
-import { FormInput, FormSelect, formFieldStyleCompactDark } from '../../shared/FormFields';
+import { FormInput, FormSelect, formFieldStyleCompact } from '../../shared/FormFields';
 import { IncomeBudgetWarning } from '../../onboarding/IncomeBudgetWarning';
 import { OnboardingAmountField } from '../../onboarding/OnboardingAmountField';
 import {
@@ -24,7 +24,7 @@ import {
 } from '../../../utils/budgetAllocation';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 import { getCurrencySymbol } from '../../../utils/currencySymbol';
-import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingLabelStyle, useOnboardingTitleStyle } from './OnboardingLayout';
 
 const BUDGET_CATEGORIES = [
   { id: 'housing', label: 'Housing', suggested: 30, icon: House, accent: '#3E37FF' },
@@ -46,6 +46,9 @@ const ALLOCATION_MODE_OPTIONS: { value: AllocationMode; label: string }[] = [
 export default function Step4Budget() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
+  const labelStyle = useOnboardingLabelStyle();
 
   const monthlyIncome = onboarding.data.monthlyAmount?.value ?? 0;
 
@@ -116,7 +119,7 @@ export default function Step4Budget() {
       return { label: 'Fully allocated', color: onboardingSuccessColor };
     }
     if (remaining > 0) {
-      return { label: `$${remaining} left`, color: AUTH_THEME.textMuted };
+      return { label: `$${remaining} left`, color: theme.textMuted };
     }
     return { label: `$${Math.abs(remaining)} over`, color: onboardingDangerColor };
   }, [isAutomatic, remaining]);
@@ -184,14 +187,14 @@ export default function Step4Budget() {
       nextDisabled={budgetNum <= 0 || (incomeCap > 0 && budgetNum > incomeCap)}
       nextLabel="Continue"
     >
-      <h1 style={onboardingTitleStyle}>Set your budget</h1>
+      <h1 style={titleStyle}>Set your budget</h1>
 
       <p
         style={{
           margin: '0 0 16px',
           fontSize: 14,
           lineHeight: 1.5,
-          color: AUTH_THEME.textMuted,
+          color: theme.textMuted,
           fontWeight: 500,
         }}
       >
@@ -228,7 +231,7 @@ export default function Step4Budget() {
             <h2
               className="font-figure"
               style={{
-                ...onboardingLabelStyle,
+                ...labelStyle,
                 marginBottom: 0,
                 color: allocationStatus.color,
               }}
@@ -236,12 +239,12 @@ export default function Step4Budget() {
               {allocationStatus.label}
             </h2>
             <FormSelect
-              tone="dark"
+              tone="light"
               value={allocationMode}
               onChange={(e) => handleModeChange(e.target.value as AllocationMode)}
               aria-label="Allocation mode"
               style={{
-                ...formFieldStyleCompactDark,
+                ...formFieldStyleCompact,
                 width: 'auto',
                 minWidth: 168,
                 height: 34,
@@ -263,7 +266,7 @@ export default function Step4Budget() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {BUDGET_CATEGORIES.map(cat => {
               const Icon = cat.icon;
-              const chip = darkIconChip(cat.accent);
+              const chip = onboardingIconChip(cat.accent, isLight);
               return (
                 <div
                   key={cat.id}
@@ -273,7 +276,7 @@ export default function Step4Budget() {
                     gap: 8,
                     padding: 8,
                     borderRadius: 12,
-                    ...onboardingRowCard(),
+                    ...onboardingRowCard(theme),
                   }}
                 >
                   <div
@@ -290,7 +293,7 @@ export default function Step4Budget() {
                   >
                     <Icon size={14} weight="light" color={chip.iconColor} />
                   </div>
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+                  <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: theme.textPrimary }}>
                     {cat.label}
                   </div>
                   <div style={{ position: 'relative', width: 80 }}>
@@ -301,7 +304,7 @@ export default function Step4Budget() {
                         top: '50%',
                         transform: 'translateY(-50%)',
                         fontSize: 12,
-                        color: AUTH_THEME.textMuted,
+                        color: theme.textMuted,
                         fontWeight: 700,
                       }}
                     >
@@ -309,7 +312,7 @@ export default function Step4Budget() {
                     </span>
                     <FormInput
                       type="number"
-                      tone="dark"
+                      tone="light"
                       className="font-figure"
                       min={0}
                       max={isAutomatic ? budgetNum : undefined}
@@ -317,7 +320,7 @@ export default function Step4Budget() {
                       onChange={(e) => handleAllocationChange(cat.id, e.target.value)}
                       placeholder="0"
                       style={{
-                        ...formFieldStyleCompactDark,
+                        ...formFieldStyleCompact,
                         paddingLeft: 16,
                         paddingRight: 6,
                       }}

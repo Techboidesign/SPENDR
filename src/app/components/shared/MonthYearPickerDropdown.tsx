@@ -8,8 +8,9 @@ import {
   toYearMonthKey,
 } from '../../utils/periods';
 
-const PICKER_Z = 500;
-const BACKDROP_Z = 499;
+/** Above tab bar pickers; modals pass MODAL_OVERLAY_Z + n so the panel clears the sheet. */
+export const MONTH_PICKER_Z = 500;
+const PANEL_ESTIMATE_PX = 320;
 
 type MonthYearPickerDropdownProps = {
   monthKey: string;
@@ -19,6 +20,7 @@ type MonthYearPickerDropdownProps = {
   fullWidth?: boolean;
   minDate?: Date;
   maxDate?: Date;
+  zIndex?: number;
 };
 
 export function MonthYearPickerDropdown({
@@ -29,33 +31,44 @@ export function MonthYearPickerDropdown({
   fullWidth = false,
   minDate = MONTH_PICKER_MIN_DATE,
   maxDate = MONTH_PICKER_MAX_DATE,
+  zIndex = MONTH_PICKER_Z,
 }: MonthYearPickerDropdownProps) {
   const selectedMonth = monthKeyToDate(monthKey);
+  const backdropZ = zIndex - 1;
 
   const panelStyle: CSSProperties = anchorRect
-    ? {
-        position: 'fixed',
-        top: anchorRect.bottom + 8,
-        left: fullWidth ? anchorRect.left : Math.max(12, anchorRect.left),
-        width: fullWidth
+    ? (() => {
+        const width = fullWidth
           ? anchorRect.width
-          : Math.min(300, Math.max(anchorRect.width, 280)),
-        zIndex: PICKER_Z,
-      }
+          : Math.min(300, Math.max(anchorRect.width, 280));
+        const left = fullWidth ? anchorRect.left : Math.max(12, anchorRect.left);
+        const spaceBelow = window.innerHeight - anchorRect.bottom;
+        const openUp = spaceBelow < PANEL_ESTIMATE_PX + 16;
+        const top = openUp
+          ? Math.max(12, anchorRect.top - PANEL_ESTIMATE_PX - 8)
+          : anchorRect.bottom + 8;
+        return {
+          position: 'fixed',
+          top,
+          left,
+          width,
+          zIndex,
+        };
+      })()
     : {
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: 300,
-        zIndex: PICKER_Z,
+        zIndex,
       };
 
   return createPortal(
     <>
       <div
         role="presentation"
-        style={{ position: 'fixed', inset: 0, zIndex: BACKDROP_Z }}
+        style={{ position: 'fixed', inset: 0, zIndex: backdropZ }}
         onClick={onClose}
       />
       <div role="dialog" aria-label="Choose month" style={panelStyle}>

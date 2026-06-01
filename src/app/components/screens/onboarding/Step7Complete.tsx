@@ -12,11 +12,16 @@ import {
 import { getCurrencyIcon } from '../../../data/currencyConfig';
 import { getPrimaryGoalDefinition, parsePrimaryGoal, resolveOnboardingGoalChoice } from '../../../data/primaryGoalConfig';
 import { formatTargetDateShort } from '../../../data/primaryGoalTarget';
-import { AUTH_THEME, APP_PRIMARY_DARK, appPrimaryDarkRgba } from '../../../theme/authTheme';
-import { onboardingRowCard } from '../../../theme/onboardingDarkUi';
-import { OnboardingSummaryRow, onboardingSectionLabelStyle } from '../../onboarding/OnboardingSummaryRow';
+import { APP_PRIMARY } from '../../../theme/authTheme';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
+import { onboardingHeroGradient, onboardingRowCard } from '../../../theme/onboardingUi';
+import { hexToRgba } from '../../../theme/onboardingDarkUi';
+import {
+  OnboardingSummaryRow,
+  useOnboardingSectionLabelStyle,
+} from '../../onboarding/OnboardingSummaryRow';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
-import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingTitleStyle } from './OnboardingLayout';
 import { formatErrorMessage } from '../../../utils/formatError';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -44,6 +49,9 @@ export default function Step7Complete() {
   const navigate = useNavigate();
   const { back, onboarding, complete } = useOnboarding();
   const { completeOnboardingAndSync } = useApp();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
+  const sectionLabelStyle = useOnboardingSectionLabelStyle();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -209,9 +217,11 @@ export default function Step7Complete() {
           padding: '12px 14px',
           marginBottom: 14,
           overflow: 'hidden',
-          border: `1px solid ${AUTH_THEME.surfaceBorder}`,
-          background: `linear-gradient(145deg, ${appPrimaryDarkRgba(0.38)} 0%, ${AUTH_THEME.surface} 55%, rgba(94, 234, 212, 0.08) 100%)`,
-          boxShadow: `0 4px 20px ${appPrimaryDarkRgba(0.28)}`,
+          border: `1px solid ${theme.surfaceBorder}`,
+          background: onboardingHeroGradient(theme, isLight),
+          boxShadow: isLight
+            ? '0 4px 20px rgba(62, 55, 255, 0.12)'
+            : `0 4px 20px ${hexToRgba(APP_PRIMARY, 0.28)}`,
         }}
       >
         <div
@@ -225,7 +235,7 @@ export default function Step7Complete() {
         >
           <h1
             style={{
-              ...onboardingTitleStyle,
+              ...titleStyle,
               margin: 0,
               fontSize: 20,
               lineHeight: 1.2,
@@ -242,17 +252,17 @@ export default function Step7Complete() {
               gap: 5,
               padding: '4px 9px',
               borderRadius: 20,
-              backgroundColor: appPrimaryDarkRgba(0.28),
-              border: `1px solid ${appPrimaryDarkRgba(0.4)}`,
+              backgroundColor: hexToRgba(APP_PRIMARY, isLight ? 0.1 : 0.28),
+              border: `1px solid ${hexToRgba(APP_PRIMARY, isLight ? 0.22 : 0.4)}`,
               flexShrink: 0,
             }}
           >
-            <Sparkle size={11} color={AUTH_THEME.accentMint} weight="fill" />
+            <Sparkle size={11} color={theme.accentMint} weight="fill" />
             <span
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                color: AUTH_THEME.accentMint,
+                color: theme.accentMint,
                 letterSpacing: 0.03,
                 whiteSpace: 'nowrap',
               }}
@@ -265,7 +275,7 @@ export default function Step7Complete() {
           style={{
             margin: 0,
             fontSize: 12,
-            color: AUTH_THEME.textMuted,
+            color: theme.textMuted,
             lineHeight: 1.4,
           }}
         >
@@ -277,7 +287,7 @@ export default function Step7Complete() {
         <div
           role="alert"
           style={{
-            ...onboardingRowCard(),
+            ...onboardingRowCard(theme),
             padding: '8px 12px',
             marginBottom: 12,
             borderColor: 'rgba(252, 165, 165, 0.45)',
@@ -288,7 +298,7 @@ export default function Step7Complete() {
         </div>
       ) : null}
 
-      <p style={onboardingSectionLabelStyle()}>Your setup</p>
+      <p style={sectionLabelStyle}>Your setup</p>
 
       <div
         style={{
@@ -304,7 +314,7 @@ export default function Step7Complete() {
           <div
             style={{
               gridColumn: '1 / -1',
-              ...onboardingRowCard(),
+              ...onboardingRowCard(theme),
               padding: '10px 12px 11px',
             }}
           >
@@ -313,16 +323,16 @@ export default function Step7Complete() {
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: AUTH_THEME.textMuted,
+                  color: theme.textMuted,
                   marginBottom: 2,
                 }}
               >
                 Categories
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: theme.textPrimary }}>
                 {categoryCount} selected
                 {customCats.length > 0 ? (
-                  <span style={{ fontWeight: 600, color: AUTH_THEME.textFaint }}>
+                  <span style={{ fontWeight: 600, color: theme.textFaint }}>
                     {' '}
                     · {customCats.length} custom
                   </span>
@@ -339,14 +349,14 @@ export default function Step7Complete() {
         style={{
           margin: 0,
           fontSize: 12,
-          color: AUTH_THEME.textFaint,
+          color: theme.textFaint,
           textAlign: 'center',
           lineHeight: 1.45,
           paddingBottom: 2,
         }}
       >
         You can change any of this later in{' '}
-        <span style={{ color: APP_PRIMARY_DARK, fontWeight: 600 }}>Settings</span>
+        <span style={{ color: APP_PRIMARY, fontWeight: 600 }}>Settings</span>
       </p>
     </OnboardingLayout>
   );

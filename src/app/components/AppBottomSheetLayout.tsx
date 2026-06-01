@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useAppColors, useAppearance } from '../context/AppearanceContext';
 import { bottomSheetChrome } from '../theme/modalSheet';
@@ -12,6 +12,9 @@ export function AppBottomSheetLayout({
   headerLeading,
   children,
   footer,
+  scrollLockRef,
+  lockBackgroundScroll,
+  bodyScroll = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,12 +23,31 @@ export function AppBottomSheetLayout({
   headerLeading?: ReactNode;
   children: ReactNode;
   footer: ReactNode;
+  scrollLockRef?: RefObject<HTMLElement | null>;
+  lockBackgroundScroll?: boolean;
+  /** Scrollable body when content exceeds sheet height (footer stays pinned). */
+  bodyScroll?: boolean;
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
 
   return (
-    <BottomSheetModal open={open} onClose={onClose} sheetStyle={bottomSheetChrome(c)}>
+    <BottomSheetModal
+      open={open}
+      onClose={onClose}
+      sheetStyle={bottomSheetChrome(c)}
+      scrollLockRef={scrollLockRef}
+      lockBackgroundScroll={lockBackgroundScroll}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
       <div style={{ flexShrink: 0, padding: '12px 20px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 8 }}>
           <div
@@ -82,9 +104,27 @@ export function AppBottomSheetLayout({
         </div>
       </div>
 
-      <div style={{ flexShrink: 0, padding: '0 20px 4px', overflow: 'hidden' }}>{children}</div>
+      <div
+        style={
+          bodyScroll
+            ? {
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: '0 20px 12px',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+                overscrollBehavior: 'contain',
+              }
+            : { flexShrink: 0, padding: '0 20px 4px', overflow: 'hidden' }
+        }
+      >
+        {children}
+      </div>
 
       {footer}
+      </div>
     </BottomSheetModal>
   );
 }

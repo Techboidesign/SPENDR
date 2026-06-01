@@ -51,25 +51,56 @@ function MockStatusBar() {
         </svg>
         <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden>
           <path d="M8 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" fill={iconFill} />
-          <path d="M4.93 7.07A5 5 0 0 1 11.07 7.07" stroke={iconFill} strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M2.1 4.24A8.5 8.5 0 0 1 13.9 4.24" stroke={iconFill} strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M0 1.5A11.5 11.5 0 0 1 16 1.5" stroke={iconFill} strokeWidth="1.5" strokeLinecap="round" opacity="0.35" />
+          <path
+            d="M4.93 7.07A5 5 0 0 1 11.07 7.07"
+            stroke={iconFill}
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+          <path
+            d="M2.1 4.24A8.5 8.5 0 0 1 13.9 4.24"
+            stroke={iconFill}
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+          <path
+            d="M0 1.5A11.5 11.5 0 0 1 16 1.5"
+            stroke={iconFill}
+            strokeWidth="1"
+            strokeLinecap="round"
+            opacity="0.35"
+          />
         </svg>
         <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <div
             style={{
               width: 25,
               height: 12,
-              border: `1.5px solid ${iconFill}`,
+              border: `1px solid ${iconFill}`,
               borderRadius: 3,
               padding: 1.5,
               display: 'flex',
               alignItems: 'center',
             }}
           >
-            <div style={{ width: '80%', height: '100%', backgroundColor: iconFill, borderRadius: 1 }} />
+            <div
+              style={{
+                width: '80%',
+                height: '100%',
+                backgroundColor: iconFill,
+                borderRadius: 1,
+              }}
+            />
           </div>
-          <div style={{ width: 2, height: 5, backgroundColor: iconFill, borderRadius: 1, opacity: 0.5 }} />
+          <div
+            style={{
+              width: 2,
+              height: 5,
+              backgroundColor: iconFill,
+              borderRadius: 1,
+              opacity: 0.5,
+            }}
+          />
         </div>
       </div>
     </div>
@@ -93,7 +124,19 @@ export default function DeviceShell({ children, chrome, overlay }: DeviceShellPr
         {children}
         {chrome}
       </div>
-      {overlay}
+      {overlay ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+            zIndex: 60,
+          }}
+        >
+          {overlay}
+        </div>
+      ) : null}
     </div>
   ) : (
     <div
@@ -116,7 +159,19 @@ export default function DeviceShell({ children, chrome, overlay }: DeviceShellPr
         {children}
         {chrome}
       </div>
-      {overlay}
+      {overlay ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            overflow: 'hidden',
+            zIndex: 60,
+          }}
+        >
+          {overlay}
+        </div>
+      ) : null}
     </div>
   );
 

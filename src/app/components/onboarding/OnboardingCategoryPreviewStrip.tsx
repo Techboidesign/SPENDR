@@ -1,7 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CategoryIcon, CategoryIconPreview } from '../CategoryIcon';
 import type { CategoryIconKey } from '../../data/categoryConfig';
-import { AUTH_THEME, appPrimaryDarkRgba } from '../../theme/authTheme';
+import { useOnboardingChrome } from '../../context/OnboardingThemeContext';
+import { APP_PRIMARY } from '../../theme/authTheme';
+import { hexToRgba } from '../../theme/onboardingUi';
 
 const ICON_OUTER = 28;
 const ICON_OVERLAP = 10;
@@ -42,14 +44,16 @@ function fitVisibleCount(total: number, containerWidth: number): { visible: numb
 function CategoryStripIcon({
   item,
   title,
+  iconTone,
 }: {
   item: CategoryStripItem;
   title: string;
+  iconTone: 'light' | 'dark';
 }) {
   return (
     <div title={title} aria-label={title}>
       {item.kind === 'builtin' ? (
-        <CategoryIcon categoryId={item.id} size="xs" tone="dark" />
+        <CategoryIcon categoryId={item.id} size="xs" tone={iconTone} />
       ) : (
         <CategoryIconPreview
           iconKey={item.iconKey}
@@ -57,7 +61,7 @@ function CategoryStripIcon({
           bg={item.bg}
           iconColor={item.iconColor}
           size="xs"
-          tone="dark"
+          tone={iconTone}
         />
       )}
     </div>
@@ -65,6 +69,8 @@ function CategoryStripIcon({
 }
 
 export function OnboardingCategoryPreviewStrip({ items }: { items: CategoryStripItem[] }) {
+  const { theme, isLight } = useOnboardingChrome();
+  const iconTone = isLight ? 'light' : 'dark';
   const rowRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -86,7 +92,7 @@ export function OnboardingCategoryPreviewStrip({ items }: { items: CategoryStrip
   );
 
   const visibleItems = items.slice(0, visible);
-  const ringColor = AUTH_THEME.bgSolid;
+  const ringColor = theme.bgSolid;
 
   return (
     <div
@@ -119,10 +125,10 @@ export function OnboardingCategoryPreviewStrip({ items }: { items: CategoryStrip
               zIndex: index + 1,
               position: 'relative',
               borderRadius: 8,
-              boxShadow: `0 0 0 2px ${ringColor}`,
+              boxShadow: `0 0 0 1px ${ringColor}`,
             }}
           >
-            <CategoryStripIcon item={item} title={item.name} />
+            <CategoryStripIcon item={item} title={item.name} iconTone={iconTone} />
           </div>
         ))}
 
@@ -137,15 +143,17 @@ export function OnboardingCategoryPreviewStrip({ items }: { items: CategoryStrip
               zIndex: visible + 1,
               position: 'relative',
               borderRadius: 8,
-              boxShadow: `0 0 0 2px ${ringColor}`,
-              background: `linear-gradient(135deg, ${appPrimaryDarkRgba(0.55)} 0%, ${AUTH_THEME.surface} 100%)`,
-              border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+              boxShadow: `0 0 0 1px ${ringColor}`,
+              background: isLight
+                ? hexToRgba(APP_PRIMARY, 0.12)
+                : `linear-gradient(135deg, rgba(62, 55, 255, 0.55) 0%, ${theme.surface} 100%)`,
+              border: `1px solid ${theme.surfaceBorder}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 11,
               fontWeight: 800,
-              color: AUTH_THEME.textPrimary,
+              color: theme.textPrimary,
               letterSpacing: -0.02,
             }}
           >
@@ -153,7 +161,6 @@ export function OnboardingCategoryPreviewStrip({ items }: { items: CategoryStrip
           </div>
         ) : null}
       </div>
-
     </div>
   );
 }

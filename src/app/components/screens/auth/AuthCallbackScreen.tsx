@@ -192,7 +192,7 @@ function CallbackBody({
             width: 40,
             height: 40,
             borderRadius: '50%',
-            border: '3px solid rgba(255,255,255,0.2)',
+            border: '1px solid rgba(255,255,255,0.2)',
             borderTopColor: AUTH_THEME.accentMint,
             animation: 'auth-callback-spin 0.8s linear infinite',
             marginBottom: 24,

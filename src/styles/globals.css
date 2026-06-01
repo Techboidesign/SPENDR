@@ -105,14 +105,32 @@
 
 @keyframes spendr-breakdown-bar-grow {
   from {
-    width: 0;
+    transform: scaleX(0);
   }
   to {
-    width: var(--bar-target);
+    transform: scaleX(1);
   }
 }
 
 .spendr-breakdown-bar-grow {
-  width: 0;
+  width: var(--bar-target);
+  transform: scaleX(0);
+  transform-origin: left center;
   animation: spendr-breakdown-bar-grow 0.55s cubic-bezier(0.32, 0.72, 0, 1) var(--bar-delay, 0ms) both;
+}
+
+/* Respect system reduced-motion for all CSS-driven animation */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-pulse {
+    animation: none !important;
+  }
 }

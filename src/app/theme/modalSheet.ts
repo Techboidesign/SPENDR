@@ -12,7 +12,6 @@ export function bottomSheetChrome(c: AppColorPalette): CSSProperties {
     flexDirection: 'column',
     overflow: 'hidden',
     overscrollBehavior: 'none',
-    touchAction: 'pan-x pan-y pinch-zoom',
     boxShadow: c.shadow,
   };
 }

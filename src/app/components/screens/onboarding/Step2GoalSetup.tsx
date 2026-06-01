@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
 import type { OnboardingGoalChoice } from '../../../data/types';
 import {
   getPrimaryGoalDefinition,
@@ -11,17 +12,18 @@ import {
   goalRequiresTargetSetup,
 } from '../../../data/primaryGoalTarget';
 import type { PrimaryGoalTarget } from '../../../data/primaryGoalTarget';
-import { AUTH_THEME } from '../../../theme/authTheme';
 import { OnboardingOptionIconChip } from '../../onboarding/OnboardingOptionIconChip';
-import { onboardingSelectableCard } from '../../../theme/onboardingDarkUi';
+import { onboardingSelectableCard } from '../../../theme/onboardingUi';
 import { isGoalSetupComplete, PrimaryGoalSetupForm } from '../../budget/PrimaryGoalSetupForm';
 import { getCurrencySymbol } from '../../../utils/currencySymbol';
-import OnboardingLayout, { onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingTitleStyle } from './OnboardingLayout';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
 
 export default function Step2GoalSetup() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
+  const { theme, isLight } = useOnboardingChrome();
+  const titleStyle = useOnboardingTitleStyle();
 
   const choice = (onboarding.data.primaryGoal ?? 'track') as OnboardingGoalChoice;
   const resolvedId = resolveOnboardingGoalChoice(choice);
@@ -82,12 +84,12 @@ export default function Step2GoalSetup() {
       nextDisabled={!canContinue}
       nextLabel="Continue"
     >
-      <h1 style={onboardingTitleStyle}>{title}</h1>
+      <h1 style={titleStyle}>{title}</h1>
       <p
         style={{
           margin: '0 0 16px',
           fontSize: 13,
-          color: AUTH_THEME.textMuted,
+          color: theme.textMuted,
           lineHeight: 1.45,
         }}
       >
@@ -102,13 +104,13 @@ export default function Step2GoalSetup() {
           padding: '10px 12px',
           borderRadius: 14,
           marginBottom: 16,
-          ...onboardingSelectableCard(true),
+          ...onboardingSelectableCard(theme, true, isLight),
         }}
       >
         <OnboardingOptionIconChip icon={Icon} accentColor={def.accentColor} />
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: AUTH_THEME.textMuted }}>Your focus</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: AUTH_THEME.textPrimary }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: theme.textMuted }}>Your focus</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary }}>
             {isExploring ? 'Track my spending' : def.label}
           </div>
         </div>

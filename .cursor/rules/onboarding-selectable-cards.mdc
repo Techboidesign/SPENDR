@@ -1,0 +1,31 @@
+---
+description: Onboarding selectable rows and choice buttons (goals, notifications, income type, etc.)
+globs:
+  - src/app/components/screens/onboarding/**
+  - src/app/components/onboarding/**
+  - src/app/theme/onboardingUi.ts
+  - src/app/theme/onboardingTheme.ts
+---
+
+# Onboarding selectable items
+
+See also **`.cursor/rules/app-stroke-1px.mdc`** — all UI strokes are **1px** app-wide.
+
+Use **`onboardingSelectableCard(theme, selected, isLight)`** from `onboardingUi.ts` for every tappable row or choice button in onboarding (goal list, notification toggles row chrome, income type pills, goal-setup focus card, etc.).
+
+## Light mode (default)
+
+- **Border:** `ONBOARDING_SELECTABLE_BORDER_WIDTH` (**1px**) for both selected and unselected — never 2px on these rows
+- **Selected:** white background (`surfaceSelected` = `#FFFFFF`), **1px accent border** — no purple fill, **no box-shadow / glow**
+- **Unselected:** white background, **1px** neutral `surfaceBorder`
+- Selection is communicated by **border + text weight/color only**, not tint or shadow
+
+## Do not
+
+- `boxShadow` or colored glow on selected onboarding options in light mode
+- `rgba(62, 55, 255, 0.08)` (or similar) fill on selected rows — keep background white
+- One-off `AUTH_THEME` / inline selected styles — use `useOnboardingChrome()` + `onboardingSelectableCard`
+
+## Dark onboarding (legacy)
+
+If `isLight` is false, tinted `surfaceSelected` and subtle shadow may remain — light path must stay flat white + border.

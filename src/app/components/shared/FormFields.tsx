@@ -1,4 +1,5 @@
 import { ComponentProps, CSSProperties } from 'react';
+import type { AppColorPalette } from '../../theme/appColors';
 import { Input } from '../ui/input';
 
 /** Shared corner radius for onboarding + auth fields (inputs and selects). */
@@ -29,6 +30,15 @@ export const formFieldStyle: CSSProperties = {
   ...inputFieldExtras,
 };
 
+/** App modals/screens: shared overrides for `FormInput`, `CurrencyAmountInput`, `MonthYearFieldInput`. */
+export function appFormFieldStyle(c: AppColorPalette): CSSProperties {
+  return {
+    borderColor: c.border,
+    backgroundColor: c.surfaceAlt,
+    color: c.text,
+  };
+}
+
 export const formFieldStyleCompact: CSSProperties = {
   ...formFieldStyle,
   height: 32,
@@ -38,7 +48,7 @@ export const formFieldStyleCompact: CSSProperties = {
   paddingRight: 12,
 };
 
-const formFieldStyleDark: CSSProperties = {
+export const formFieldStyleDark: CSSProperties = {
   width: '100%',
   height: 50,
   fontSize: 16,

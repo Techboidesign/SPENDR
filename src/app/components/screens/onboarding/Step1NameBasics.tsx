@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../../context/OnboardingContext';
+import { useOnboardingTheme } from '../../../context/OnboardingThemeContext';
 import { FormInput, FormSelect } from '../../shared/FormFields';
-import { AUTH_THEME } from '../../../theme/authTheme';
 import { ONBOARDING_STEP_COUNT } from '../../../theme/onboardingSteps';
-import OnboardingLayout, { onboardingLabelStyle, onboardingTitleStyle } from './OnboardingLayout';
+import OnboardingLayout, { useOnboardingLabelStyle, useOnboardingTitleStyle } from './OnboardingLayout';
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -32,6 +32,9 @@ const COUNTRIES = [
 export default function Step1NameBasics() {
   const navigate = useNavigate();
   const { updateData, next, back, skipAll, onboarding } = useOnboarding();
+  const theme = useOnboardingTheme();
+  const titleStyle = useOnboardingTitleStyle();
+  const labelStyle = useOnboardingLabelStyle();
 
   const [firstName, setFirstName] = useState(onboarding.data.firstName || '');
   const [currency, setCurrency] = useState(onboarding.data.currency || 'USD');
@@ -63,13 +66,13 @@ export default function Step1NameBasics() {
       nextDisabled={!firstName.trim()}
       nextLabel="Finish setup"
     >
-      <h1 style={onboardingTitleStyle}>Almost there</h1>
+      <h1 style={titleStyle}>Almost there</h1>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>What&apos;s your first name?</label>
+        <label style={labelStyle}>What&apos;s your first name?</label>
         <FormInput
           type="text"
-          tone="dark"
+          tone="light"
           value={firstName}
           onChange={e => setFirstName(e.target.value)}
           placeholder="Enter your name"
@@ -77,12 +80,8 @@ export default function Step1NameBasics() {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>Preferred currency</label>
-        <FormSelect
-          tone="dark"
-          value={currency}
-          onChange={e => setCurrency(e.target.value)}
-        >
+        <label style={labelStyle}>Preferred currency</label>
+        <FormSelect tone="light" value={currency} onChange={e => setCurrency(e.target.value)}>
           {CURRENCIES.map(curr => (
             <option key={curr.code} value={curr.code}>
               {curr.symbol} {curr.name} ({curr.code})
@@ -91,20 +90,21 @@ export default function Step1NameBasics() {
         </FormSelect>
       </div>
 
-      {/* Country (optional) */}
       <div style={{ marginBottom: 16 }}>
-        <label style={onboardingLabelStyle}>
-          Country <span style={{ color: AUTH_THEME.textFaint, fontWeight: 400 }}>(optional)</span>
+        <label style={labelStyle}>
+          Country <span style={{ color: theme.textFaint, fontWeight: 400 }}>(optional)</span>
         </label>
         <FormSelect
-          tone="dark"
+          tone="light"
           value={country}
           onChange={e => setCountry(e.target.value)}
-          style={{ color: country ? AUTH_THEME.textPrimary : AUTH_THEME.textFaint }}
+          style={{ color: country ? theme.textPrimary : theme.textFaint }}
         >
           <option value="">Select country</option>
           {COUNTRIES.map(c => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c}>
+              {c}
+            </option>
           ))}
         </FormSelect>
       </div>

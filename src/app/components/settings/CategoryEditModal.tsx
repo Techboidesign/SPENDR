@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { getCategoryById } from '../../data/categories';
@@ -7,6 +7,8 @@ import {
   CATEGORY_COLOR_PRESETS_BY_HUE,
   CATEGORY_ICON_OPTIONS,
   DEFAULT_ICON_BY_CATEGORY_ID,
+  firstAvailableCategoryIconKey,
+  getUsedCategoryIconKeys,
   type CategoryIconKey,
 } from '../../data/categoryConfig';
 import type { CategoryCustomization, CustomCategory } from '../../data/types';
@@ -31,15 +33,18 @@ export function CategoryEditModal({
   onClose,
   /** When set, new categories are passed here instead of dispatching to app state (onboarding). */
   onCreateCategory,
+  /** Extra categories not yet in app state (e.g. onboarding custom list). */
+  additionalCategories = [],
 }: {
   open: boolean;
   categoryId: string | null;
   onClose: () => void;
   onCreateCategory?: (category: CustomCategory) => void;
+  additionalCategories?: { id: string; iconKey: CategoryIconKey }[];
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
-  const { state, dispatch, getCategory } = useApp();
+  const { state, dispatch, getCategory, categories } = useApp();
   const isNew = categoryId === NEW_CATEGORY_ID;
   const customCategory = categoryId && !isNew
     ? state.customCategories.find(cat => cat.id === categoryId)
@@ -52,12 +57,24 @@ export function CategoryEditModal({
   const [iconKey, setIconKey] = useState<CategoryIconKey>('package');
   const [colorPresetId, setColorPresetId] = useState<string>('indigo');
 
+  const categoriesForIconUse = useMemo(() => {
+    const byId = new Map(categories.map(cat => [cat.id, cat]));
+    for (const cat of additionalCategories) {
+      if (!byId.has(cat.id)) byId.set(cat.id, cat);
+    }
+    return [...byId.values()];
+  }, [categories, additionalCategories]);
+
+  const usedIconKeys = useMemo(
+    () => getUsedCategoryIconKeys(categoriesForIconUse, isNew ? null : categoryId),
+    [categoriesForIconUse, isNew, categoryId],
+  );
+
   useEffect(() => {
     if (!open || !categoryId) return;
 
     if (isNew) {
       setName('');
-      setIconKey('package');
       setColorPresetId('indigo');
       return;
     }
@@ -79,6 +96,11 @@ export function CategoryEditModal({
     );
     setColorPresetId(findPresetForCategory(resolved.color, resolved.bg));
   }, [open, categoryId, isNew, customCategory, resolved, state.categoryCustomizations]);
+
+  useEffect(() => {
+    if (!open || !categoryId || !isNew) return;
+    setIconKey(firstAvailableCategoryIconKey(usedIconKeys));
+  }, [open, categoryId, isNew, usedIconKeys]);
 
   if (!open || !categoryId) return null;
   if (!isNew && !isCustom && (!base || !resolved)) return null;
@@ -188,13 +210,21 @@ export function CategoryEditModal({
         >
           {CATEGORY_ICON_OPTIONS.map(opt => {
             const selected = iconKey === opt.key;
+            const taken = usedIconKeys.has(opt.key);
+            const unavailable = taken && !selected;
             const Icon = opt.Icon;
             return (
               <button
                 key={opt.key}
                 type="button"
-                onClick={() => setIconKey(opt.key)}
+                disabled={unavailable}
+                onClick={() => {
+                  if (!unavailable) setIconKey(opt.key);
+                }}
                 aria-label={opt.label}
+                aria-pressed={selected}
+                aria-disabled={unavailable}
+                title={unavailable ? `${opt.label} — already used by another category` : opt.label}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -203,16 +233,23 @@ export function CategoryEditModal({
                   aspectRatio: '1',
                   borderRadius: 8,
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: unavailable ? 'not-allowed' : 'pointer',
+                  opacity: unavailable ? 0.38 : 1,
                   backgroundColor: selected ? preset.bg : iconTileBg,
-                  boxShadow: selected ? `0 0 0 2px ${preset.color}` : 'none',
+                  boxShadow: selected ? `0 0 0 1px ${preset.color}` : 'none',
                   fontFamily: 'inherit',
                 }}
               >
                 <Icon
                   size={16}
                   weight={selected ? 'fill' : 'light'}
-                  color={selected ? (preset.iconColor ?? preset.color) : c.textFaint}
+                  color={
+                    unavailable
+                      ? c.textFaint
+                      : selected
+                        ? (preset.iconColor ?? preset.color)
+                        : c.textFaint
+                  }
                 />
               </button>
             );
@@ -245,7 +282,7 @@ export function CategoryEditModal({
                   cursor: 'pointer',
                   backgroundColor: p.color,
                   boxShadow: selected
-                    ? `0 0 0 2px ${c.modalSheet}, 0 0 0 3px ${p.color}`
+                    ? `0 0 0 1px ${c.modalSheet}, 0 0 0 1px ${p.color}`
                     : isDark
                       ? `0 0 0 1px ${c.border}`
                       : '0 1px 3px rgba(0,0,0,0.08)',
