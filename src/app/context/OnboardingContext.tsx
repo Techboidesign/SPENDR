@@ -16,14 +16,21 @@ import {
 } from '../../lib/supabase';
 import { getItem, removeItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
-import { clearLocalUserData } from '../services/migrateLocalStorage';
+import { clearAllLocalUserData, clearLocalUserData } from '../services/migrateLocalStorage';
 import { createEmptyAppState } from '../services/appDataService';
+import type { AppState } from '../data/types';
 import {
-  createShowcaseAppState,
-  createShowcaseOnboarding,
-  SHOWCASE_USER_EMAIL,
-  SHOWCASE_USER_ID,
-} from '../services/showcaseTestUser';
+  clearShowcaseSession,
+  isShowcaseSessionActive,
+  loadShowcaseAuth,
+  loadShowcaseOnboarding,
+  resolveShowcaseSession,
+  saveShowcaseAuth,
+  saveShowcaseOnboarding,
+  saveShowcaseSession,
+  setShowcaseSessionActive,
+} from '../services/showcaseSession';
+import { isShowcaseUser } from '../services/showcaseTestUser';
 import { AppProvider } from './AppContext';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
@@ -96,7 +103,7 @@ interface OnboardingContextType {
   signUpWithEmail: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Local showcase session with bundled sample data (portfolio / demos). */
-  signInAsTestUser: () => Promise<void>;
+  signInAsTestUser: (options?: { forceFresh?: boolean }) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   refreshOnboarding: () => Promise<void>;
@@ -135,19 +142,22 @@ function sessionToAuth(session: Session | null): AuthState {
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  /** Bumps on Test user sign-in so AppProvider reloads persisted demo state. */
+  const [appSessionKey, setAppSessionKey] = useState(0);
+  const [showcaseBootstrap, setShowcaseBootstrap] = useState<AppState | null>(null);
 
   const [onboarding, setOnboarding] = useState<OnboardingState>(() => {
     if (!isSupabaseConfigured) {
       return getItem<OnboardingState>('onboarding') ?? INITIAL_ONBOARDING;
     }
-    return INITIAL_ONBOARDING;
+    return loadShowcaseOnboarding() ?? INITIAL_ONBOARDING;
   });
 
   const [auth, setAuthState] = useState<AuthState>(() => {
     if (!isSupabaseConfigured) {
       return getItem<AuthState>('auth') ?? INITIAL_AUTH;
     }
-    return INITIAL_AUTH;
+    return loadShowcaseAuth() ?? INITIAL_AUTH;
   });
 
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
@@ -189,6 +199,25 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     const supabase = getSupabase();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && !isShowcaseUser(session.user.id)) {
+        clearShowcaseSession();
+        const nextAuth = sessionToAuth(session);
+        setAuthState(nextAuth);
+        void loadOnboardingForUser(nextAuth.userId);
+        setAuthLoading(false);
+        return;
+      }
+
+      if (isShowcaseSessionActive() || loadShowcaseAuth()) {
+        const savedShowcase = loadShowcaseAuth();
+        if (savedShowcase) {
+          setAuthState(savedShowcase);
+          setOnboarding(loadShowcaseOnboarding() ?? INITIAL_ONBOARDING);
+        }
+        setAuthLoading(false);
+        return;
+      }
+
       const nextAuth = sessionToAuth(session);
       setAuthState(nextAuth);
       if (nextAuth.userId) void loadOnboardingForUser(nextAuth.userId);
@@ -196,11 +225,28 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && !isShowcaseUser(session.user.id)) {
+        clearShowcaseSession();
+        const nextAuth = sessionToAuth(session);
+        setAuthState(nextAuth);
+        void loadOnboardingForUser(nextAuth.userId);
+        return;
+      }
+
+      if (isShowcaseSessionActive() || loadShowcaseAuth()) {
+        const savedShowcase = loadShowcaseAuth();
+        if (savedShowcase) {
+          setAuthState(savedShowcase);
+          setOnboarding(loadShowcaseOnboarding() ?? INITIAL_ONBOARDING);
+        }
+        return;
+      }
+
       const nextAuth = sessionToAuth(session);
       setAuthState(nextAuth);
-      if (nextAuth.userId) {
+      if (nextAuth.userId && !isShowcaseUser(nextAuth.userId)) {
         void loadOnboardingForUser(nextAuth.userId);
-      } else {
+      } else if (!nextAuth.isAuthenticated) {
         setOnboarding(INITIAL_ONBOARDING);
       }
     });
@@ -210,16 +256,26 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   // Offline persistence when Supabase is not configured
   useEffect(() => {
-    if (!isSupabaseConfigured) setItem('onboarding', onboarding);
-  }, [onboarding]);
+    if (!isSupabaseConfigured) {
+      setItem('onboarding', onboarding);
+      return;
+    }
+    if (isShowcaseUser(auth.userId)) saveShowcaseOnboarding(onboarding);
+  }, [onboarding, auth.userId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) setItem('auth', auth);
+    if (!isSupabaseConfigured) {
+      setItem('auth', auth);
+      return;
+    }
+    if (isShowcaseUser(auth.userId) && auth.isAuthenticated) saveShowcaseAuth(auth);
   }, [auth]);
 
   // Sync onboarding to cloud when authenticated
   useEffect(() => {
-    if (!isSupabaseConfigured || !auth.userId || authLoading) return;
+    if (!isSupabaseConfigured || !auth.userId || authLoading || isShowcaseUser(auth.userId)) {
+      return;
+    }
     saveOnboarding(auth.userId, onboarding).catch(err => {
       console.error('Failed to save onboarding:', err);
     });
@@ -297,7 +353,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
-      clearLocalUserData();
+      clearAllLocalUserData();
       const userId = 'user_' + Math.random().toString(36).slice(2);
       const nextAuth: AuthState = { isAuthenticated: true, userId, method: 'email', email };
       setAuthState(nextAuth);
@@ -306,9 +362,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setItem('appState', createEmptyAppState({ userEmail: email }));
       return { needsEmailConfirmation: false };
     }
-    removeItem('appState');
-    removeItem('auth');
-    removeItem('onboarding');
+    clearAllLocalUserData();
     const { data, error } = await getSupabase().auth.signUp({
       email,
       password,
@@ -331,31 +385,33 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setAuthState({ isAuthenticated: true, userId, method: 'email', email });
       return;
     }
+    clearShowcaseSession();
+    setShowcaseBootstrap(null);
     const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
     if (error) throw error;
     setAuthState(sessionToAuth(data.session));
   }, []);
 
-  const signInAsTestUser = useCallback(async () => {
+  const signInAsTestUser = useCallback(async (options?: { forceFresh?: boolean }) => {
+    clearLocalUserData();
+
+    const session = resolveShowcaseSession({ forceFresh: options?.forceFresh });
+    saveShowcaseSession(session);
+    setShowcaseSessionActive(true);
+    setShowcaseBootstrap(session.appState);
+    setAuthState(session.auth);
+    setOnboarding(session.onboarding);
+    setAppSessionKey(k => k + 1);
+
     if (isSupabaseConfigured) {
       await getSupabase().auth.signOut();
     }
-    clearLocalUserData();
 
-    const nextAuth: AuthState = {
-      isAuthenticated: true,
-      userId: SHOWCASE_USER_ID,
-      method: 'email',
-      email: SHOWCASE_USER_EMAIL,
-    };
-    const nextOnboarding = createShowcaseOnboarding();
-    const nextAppState = createShowcaseAppState();
-
-    setAuthState(nextAuth);
-    setOnboarding(nextOnboarding);
-    setItem('auth', nextAuth);
-    setItem('onboarding', nextOnboarding);
-    setItem('appState', nextAppState);
+    if (!isSupabaseConfigured) {
+      setItem('auth', session.auth);
+      setItem('onboarding', session.onboarding);
+      setItem('appState', session.appState);
+    }
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -376,9 +432,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (isSupabaseConfigured) {
       await getSupabase().auth.signOut();
     }
+    setShowcaseBootstrap(null);
     setAuthState(INITIAL_AUTH);
     setOnboarding(INITIAL_ONBOARDING);
-    clearLocalUserData();
+    clearAllLocalUserData();
   }, []);
 
   return (
@@ -405,7 +462,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         refreshOnboarding,
       }}
     >
-      <AppProvider auth={auth} onboarding={onboarding}>
+      <AppProvider
+        key={`${auth.userId ?? 'guest'}-${appSessionKey}`}
+        auth={auth}
+        onboarding={onboarding}
+        bootstrapAppState={
+          isShowcaseUser(auth.userId) ? showcaseBootstrap : null
+        }
+      >
         {children}
       </AppProvider>
     </OnboardingContext.Provider>

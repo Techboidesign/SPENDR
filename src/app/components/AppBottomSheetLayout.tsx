@@ -1,4 +1,4 @@
-import type { ReactNode, RefObject } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useAppColors, useAppearance } from '../context/AppearanceContext';
 import { bottomSheetChrome } from '../theme/modalSheet';
@@ -15,6 +15,7 @@ export function AppBottomSheetLayout({
   scrollLockRef,
   lockBackgroundScroll,
   bodyScroll = false,
+  sheetStyle,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function AppBottomSheetLayout({
   lockBackgroundScroll?: boolean;
   /** Scrollable body when content exceeds sheet height (footer stays pinned). */
   bodyScroll?: boolean;
+  /** Merged onto default bottom sheet chrome (e.g. taller max height). */
+  sheetStyle?: CSSProperties;
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
@@ -35,7 +38,7 @@ export function AppBottomSheetLayout({
     <BottomSheetModal
       open={open}
       onClose={onClose}
-      sheetStyle={bottomSheetChrome(c)}
+      sheetStyle={{ ...bottomSheetChrome(c), ...sheetStyle }}
       scrollLockRef={scrollLockRef}
       lockBackgroundScroll={lockBackgroundScroll}
     >

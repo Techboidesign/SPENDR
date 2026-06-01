@@ -1,17 +1,48 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { useOnboarding } from '../../context/OnboardingContext';
 import { AUTH_THEME } from '../../theme/authTheme';
 
 type AuthTestUserButtonProps = {
-  /** Use on welcome gradient — slightly brighter ghost text. */
+  /** Welcome gradient — full-width subtle ghost, matches Get Started / Log In rhythm. */
   variant?: 'welcome' | 'form';
+};
+
+const welcomeBase: CSSProperties = {
+  width: '100%',
+  height: 44,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0 16px',
+  borderRadius: 20,
+  border: `1px solid rgba(255, 255, 255, 0.1)`,
+  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  backdropFilter: 'blur(8px)',
+  fontSize: 15,
+  fontWeight: 600,
+  color: AUTH_THEME.textMuted,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  letterSpacing: 0.15,
+  textAlign: 'center',
+  transition: 'background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
+};
+
+const formBase: CSSProperties = {
+  ...welcomeBase,
+  marginTop: 16,
+  height: 48,
+  backgroundColor: AUTH_THEME.buttonGhost,
+  border: `1px solid ${AUTH_THEME.surfaceBorder}`,
+  color: AUTH_THEME.textFaint,
 };
 
 export function AuthTestUserButton({ variant = 'form' }: AuthTestUserButtonProps) {
   const navigate = useNavigate();
   const { signInAsTestUser } = useOnboarding();
   const [loading, setLoading] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const handleClick = async () => {
     if (loading) return;
@@ -26,7 +57,10 @@ export function AuthTestUserButton({ variant = 'form' }: AuthTestUserButtonProps
     }
   };
 
-  const color = variant === 'welcome' ? AUTH_THEME.textFaint : AUTH_THEME.textMuted;
+  const base = variant === 'welcome' ? welcomeBase : formBase;
+  const idleBg = base.backgroundColor as string;
+  const hoverBg =
+    variant === 'welcome' ? 'rgba(255, 255, 255, 0.11)' : 'rgba(255, 255, 255, 0.14)';
 
   return (
     <button
@@ -34,31 +68,13 @@ export function AuthTestUserButton({ variant = 'form' }: AuthTestUserButtonProps
       onClick={() => void handleClick()}
       disabled={loading}
       aria-label="Try the app with demo data as Test user"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        alignSelf: 'center',
-        marginTop: variant === 'welcome' ? 4 : 8,
-        padding: '8px 12px',
-        background: 'none',
-        border: 'none',
-        fontSize: 13,
-        fontWeight: 500,
-        color,
-        opacity: loading ? 0.45 : 0.72,
+        ...base,
+        opacity: loading ? 0.55 : 1,
         cursor: loading ? 'wait' : 'pointer',
-        fontFamily: 'inherit',
-        letterSpacing: 0.2,
-        textDecoration: 'underline',
-        textDecorationColor: 'transparent',
-        textUnderlineOffset: 3,
-        transition: 'opacity 0.15s ease, text-decoration-color 0.15s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.opacity = '1';
-        e.currentTarget.style.textDecorationColor = color;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.opacity = loading ? '0.45' : '0.72';
-        e.currentTarget.style.textDecorationColor = 'transparent';
+        backgroundColor: hovered && !loading ? hoverBg : idleBg,
       }}
     >
       {loading ? 'Loading demo…' : 'Test user'}

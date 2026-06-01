@@ -8,14 +8,14 @@ import { FAB_COLOR_TRANSITION, FAB_ICON_SWAP_TRANSITION } from '../theme/motion'
 export const FAB_SIZE = 68;
 const FAB_BORDER = 2;
 const SAT_SIZE = 52;
-const SPREAD_X = 56;
-const LIFT_Y = -46;
-const CENTER_LIFT_EXTRA = 8;
+/** Center “add manually” satellite — slightly larger than camera / upload */
+const EDIT_SAT_SIZE = 62;
+const SPREAD_X = 72;
+const LIFT_Y = -52;
+const CENTER_LIFT_EXTRA = 10;
 
 export const FAB_CENTER_TOP =
   Math.max(0, FAB_SIZE * (0.5 - 0.2) - 20) + 10;
-
-const MENU_AUTO_CLOSE_MS = 3000;
 
 type FabSlot = 'camera' | 'edit' | 'upload';
 
@@ -25,25 +25,50 @@ const SLOTS: {
   Icon: typeof Camera;
   offsetX: number;
   offsetY: number;
+  size: number;
+  iconSize: number;
 }[] = [
-  { id: 'camera', label: 'Take photo of receipt', Icon: Camera, offsetX: -SPREAD_X, offsetY: LIFT_Y },
+  {
+    id: 'camera',
+    label: 'Take photo of receipt',
+    Icon: Camera,
+    offsetX: -SPREAD_X,
+    offsetY: LIFT_Y,
+    size: SAT_SIZE,
+    iconSize: 22,
+  },
   {
     id: 'edit',
     label: 'Add expense manually',
     Icon: Plus,
     offsetX: 0,
     offsetY: LIFT_Y - 10 - CENTER_LIFT_EXTRA,
+    size: EDIT_SAT_SIZE,
+    iconSize: 26,
   },
-  { id: 'upload', label: 'Upload document', Icon: UploadSimple, offsetX: SPREAD_X, offsetY: LIFT_Y },
+  {
+    id: 'upload',
+    label: 'Upload document',
+    Icon: UploadSimple,
+    offsetX: SPREAD_X,
+    offsetY: LIFT_Y,
+    size: SAT_SIZE,
+    iconSize: 22,
+  },
 ];
 
 const TAP_TRANSITION = { duration: 0.1, ease: [0.4, 0, 0.2, 1] as const };
 const POP_SCALE_FROM = 0.92;
 
-function slotIndexFromX(dx: number): number {
-  if (dx < -SPREAD_X * 0.45) return 0;
-  if (dx > SPREAD_X * 0.45) return 2;
-  return 1;
+/** Pick satellite from hub-center delta while finger is held (options sit above the FAB). */
+function slotIndexFromDelta(dx: number, dy: number): number | null {
+  if (dy > 10) return null;
+
+  if (dx < -SPREAD_X * 0.38) return 0;
+  if (dx > SPREAD_X * 0.38) return 2;
+  if (dy < -14) return 1;
+
+  return null;
 }
 
 export function FabExpenseLauncher() {
@@ -56,45 +81,20 @@ export function FabExpenseLauncher() {
 
   const [open, setOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const [pressing, setPressing] = useState(false);
   const hubRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
-  const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearAutoClose = useCallback(() => {
-    if (autoCloseTimer.current) {
-      window.clearTimeout(autoCloseTimer.current);
-      autoCloseTimer.current = null;
-    }
-  }, []);
 
   const closeMenu = useCallback(() => {
-    clearAutoClose();
     setOpen(false);
     setActiveSlot(null);
-    setDragging(false);
-    dragStart.current = null;
-  }, [clearAutoClose]);
-
-  const scheduleAutoClose = useCallback(() => {
-    clearAutoClose();
-    autoCloseTimer.current = window.setTimeout(closeMenu, MENU_AUTO_CLOSE_MS);
-  }, [clearAutoClose, closeMenu]);
+    setPressing(false);
+  }, []);
 
   useEffect(() => {
     if (showAddModal) closeMenu();
   }, [showAddModal, closeMenu]);
-
-  useEffect(() => {
-    if (!open) {
-      clearAutoClose();
-      return;
-    }
-    scheduleAutoClose();
-    return clearAutoClose;
-  }, [open, scheduleAutoClose, clearAutoClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,59 +129,50 @@ export function FabExpenseLauncher() {
     [closeMenu, openAddModal],
   );
 
-  const openMenu = () => {
-    setOpen(true);
-    scheduleAutoClose();
-  };
-
-  const handleHubClick = () => {
-    if (open) {
-      closeMenu();
-      return;
-    }
-    openMenu();
-  };
-
-  const bumpAutoClose = () => {
-    if (open) scheduleAutoClose();
-  };
+  const updateActiveSlotFromPointer = useCallback((clientX: number, clientY: number) => {
+    const rect = hubRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    setActiveSlot(slotIndexFromDelta(dx, dy));
+  }, []);
 
   const handleHubPointerDown = (e: React.PointerEvent) => {
-    if (!open) return;
+    if (isParsingReceipt) return;
+    e.preventDefault();
     e.stopPropagation();
-    bumpAutoClose();
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    setDragging(true);
-    const rect = hubRef.current?.getBoundingClientRect();
-    if (rect) {
-      const dx = e.clientX - (rect.left + rect.width / 2);
-      setActiveSlot(slotIndexFromX(dx));
-    }
+    setPressing(true);
+    setOpen(true);
+    updateActiveSlotFromPointer(e.clientX, e.clientY);
   };
 
   const handleHubPointerMove = (e: React.PointerEvent) => {
-    if (!dragging || !open) return;
-    bumpAutoClose();
-    const rect = hubRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const dx = e.clientX - (rect.left + rect.width / 2);
-    setActiveSlot(slotIndexFromX(dx));
+    if (!pressing) return;
+    updateActiveSlotFromPointer(e.clientX, e.clientY);
   };
 
-  const handleHubPointerUp = (e: React.PointerEvent) => {
-    if (!open) return;
-    const start = dragStart.current;
-    const moved =
-      start &&
-      (Math.abs(e.clientX - start.x) > 14 || Math.abs(e.clientY - start.y) > 14);
+  const finishPress = (e: React.PointerEvent) => {
+    if (!pressing) return;
 
-    if (dragging && activeSlot !== null && moved) {
-      runSlot(SLOTS[activeSlot].id);
+    const rect = hubRef.current?.getBoundingClientRect();
+    let slot: number | null = activeSlot;
+    if (rect) {
+      const dx = e.clientX - (rect.left + rect.width / 2);
+      const dy = e.clientY - (rect.top + rect.height / 2);
+      slot = slotIndexFromDelta(dx, dy);
     }
-    setDragging(false);
+
+    if (slot !== null) {
+      runSlot(SLOTS[slot].id);
+    } else {
+      closeMenu();
+    }
+
+    setPressing(false);
     setActiveSlot(null);
-    dragStart.current = null;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -228,8 +219,8 @@ export function FabExpenseLauncher() {
           top: FAB_CENTER_TOP,
           transform: 'translate(-50%, -50%)',
           zIndex: 52,
-          width: FAB_SIZE + SPREAD_X * 2 + 24,
-          height: FAB_SIZE + Math.abs(LIFT_Y) + CENTER_LIFT_EXTRA + 24,
+          width: FAB_SIZE + SPREAD_X * 2 + 32,
+          height: FAB_SIZE + Math.abs(LIFT_Y) + CENTER_LIFT_EXTRA + EDIT_SAT_SIZE,
           pointerEvents: 'none',
         }}
       >
@@ -237,7 +228,7 @@ export function FabExpenseLauncher() {
           {open &&
             SLOTS.map((slot, i) => {
               const isActive = activeSlot === i;
-              const isHover = isActive && dragging;
+              const sat = slot.size;
               return (
                 <motion.button
                   key={slot.id}
@@ -249,7 +240,7 @@ export function FabExpenseLauncher() {
                     opacity: 0,
                   }}
                   animate={{
-                    scale: isActive ? 1.14 : 1,
+                    scale: isActive ? 1.12 : 1,
                     x: slot.offsetX,
                     y: slot.offsetY,
                     opacity: 1,
@@ -262,15 +253,11 @@ export function FabExpenseLauncher() {
                   }}
                   transition={{
                     ...fabPopTransition,
-                    delay: reduceMotion ? 0 : i * 0.02,
+                    delay: reduceMotion ? 0 : i * 0.015,
                   }}
                   onClick={e => {
                     e.stopPropagation();
                     runSlot(slot.id);
-                  }}
-                  onPointerEnter={() => {
-                    bumpAutoClose();
-                    if (dragging) setActiveSlot(i);
                   }}
                   aria-label={slot.label}
                   disabled={isParsingReceipt}
@@ -278,13 +265,13 @@ export function FabExpenseLauncher() {
                     position: 'absolute',
                     left: '50%',
                     top: '50%',
-                    marginLeft: -SAT_SIZE / 2,
-                    marginTop: -SAT_SIZE / 2,
-                    width: SAT_SIZE,
-                    height: SAT_SIZE,
+                    marginLeft: -sat / 2,
+                    marginTop: -sat / 2,
+                    width: sat,
+                    height: sat,
                     borderRadius: '50%',
-                    border: `1px solid ${isHover ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
-                    backgroundColor: isHover ? brandActive : brand,
+                    border: `1px solid ${isActive ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
+                    backgroundColor: isActive ? brandActive : brand,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -292,20 +279,12 @@ export function FabExpenseLauncher() {
                     boxShadow: isActive
                       ? '0 10px 28px rgba(62, 55, 255, 0.55)'
                       : '0 6px 18px rgba(62, 55, 255, 0.38)',
-                    pointerEvents: 'auto',
+                    pointerEvents: pressing ? 'none' : 'auto',
                     padding: 0,
                     transition: 'background-color 0.12s ease',
                   }}
-                  whileHover={
-                    !dragging && !reduceMotion
-                      ? {
-                          scale: 1.06,
-                          backgroundColor: '#7068FF',
-                        }
-                      : undefined
-                  }
                 >
-                  <slot.Icon size={22} weight="bold" color="#FFFFFF" />
+                  <slot.Icon size={slot.iconSize} weight="bold" color="#FFFFFF" />
                 </motion.button>
               );
             })}
@@ -313,19 +292,16 @@ export function FabExpenseLauncher() {
 
         <motion.button
           type="button"
-          onClick={e => {
-            e.stopPropagation();
-            handleHubClick();
-          }}
-          onPointerDown={open ? handleHubPointerDown : undefined}
-          onPointerMove={open ? handleHubPointerMove : undefined}
-          onPointerUp={open ? handleHubPointerUp : undefined}
-          onPointerCancel={open ? handleHubPointerUp : undefined}
-          aria-label={open ? 'Close menu' : 'Add expense'}
+          onPointerDown={handleHubPointerDown}
+          onPointerMove={handleHubPointerMove}
+          onPointerUp={finishPress}
+          onPointerCancel={finishPress}
+          aria-label={open ? 'Choose expense action' : 'Add expense'}
           aria-expanded={open}
+          aria-haspopup="menu"
           disabled={isParsingReceipt}
           animate={{
-            scale: open ? 0.92 : 1,
+            scale: pressing ? 0.9 : 1,
             backgroundColor: open ? c.surface : brand,
             boxShadow: open
               ? '0 4px 16px rgba(0, 0, 0, 0.12)'
@@ -336,7 +312,6 @@ export function FabExpenseLauncher() {
             backgroundColor: FAB_COLOR_TRANSITION,
             boxShadow: FAB_COLOR_TRANSITION,
           }}
-          whileTap={reduceMotion ? undefined : { scale: 0.9 }}
           style={{
             position: 'absolute',
             left: '50%',
@@ -354,6 +329,7 @@ export function FabExpenseLauncher() {
             pointerEvents: 'auto',
             padding: 0,
             touchAction: 'none',
+            userSelect: 'none',
           }}
         >
           <span
@@ -404,7 +380,7 @@ export function FabExpenseLauncher() {
           </span>
         </motion.button>
 
-        {open && !dragging && (
+        {open && pressing && (
           <motion.p
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -422,7 +398,7 @@ export function FabExpenseLauncher() {
               pointerEvents: 'none',
             }}
           >
-            Hold center & drag to select
+            Drag up to choose
           </motion.p>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { releaseAppScrollElement } from '../../hooks/useScrollLock';
 import { useApp, getCategoryTotals } from '../../context/AppContext';
 import { useAppColors } from '../../context/AppearanceContext';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
@@ -25,6 +26,12 @@ export default function BudgetScreen() {
   const { state, dispatch, formatCurrency, budgetCategories, getFocusContributions } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
   const [focusModalOpen, setFocusModalOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) releaseAppScrollElement(el);
+  }, []);
 
   const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
   const goalDef = getPrimaryGoalDefinition(goalId);
@@ -156,12 +163,16 @@ export default function BudgetScreen() {
   return (
     <>
       <div
+        ref={scrollRef}
         data-app-scroll
         style={{
-          height: '100%',
+          flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
           overscrollBehavior: 'none',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
           backgroundColor: c.canvas,
           paddingBottom: TAB_BAR_CLEARANCE,
         }}
@@ -252,6 +263,7 @@ export default function BudgetScreen() {
         initialAmount={modalAmount}
         formatCurrency={formatCurrency}
         currencySymbol={currencySymbol}
+        scrollLockRef={scrollRef}
         onSave={handleSave}
         onClose={() => setEditTarget(null)}
       />
@@ -261,6 +273,7 @@ export default function BudgetScreen() {
         goalId={goalId}
         target={state.primaryGoalTarget}
         formatCurrency={formatCurrency}
+        scrollLockRef={scrollRef}
         onSave={handleFocusSave}
         onClose={() => setFocusModalOpen(false)}
       />

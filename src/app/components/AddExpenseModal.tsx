@@ -1,15 +1,22 @@
 import { useState, useEffect, useMemo, type CSSProperties } from 'react';
-import { CaretDown } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { useAppColors } from '../context/AppearanceContext';
 import { Expense, ExpenseType } from '../data/types';
 import type { ExpenseFormDraft } from '../types/expenseDraft';
-import { CategoryIcon } from './CategoryIcon';
-import { CategorySelectPill } from './shared/CategorySelectPill';
 import { AppBottomSheetLayout } from './AppBottomSheetLayout';
 import { ModalActionBar } from './ModalActionBar';
+import {
+  ExpenseAmountNumpad,
+  formatNumpadAmountDisplay,
+} from './expenses/ExpenseAmountNumpad';
+import { ExpenseAddSummaryBadges } from './expenses/ExpenseAddSummaryBadges';
+import {
+  ExpenseCategoryChipStrip,
+  getRecentCategoryIds,
+} from './expenses/ExpenseCategoryChipStrip';
 import { generateId } from '../utils/id';
-import { getActiveFocusCategoryId, isFocusCategoryId } from '../data/focusCategory';
+import { getCurrencySymbol } from '../utils/currencySymbol';
+import { getActiveFocusCategoryId, isFocusCategoryId, isSpendingExpense } from '../data/focusCategory';
 import { parsePrimaryGoal } from '../data/primaryGoalConfig';
 
 const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
@@ -21,29 +28,23 @@ const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
 const fieldLabel: CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
-  color: undefined,
   letterSpacing: 0.4,
   marginBottom: 4,
   display: 'block',
 };
 
-function RequiredFieldLabel({
-  children,
-  color,
-  dangerColor,
-}: {
-  children: string;
-  color: string;
-  dangerColor: string;
-}) {
-  return (
-    <span style={{ ...fieldLabel, color }}>
-      {children}
-      <span style={{ color: dangerColor, marginLeft: 2 }} aria-hidden>
-        *
-      </span>
-    </span>
-  );
+function getLastUsedCategoryId(expenses: Expense[]): string | null {
+  const spending = expenses.filter(isSpendingExpense);
+  if (spending.length === 0) return null;
+  const sorted = [...spending].sort((a, b) => b.date.localeCompare(a.date));
+  return sorted[0]?.categoryId ?? null;
+}
+
+function formatPreviewDate(iso: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (iso === today) return 'Today';
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 export function AddExpenseModal() {
@@ -58,8 +59,11 @@ export function AddExpenseModal() {
     state,
   } = useApp();
   const c = useAppColors();
+  const currencySymbol = getCurrencySymbol(state.currency);
 
   const today = new Date().toISOString().slice(0, 10);
+  const isEditMode = Boolean(editingExpense);
+  const isReviewMode = Boolean(addModalDraft) && !isEditMode;
 
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
@@ -69,9 +73,14 @@ export function AddExpenseModal() {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [showCatPicker, setShowCatPicker] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [touched, setTouched] = useState({ name: false, amount: false });
+  const [touched, setTouched] = useState({ amount: false });
+
+  const recentCategoryIds = useMemo(
+    () => getRecentCategoryIds(state.expenses),
+    [state.expenses],
+  );
 
   useEffect(() => {
     if (editingExpense) {
@@ -84,6 +93,7 @@ export function AddExpenseModal() {
       setEndDate(editingExpense.endDate ?? '');
       setNotes(editingExpense.notes ?? '');
       setShowNotes(Boolean(editingExpense.notes?.trim()));
+      setShowMoreDetails(true);
     } else if (addModalDraft) {
       setAmount(addModalDraft.amount ?? '');
       setName(addModalDraft.name ?? '');
@@ -94,65 +104,69 @@ export function AddExpenseModal() {
       setEndDate(addModalDraft.endDate ?? '');
       setNotes(addModalDraft.notes ?? '');
       setShowNotes(Boolean(addModalDraft.notes?.trim()));
+      setShowMoreDetails(
+        Boolean(
+          addModalDraft.name?.trim() ||
+            addModalDraft.notes?.trim() ||
+            addModalDraft.type !== 'one-time',
+        ),
+      );
     } else {
+      const lastUsed = getLastUsedCategoryId(state.expenses);
       const defaultFocusId = getActiveFocusCategoryId(
         parsePrimaryGoal(state.primaryGoal ?? undefined),
       );
       setAmount('');
       setName('');
-      setCategoryId(defaultFocusId ?? 'other');
+      setCategoryId(lastUsed ?? defaultFocusId ?? 'other');
       setDate(today);
       setType('one-time');
       setStartDate(today);
       setEndDate('');
       setNotes('');
       setShowNotes(false);
+      setShowMoreDetails(false);
     }
-    setShowCatPicker(false);
-    setTouched({ name: false, amount: false });
-  }, [editingExpense, addModalDraft, showAddModal, today, state.primaryGoal]);
+    setTouched({ amount: false });
+  }, [editingExpense, addModalDraft, showAddModal, today, state.expenses, state.primaryGoal]);
 
   const selectedCategory = getCategory(categoryId);
   const isFocusContribution = isFocusCategoryId(categoryId);
 
   const parsedAmount = parseFloat(amount);
-  const hasValidName = name.trim().length > 0;
   const hasValidAmount =
     amount.trim() !== '' &&
     !Number.isNaN(parsedAmount) &&
     (isFocusContribution ? parsedAmount !== 0 : parsedAmount > 0);
 
-  const canSave = hasValidName && hasValidAmount;
+  const resolvedName = name.trim() || selectedCategory.name;
+  const canSave = hasValidAmount;
   const saveDisabled = !canSave;
-
-  const nameError = useMemo(() => {
-    if (hasValidName) return null;
-    return 'Name is required';
-  }, [hasValidName]);
 
   const amountError = useMemo(() => {
     if (hasValidAmount) return null;
-    if (amount.trim() === '') return 'Amount is required';
+    if (amount.trim() === '') return 'Enter an amount';
     if (Number.isNaN(parsedAmount)) return 'Enter a valid number';
     if (isFocusContribution) return 'Enter a non-zero amount';
     return 'Enter an amount greater than zero';
   }, [amount, hasValidAmount, isFocusContribution, parsedAmount]);
 
-  const showNameError = Boolean(nameError && touched.name);
   const showAmountError = Boolean(amountError && touched.amount);
+
+  const previewDate = type === 'one-time' ? date : startDate;
 
   const handleSave = () => {
     if (!canSave) {
-      setTouched({ name: true, amount: true });
+      setTouched({ amount: true });
       return;
     }
 
     const expense: Expense = {
       id: editingExpense?.id ?? generateId(),
-      name: name.trim(),
+      name: resolvedName,
       categoryId,
       amount: parsedAmount,
-      date,
+      date: type === 'one-time' ? date : startDate,
       type,
       notes: notes.trim() || undefined,
       startDate: type !== 'one-time' ? startDate : undefined,
@@ -174,199 +188,68 @@ export function AddExpenseModal() {
     }
   };
 
-  const title = showCatPicker
-    ? 'Category'
-    : editingExpense
-      ? 'Edit expense'
-      : addModalDraft
-        ? 'Review expense'
-        : 'New expense';
+  const title = editingExpense
+    ? 'Edit expense'
+    : addModalDraft
+      ? 'Review expense'
+      : 'New expense';
 
-  const handleClose = () => {
-    if (showCatPicker) {
-      setShowCatPicker(false);
-      return;
-    }
-    closeAddModal();
-  };
-
-  const inputStyle = (invalid: boolean): CSSProperties => ({
+  const inputStyle: CSSProperties = {
     display: 'block',
     width: '100%',
     marginTop: 0,
     padding: '10px 12px',
-    backgroundColor: invalid ? c.dangerSoft : c.inputBg,
-    border: invalid ? `1px solid ${c.danger}` : '1px solid transparent',
+    backgroundColor: c.inputBg,
+    border: '1px solid transparent',
     borderRadius: 12,
     fontSize: 15,
     color: c.text,
     outline: 'none',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
-    transition: 'border-color 0.15s ease, background-color 0.15s ease',
-  });
+  };
+
+  const saveLabel = isEditMode ? 'SAVE' : 'ADD';
 
   return (
     <AppBottomSheetLayout
       open={showAddModal}
-      onClose={handleClose}
+      onClose={closeAddModal}
       title={title}
+      bodyScroll={showMoreDetails}
+      sheetStyle={{ maxHeight: '92vh', minHeight: 'min(82vh, 720px)' }}
       footer={
         <ModalActionBar
-          onLeft={showCatPicker ? () => setShowCatPicker(false) : editingExpense ? handleDelete : closeAddModal}
-          leftLabel={showCatPicker ? 'BACK' : editingExpense ? 'DELETE' : 'CANCEL'}
-          leftVariant={showCatPicker || !editingExpense ? 'cancel' : 'delete'}
+          onLeft={isEditMode ? handleDelete : closeAddModal}
+          leftLabel={isEditMode ? 'DELETE' : 'CANCEL'}
+          leftVariant={isEditMode ? 'delete' : 'cancel'}
           onSave={handleSave}
-          saveLabel="SAVE"
+          saveLabel={saveLabel}
           saveDisabled={saveDisabled}
         />
       }
     >
-      {showCatPicker ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {expensePickerCategories.map(cat => (
-            <CategorySelectPill
-              key={cat.id}
-              categoryId={cat.id}
-              name={cat.name}
-              bg={cat.bg}
-              color={cat.color}
-              iconColor={cat.iconColor}
-              selected={categoryId === cat.id}
-              onSelect={() => {
-                setCategoryId(cat.id);
-                setShowCatPicker(false);
-              }}
-            />
-          ))}
-        </div>
-      ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <ExpenseCategoryChipStrip
+            categories={expensePickerCategories}
+            selectedId={categoryId}
+            onSelect={setCategoryId}
+            recentIds={recentCategoryIds}
+          />
+
           <div>
-            <RequiredFieldLabel color={c.textMuted} dangerColor={c.danger}>
-              AMOUNT
-            </RequiredFieldLabel>
-            <div
+            <p
               style={{
-                backgroundColor: showAmountError ? c.dangerSoft : c.inputBg,
-                borderRadius: 14,
-                padding: '10px 16px',
-                textAlign: 'center',
-                border: showAmountError ? `1px solid ${c.danger}` : '1px solid transparent',
-                transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                margin: '0 0 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: c.textMuted,
+                letterSpacing: 0.4,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                <span
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 700,
-                    color: showAmountError ? c.danger : c.accent,
-                  }}
-                >
-                  €
-                </span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  onBlur={() => setTouched(prev => ({ ...prev, amount: true }))}
-                  aria-invalid={showAmountError}
-                  aria-describedby={showAmountError ? 'expense-amount-error' : undefined}
-                  style={{
-                    fontSize: 32,
-                    fontWeight: 800,
-                    color: c.text,
-                    border: 'none',
-                    background: 'transparent',
-                    outline: 'none',
-                    width: '55%',
-                    textAlign: 'center',
-                    fontFamily: 'inherit',
-                  }}
-                />
-              </div>
-            </div>
-            {showAmountError ? (
-              <p
-                id="expense-amount-error"
-                style={{
-                  fontSize: 11,
-                  color: c.danger,
-                  margin: '4px 0 0',
-                  fontWeight: 600,
-                  lineHeight: 1.35,
-                }}
-              >
-                {amountError}
-              </p>
-            ) : null}
-          </div>
-
-          <div>
-            <label htmlFor="expense-name" style={{ display: 'block' }}>
-              <RequiredFieldLabel color={c.textMuted} dangerColor={c.danger}>
-                NAME
-              </RequiredFieldLabel>
-            </label>
-            <input
-              id="expense-name"
-              type="text"
-              placeholder="e.g. Dinner"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
-              aria-invalid={showNameError}
-              aria-describedby={showNameError ? 'expense-name-error' : undefined}
-              style={inputStyle(showNameError)}
-            />
-            {showNameError ? (
-              <p
-                id="expense-name-error"
-                style={{
-                  fontSize: 11,
-                  color: c.danger,
-                  margin: '4px 0 0',
-                  fontWeight: 600,
-                  lineHeight: 1.35,
-                }}
-              >
-                {nameError}
-              </p>
-            ) : null}
-          </div>
-
-          <div>
-            <label style={{ ...fieldLabel, color: c.textMuted }}>CATEGORY</label>
-            <button
-              type="button"
-              onClick={() => setShowCatPicker(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                width: '100%',
-                padding: '10px 12px',
-                backgroundColor: c.inputBg,
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontFamily: 'inherit',
-              }}
-            >
-              <CategoryIcon categoryId={categoryId} size="sm" />
-              <span style={{ flex: 1, fontSize: 15, color: c.text, fontWeight: 500 }}>
-                {selectedCategory.name}
-              </span>
-              <CaretDown size={16} weight="light" color={c.textFaint} />
-            </button>
-          </div>
-
-          <div>
-            <label style={{ ...fieldLabel, color: c.textMuted }}>TYPE</label>
+              TYPE
+            </p>
             <div
               style={{
                 display: 'flex',
@@ -383,12 +266,12 @@ export function AddExpenseModal() {
                   onClick={() => setType(opt.value)}
                   style={{
                     flex: 1,
-                    padding: '8px 0',
+                    padding: '7px 0',
                     borderRadius: 9,
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: type === opt.value ? 600 : 400,
+                    fontSize: 11,
+                    fontWeight: type === opt.value ? 600 : 500,
                     backgroundColor: type === opt.value ? c.surface : 'transparent',
                     color: type === opt.value ? c.chipSelectedText : c.textMuted,
                     boxShadow: type === opt.value ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
@@ -400,78 +283,185 @@ export function AddExpenseModal() {
               ))}
             </div>
           </div>
+        </div>
 
-          <div
-            style={
-              type !== 'one-time'
-                ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }
-                : undefined
-            }
+        <div
+          aria-live="polite"
+          aria-atomic
+          style={{
+            backgroundColor: showAmountError ? c.dangerSoft : c.inputBg,
+            borderRadius: 16,
+            padding: '14px 16px',
+            textAlign: 'center',
+            border: showAmountError ? `1px solid ${c.danger}` : `1px solid ${c.borderSubtle}`,
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 600,
+              color: c.textMuted,
+              letterSpacing: 0.5,
+              marginBottom: 4,
+            }}
           >
+            AMOUNT
+          </p>
+          <p
+            className="font-figure"
+            style={{
+              margin: 0,
+              fontSize: 36,
+              fontWeight: 800,
+              color: showAmountError ? c.danger : c.text,
+              lineHeight: 1.1,
+              letterSpacing: -0.5,
+            }}
+          >
+            <span style={{ color: c.accent, fontWeight: 700 }}>{currencySymbol}</span>
+            {formatNumpadAmountDisplay(amount)}
+          </p>
+        </div>
+        {showAmountError ? (
+          <p
+            style={{
+              fontSize: 11,
+              color: c.danger,
+              margin: '-4px 0 0',
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            {amountError}
+          </p>
+        ) : null}
+
+        <ExpenseAmountNumpad value={amount} onChange={setAmount} />
+
+        {!isEditMode ? (
+          <ExpenseAddSummaryBadges
+            categoryId={categoryId}
+            expenseType={type}
+            dateLabel={formatPreviewDate(previewDate)}
+            showMoreDetails={showMoreDetails}
+            onToggleMoreDetails={() => setShowMoreDetails(prev => !prev)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowMoreDetails(prev => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              border: 'none',
+              background: 'none',
+              padding: '4px 0 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: c.accent,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              width: '100%',
+            }}
+          >
+            {showMoreDetails ? 'Less details' : 'More details'}
+          </button>
+        )}
+
+        {showMoreDetails ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <label style={{ ...fieldLabel, color: c.textMuted }}>
-                {type === 'one-time' ? 'DATE' : 'START'}
+              <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
+                NAME
               </label>
               <input
-                type="date"
-                value={type === 'one-time' ? date : startDate}
-                onChange={e =>
-                  type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
-                }
-                style={inputStyle(false)}
+                id="expense-name"
+                type="text"
+                placeholder={selectedCategory.name}
+                value={name}
+                onChange={e => setName(e.target.value)}
+                style={inputStyle}
               />
+              <p style={{ fontSize: 11, color: c.textFaint, margin: '4px 0 0' }}>
+                Leave blank to use &ldquo;{selectedCategory.name}&rdquo;
+              </p>
             </div>
-            {type !== 'one-time' ? (
+
+            <div
+              style={
+                type !== 'one-time'
+                  ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }
+                  : undefined
+              }
+            >
               <div>
-                <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
+                <label style={{ ...fieldLabel, color: c.textMuted }}>
+                  {type === 'one-time' ? 'DATE' : 'START'}
+                </label>
                 <input
                   type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  style={inputStyle(false)}
+                  value={type === 'one-time' ? date : startDate}
+                  onChange={e =>
+                    type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
+                  }
+                  style={inputStyle}
                 />
               </div>
-            ) : null}
-          </div>
-
-          {showNotes ? (
-            <div>
-              <label style={{ ...fieldLabel, color: c.textMuted }}>NOTE</label>
-              <textarea
-                placeholder="Add a note..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={2}
-                style={{ ...inputStyle(false), resize: 'none' }}
-              />
+              {type !== 'one-time' ? (
+                <div>
+                  <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+              ) : null}
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowNotes(true)}
-              style={{
-                border: 'none',
-                background: 'none',
-                padding: 0,
-                fontSize: 13,
-                fontWeight: 600,
-                color: c.accent,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left',
-              }}
-            >
-              + Add note
-            </button>
-          )}
 
-          {!canSave && (touched.name || touched.amount) ? (
-            <p style={{ fontSize: 11, color: c.textFaint, margin: 0, lineHeight: 1.4 }}>
-              Fill in name and amount to save.
-            </p>
-          ) : null}
-        </div>
-      )}
+            {showNotes ? (
+              <div>
+                <label style={{ ...fieldLabel, color: c.textMuted }}>NOTE</label>
+                <textarea
+                  placeholder="Add a note..."
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'none' }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowNotes(true)}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: c.accent,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                }}
+              >
+                + Add note
+              </button>
+            )}
+          </div>
+        ) : null}
+
+        {isReviewMode && !showMoreDetails ? (
+          <p style={{ fontSize: 11, color: c.textFaint, margin: 0, textAlign: 'center' }}>
+            Open more details to edit name or date before saving.
+          </p>
+        ) : null}
+      </div>
     </AppBottomSheetLayout>
   );
 }

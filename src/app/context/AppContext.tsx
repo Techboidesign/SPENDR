@@ -4,6 +4,7 @@ import React, {
   useReducer,
   useState,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useCallback,
   useRef,
@@ -35,6 +36,14 @@ import {
 } from '../services/appDataService';
 import { migrateLocalStorageIfNeeded } from '../services/migrateLocalStorage';
 import { isShowcaseUser } from '../services/showcaseTestUser';
+import {
+  isShowcaseSessionActive,
+  loadShowcaseAppState,
+  loadShowcaseAuth,
+  saveShowcaseAppState,
+  showcaseHasDemoData,
+} from '../services/showcaseSession';
+import { createShowcaseAppState } from '../services/showcaseTestUser';
 import { AppearanceProviderInner } from './AppearanceContext';
 import {
   completeOnboardingOnServer,
@@ -240,14 +249,37 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function resolveInitialAppState(bootstrapAppState?: AppState | null): AppState {
+  if (bootstrapAppState && showcaseHasDemoData(bootstrapAppState)) {
+    return normalizeAppState(bootstrapAppState);
+  }
+
+  if (!isSupabaseConfigured) {
+    const saved = getItem<AppState>('appState');
+    if (showcaseHasDemoData(saved)) return normalizeAppState(saved!);
+    return createEmptyAppState();
+  }
+
+  if (loadShowcaseAuth() || isShowcaseSessionActive()) {
+    const showcase = loadShowcaseAppState();
+    if (showcaseHasDemoData(showcase)) return showcase!;
+    return createShowcaseAppState();
+  }
+
+  return createEmptyAppState();
+}
+
 export function AppProvider({
   children,
   auth,
   onboarding,
+  bootstrapAppState = null,
 }: {
   children: React.ReactNode;
   auth: AuthState;
   onboarding: OnboardingState;
+  /** Injected on Test user sign-in so the first paint has demo data (avoids storage races). */
+  bootstrapAppState?: AppState | null;
 }) {
   const userId = auth.userId;
   const useCloud =
@@ -256,13 +288,9 @@ export function AppProvider({
     Boolean(userId) &&
     !isShowcaseUser(userId);
 
-  const [state, baseDispatch] = useReducer(reducer, undefined, () => {
-    if (!isSupabaseConfigured) {
-      const saved = getItem<AppState>('appState');
-      return saved ? normalizeAppState(saved) : createEmptyAppState();
-    }
-    return createEmptyAppState();
-  });
+  const [state, baseDispatch] = useReducer(reducer, undefined, () =>
+    resolveInitialAppState(bootstrapAppState),
+  );
 
   const [isDataLoading, setIsDataLoading] = useState(useCloud);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -272,28 +300,71 @@ export function AppProvider({
   const [parseStatusMessage, setParseStatusMessage] = useState('Analyzing receipt…');
   const stateRef = useRef(state);
   stateRef.current = state;
+  const authRef = useRef(auth);
+  authRef.current = auth;
   const onboardingRef = useRef(onboarding);
   onboardingRef.current = onboarding;
+  /** Avoid re-hydrating from storage and clobbering in-memory edits during the session. */
+  const hydratedUserIdRef = useRef<string | null>(null);
 
-  // Offline fallback: persist to localStorage when Supabase is not configured
+  const shouldPersistShowcase = useCallback(() => {
+    if (useCloud) return false;
+    const uid = authRef.current.userId;
+    return isShowcaseUser(uid) || isShowcaseSessionActive();
+  }, [useCloud]);
+
+  // Keep ref aligned when state is updated outside dispatch (hydrate effects, etc.)
   useEffect(() => {
-    if (!useCloud) {
+    stateRef.current = state;
+  }, [state]);
+
+  // Offline persistence (non-showcase — showcase saves synchronously in dispatch)
+  useEffect(() => {
+    if (useCloud || shouldPersistShowcase()) return;
+    if (!isSupabaseConfigured) {
       setItem('appState', state);
     }
-  }, [state, useCloud]);
+  }, [state, useCloud, shouldPersistShowcase]);
 
-  // Offline: reload per-user app state when account changes
+  // Showcase: backup persist on every state change (covers any dispatch path)
   useEffect(() => {
+    if (!shouldPersistShowcase()) return;
+    saveShowcaseAppState(state);
+  }, [state, shouldPersistShowcase]);
+
+  // Hydrate once per signed-in user (not on every render)
+  useLayoutEffect(() => {
     if (useCloud) return;
     if (!auth.isAuthenticated) {
+      hydratedUserIdRef.current = null;
+      if (isShowcaseSessionActive() || loadShowcaseAuth()) return;
       baseDispatch({ type: 'RESET_STATE' });
       return;
     }
-    const saved = getItem<AppState>('appState');
-    baseDispatch({
-      type: 'HYDRATE_STATE',
-      state: saved ?? createEmptyAppState({ userEmail: auth.email ?? '' }),
-    });
+    const uid = auth.userId ?? '';
+    if (hydratedUserIdRef.current === uid) return;
+    hydratedUserIdRef.current = uid;
+
+    if (bootstrapAppState && showcaseHasDemoData(bootstrapAppState)) {
+      const next = normalizeAppState(bootstrapAppState);
+      stateRef.current = next;
+      baseDispatch({ type: 'HYDRATE_STATE', state: next });
+      if (isShowcaseUser(uid)) saveShowcaseAppState(next);
+      return;
+    }
+
+    const saved = isShowcaseUser(uid)
+      ? loadShowcaseAppState()
+      : getItem<AppState>('appState');
+    const fallback = isShowcaseUser(uid)
+      ? createShowcaseAppState()
+      : createEmptyAppState({ userEmail: auth.email ?? '' });
+    const next = showcaseHasDemoData(saved) ? saved! : fallback;
+    stateRef.current = next;
+    baseDispatch({ type: 'HYDRATE_STATE', state: next });
+    if (isShowcaseUser(uid) || isShowcaseSessionActive()) {
+      saveShowcaseAppState(next);
+    }
   }, [useCloud, auth.userId, auth.isAuthenticated, auth.email]);
 
   // Load cloud data when user signs in
@@ -325,27 +396,49 @@ export function AppProvider({
     };
   }, [useCloud, userId]);
 
-  // Reset when logged out
+  // Reset when logged out (skip while showcase session is restoring)
   useEffect(() => {
-    if (!auth.isAuthenticated) {
-      baseDispatch({ type: 'RESET_STATE' });
-    }
+    if (auth.isAuthenticated) return;
+    if (isShowcaseSessionActive() || loadShowcaseAuth()) return;
+    baseDispatch({ type: 'RESET_STATE' });
   }, [auth.isAuthenticated]);
 
   const dispatch = useCallback(
     (action: Action) => {
-      baseDispatch(action);
-      if (!useCloud || !userId) return;
-      if (action.type === 'HYDRATE_STATE' || action.type === 'RESET_STATE') return;
+      if (action.type === 'HYDRATE_STATE') {
+        const next = normalizeAppState(action.state);
+        stateRef.current = next;
+        baseDispatch({ type: 'HYDRATE_STATE', state: next });
+        if (shouldPersistShowcase()) saveShowcaseAppState(next);
+        return;
+      }
+
+      if (action.type === 'RESET_STATE') {
+        const empty = createEmptyAppState();
+        stateRef.current = empty;
+        baseDispatch(action);
+        return;
+      }
 
       const nextState = reducer(stateRef.current, action);
       stateRef.current = nextState;
+      // Apply computed state directly — baseDispatch(action) would re-run the reducer on
+      // stale React state and can drop updates (e.g. ADD_EXPENSE after hydrate).
+      baseDispatch({ type: 'HYDRATE_STATE', state: nextState });
 
-      syncActionToSupabase(userId, action, nextState).catch(err => {
+      if (shouldPersistShowcase()) {
+        saveShowcaseAppState(nextState);
+        return;
+      }
+
+      const uid = authRef.current.userId;
+      if (!useCloud || !uid) return;
+
+      syncActionToSupabase(uid, action, nextState).catch(err => {
         console.error('Sync failed:', err);
       });
     },
-    [useCloud, userId],
+    [useCloud, shouldPersistShowcase],
   );
 
   const completeOnboardingAndSync = useCallback(async () => {
@@ -369,11 +462,17 @@ export function AppProvider({
     const wiped =
       useCloud && userId
         ? await eraseAllAppDataOnServer(userId, current)
-        : buildErasedAppState(current);
+        : isShowcaseUser(userId)
+          ? createShowcaseAppState()
+          : buildErasedAppState(current);
 
     baseDispatch({ type: 'HYDRATE_STATE', state: wiped });
     if (!useCloud) {
-      setItem('appState', wiped);
+      if (isShowcaseUser(userId)) {
+        saveShowcaseAppState(wiped);
+      } else if (!isSupabaseConfigured) {
+        setItem('appState', wiped);
+      }
     }
   }, [useCloud, userId]);
 

@@ -3,6 +3,7 @@ type StoredAuth = { userId: string | null };
 import { getItem, removeItem } from '../utils/storage';
 import { replaceAppStateOnServer } from './appDataService';
 import { isShowcaseUser } from './showcaseTestUser';
+import { clearShowcaseSession } from './showcaseSession';
 import { getSupabase } from '../../lib/supabase';
 
 /** One-time upload of legacy localStorage appState after first Supabase login. */
@@ -36,8 +37,15 @@ export async function migrateLocalStorageIfNeeded(userId: string): Promise<AppSt
   return local;
 }
 
+/** Legacy offline keys (not the showcase.* namespace). */
 export function clearLocalUserData(): void {
   removeItem('appState');
   removeItem('auth');
   removeItem('onboarding');
+}
+
+/** Wipe demo session + legacy keys (logout, real sign-in). */
+export function clearAllLocalUserData(): void {
+  clearLocalUserData();
+  clearShowcaseSession();
 }

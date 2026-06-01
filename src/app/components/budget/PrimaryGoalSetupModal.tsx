@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import type { PrimaryGoalTarget } from '../../data/primaryGoalTarget';
 import { createEmptyPrimaryGoalTarget } from '../../data/primaryGoalTarget';
 import type { PrimaryGoalId } from '../../data/types';
@@ -20,6 +20,7 @@ export function PrimaryGoalSetupModal({
   goalId,
   target,
   formatCurrency,
+  scrollLockRef,
   onSave,
   onClose,
 }: {
@@ -27,6 +28,7 @@ export function PrimaryGoalSetupModal({
   goalId: PrimaryGoalId;
   target: PrimaryGoalTarget | null;
   formatCurrency: (n: number) => string;
+  scrollLockRef?: RefObject<HTMLElement | null>;
   onSave: (goalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => void;
   onClose: () => void;
 }) {
@@ -81,6 +83,7 @@ export function PrimaryGoalSetupModal({
       onClose={onClose}
       title={draftDef.label}
       headerLeading={headerLeading}
+      scrollLockRef={scrollLockRef}
       bodyScroll
       footer={
         <ModalActionBar

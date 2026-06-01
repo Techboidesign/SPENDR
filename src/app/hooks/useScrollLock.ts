@@ -39,6 +39,11 @@ export function releaseAppScrollElement(el: HTMLElement) {
 
   el.style.removeProperty('overscroll-behavior');
   el.scrollTop = scrollTop;
+
+  if (el.hasAttribute(APP_SCROLL_ATTR)) {
+    el.style.overflowY = 'auto';
+    el.style.overflowX = 'hidden';
+  }
 }
 
 function lockAppScrollElement(el: HTMLElement) {

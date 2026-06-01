@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useAppColors } from '../../context/AppearanceContext';
 import { CategoryIcon } from '../CategoryIcon';
 import { AppBottomSheetLayout } from '../AppBottomSheetLayout';
@@ -16,6 +16,7 @@ export function BudgetEditModal({
   initialAmount,
   formatCurrency,
   currencySymbol,
+  scrollLockRef,
   onSave,
   onClose,
 }: {
@@ -24,6 +25,7 @@ export function BudgetEditModal({
   initialAmount: number;
   formatCurrency: (n: number) => string;
   currencySymbol: string;
+  scrollLockRef?: RefObject<HTMLElement | null>;
   onSave: (amount: number) => void;
   onClose: () => void;
 }) {
@@ -72,6 +74,7 @@ export function BudgetEditModal({
       onClose={onClose}
       title={title}
       headerLeading={headerLeading}
+      scrollLockRef={scrollLockRef}
       footer={
         <ModalActionBar
           onLeft={onClose}
