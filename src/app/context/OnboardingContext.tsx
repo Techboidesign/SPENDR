@@ -18,6 +18,12 @@ import { getItem, removeItem, setItem } from '../utils/storage';
 import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
 import { clearLocalUserData } from '../services/migrateLocalStorage';
 import { createEmptyAppState } from '../services/appDataService';
+import {
+  createShowcaseAppState,
+  createShowcaseOnboarding,
+  SHOWCASE_USER_EMAIL,
+  SHOWCASE_USER_ID,
+} from '../services/showcaseTestUser';
 import { AppProvider } from './AppContext';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
@@ -89,6 +95,8 @@ interface OnboardingContextType {
   logout: () => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Local showcase session with bundled sample data (portfolio / demos). */
+  signInAsTestUser: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   refreshOnboarding: () => Promise<void>;
@@ -328,6 +336,28 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setAuthState(sessionToAuth(data.session));
   }, []);
 
+  const signInAsTestUser = useCallback(async () => {
+    if (isSupabaseConfigured) {
+      await getSupabase().auth.signOut();
+    }
+    clearLocalUserData();
+
+    const nextAuth: AuthState = {
+      isAuthenticated: true,
+      userId: SHOWCASE_USER_ID,
+      method: 'email',
+      email: SHOWCASE_USER_EMAIL,
+    };
+    const nextOnboarding = createShowcaseOnboarding();
+    const nextAppState = createShowcaseAppState();
+
+    setAuthState(nextAuth);
+    setOnboarding(nextOnboarding);
+    setItem('auth', nextAuth);
+    setItem('onboarding', nextOnboarding);
+    setItem('appState', nextAppState);
+  }, []);
+
   const resetPassword = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) return;
     const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
@@ -369,6 +399,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         logout,
         signUpWithEmail,
         signInWithEmail,
+        signInAsTestUser,
         resetPassword,
         updatePassword,
         refreshOnboarding,

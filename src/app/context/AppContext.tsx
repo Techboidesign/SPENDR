@@ -34,6 +34,8 @@ import {
   eraseAllAppDataOnServer,
 } from '../services/appDataService';
 import { migrateLocalStorageIfNeeded } from '../services/migrateLocalStorage';
+import { isShowcaseUser } from '../services/showcaseTestUser';
+import { AppearanceProviderInner } from './AppearanceContext';
 import {
   completeOnboardingOnServer,
   mergeOnboardingIntoAppState,
@@ -248,7 +250,11 @@ export function AppProvider({
   onboarding: OnboardingState;
 }) {
   const userId = auth.userId;
-  const useCloud = isSupabaseConfigured && auth.isAuthenticated && Boolean(userId);
+  const useCloud =
+    isSupabaseConfigured &&
+    auth.isAuthenticated &&
+    Boolean(userId) &&
+    !isShowcaseUser(userId);
 
   const [state, baseDispatch] = useReducer(reducer, undefined, () => {
     if (!isSupabaseConfigured) {
@@ -544,7 +550,9 @@ export function AppProvider({
         eraseAllData,
       }}
     >
-      {children}
+      <AppearanceProviderInner state={state} dispatch={dispatch}>
+        {children}
+      </AppearanceProviderInner>
     </AppContext.Provider>
   );
 }

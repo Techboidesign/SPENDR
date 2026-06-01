@@ -7,6 +7,7 @@ import { useOnboarding, type OnboardingState } from '../../../context/Onboarding
 import { fetchOnboarding } from '../../../services/onboardingService';
 import { getSupabase, isSupabaseConfigured } from '../../../../lib/supabase';
 import { AuthScreenShell } from '../../auth/AuthScreenShell';
+import { AuthTestUserButton } from '../../auth/AuthTestUserButton';
 import { AUTH_THEME } from '../../../theme/authTheme';
 
 export default function LogInScreen() {
@@ -205,6 +206,8 @@ export default function LogInScreen() {
             Sign Up
           </button>
         </p>
+
+        <AuthTestUserButton />
         </div>
       </div>
     </AuthScreenShell>

@@ -12,7 +12,7 @@ import {
   type AppearanceMode,
   type AppColorPalette,
 } from '../theme/appColors';
-import { useApp } from './AppContext';
+import type { Action, AppState } from '../data/types';
 import { getItem, setItem } from '../utils/storage';
 
 interface AppearanceContextValue {
@@ -30,8 +30,16 @@ function readStoredAppearance(): AppearanceMode | null {
   return stored === 'dark' || stored === 'light' ? stored : null;
 }
 
-export function AppearanceProvider({ children }: { children: ReactNode }) {
-  const { state, dispatch } = useApp();
+/** Wired inside AppProvider — must not import AppContext (avoids circular modules). */
+export function AppearanceProviderInner({
+  state,
+  dispatch,
+  children,
+}: {
+  state: AppState;
+  dispatch: React.Dispatch<Action>;
+  children: ReactNode;
+}) {
   const mode = state.appearance;
   const isDark = mode === 'dark';
   const colors = APP_COLORS[mode];

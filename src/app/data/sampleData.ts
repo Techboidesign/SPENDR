@@ -1,5 +1,9 @@
 import { DEFAULT_NOTIFICATION_PREFERENCES } from './notificationPreferences';
-import { Expense, BudgetGoal, AppState } from './types';
+import { CURRENT_MONTH_KEY } from '../utils/periods';
+import type { Expense, BudgetGoal, AppState } from './types';
+
+/** Month the bundled demo expenses were authored for (see May 2026 block below). */
+export const SAMPLE_DATA_ANCHOR_MONTH = '2026-05';
 
 export const INITIAL_EXPENSES: Expense[] = [
   // ── May 2026 (current month) ────────────────────────────────
@@ -171,3 +175,37 @@ export const INITIAL_APP_STATE: AppState = {
   primaryGoal: null,
   primaryGoalTarget: null,
 };
+
+function monthKeyToIndex(ym: string): number {
+  const [y, m] = ym.split('-').map(Number);
+  return y * 12 + (m - 1);
+}
+
+function indexToMonthKey(idx: number): string {
+  const y = Math.floor(idx / 12);
+  const m = (idx % 12) + 1;
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function shiftIsoDate(iso: string, deltaMonths: number): string {
+  const [y, m] = iso.slice(0, 7).split('-').map(Number);
+  const day = parseInt(iso.slice(8, 10), 10);
+  const shiftedYm = indexToMonthKey(monthKeyToIndex(`${y}-${String(m).padStart(2, '0')}`) + deltaMonths);
+  const [sy, sm] = shiftedYm.split('-').map(Number);
+  const maxDay = new Date(sy, sm, 0).getDate();
+  return `${shiftedYm}-${String(Math.min(day, maxDay)).padStart(2, '0')}`;
+}
+
+/** Slide bundled demo history so the “current” month matches the device calendar. */
+export function shiftSampleExpensesToPresent(expenses: Expense[]): Expense[] {
+  const delta =
+    monthKeyToIndex(CURRENT_MONTH_KEY) - monthKeyToIndex(SAMPLE_DATA_ANCHOR_MONTH);
+  if (delta === 0) return expenses;
+
+  return expenses.map((e) => ({
+    ...e,
+    date: shiftIsoDate(e.date, delta),
+    startDate: e.startDate ? shiftIsoDate(e.startDate, delta) : undefined,
+    endDate: e.endDate ? shiftIsoDate(e.endDate, delta) : undefined,
+  }));
+}

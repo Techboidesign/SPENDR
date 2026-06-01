@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { Button } from '../../ui/button';
 import { AuthScreenShell } from '../../auth/AuthScreenShell';
 import { WelcomeBrandSequence } from '../../auth/WelcomeBrandSequence';
+import { AuthTestUserButton } from '../../auth/AuthTestUserButton';
 import { APP_PRIMARY, AUTH_THEME, AUTH_WELCOME_GRADIENT } from '../../../theme/authTheme';
 
 export default function WelcomeScreen() {
@@ -55,6 +56,8 @@ export default function WelcomeScreen() {
           >
             Log In
           </Button>
+
+          <AuthTestUserButton variant="welcome" />
 
           <p
             style={{

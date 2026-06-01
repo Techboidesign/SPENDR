@@ -5,6 +5,7 @@ import { Button } from '../../ui/button';
 import { FormInput } from '../../shared/FormFields';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { AuthScreenShell } from '../../auth/AuthScreenShell';
+import { AuthTestUserButton } from '../../auth/AuthTestUserButton';
 import { AUTH_THEME, ONBOARDING_FIRST_STEP } from '../../../theme/authTheme';
 
 export default function SignUpScreen() {
@@ -286,6 +287,8 @@ export default function SignUpScreen() {
                 Log In
               </button>
             </p>
+
+            <AuthTestUserButton />
           </div>
     </AuthScreenShell>
   );

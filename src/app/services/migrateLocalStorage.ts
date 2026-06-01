@@ -2,10 +2,13 @@ import type { AppState } from '../data/types';
 type StoredAuth = { userId: string | null };
 import { getItem, removeItem } from '../utils/storage';
 import { replaceAppStateOnServer } from './appDataService';
+import { isShowcaseUser } from './showcaseTestUser';
 import { getSupabase } from '../../lib/supabase';
 
 /** One-time upload of legacy localStorage appState after first Supabase login. */
 export async function migrateLocalStorageIfNeeded(userId: string): Promise<AppState | null> {
+  if (isShowcaseUser(userId)) return null;
+
   const supabase = getSupabase();
   const { data: profile, error } = await supabase
     .from('profiles')

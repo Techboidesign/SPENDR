@@ -2,7 +2,7 @@ import { createBrowserRouter, Outlet, Navigate, useLocation } from 'react-router
 import { useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
 import { OnboardingThemeProvider } from './context/OnboardingThemeContext';
-import { AppearanceProvider, useAppColors } from './context/AppearanceContext';
+import { useAppColors } from './context/AppearanceContext';
 import RootLayout from './components/RootLayout';
 import SubPageLayout from './components/SubPageLayout';
 import PhoneFrameLayout from './components/PhoneFrameLayout';
@@ -34,11 +34,9 @@ import Step7Complete from './components/screens/onboarding/Step7Complete';
 function ProvidersLayout() {
   return (
     <OnboardingProvider>
-      <AppearanceProvider>
-        <AuthLoadingGate>
-          <Outlet />
-        </AuthLoadingGate>
-      </AppearanceProvider>
+      <AuthLoadingGate>
+        <Outlet />
+      </AuthLoadingGate>
     </OnboardingProvider>
   );
 }
