@@ -16,8 +16,7 @@ import {
 } from './expenses/ExpenseCategoryChipStrip';
 import { generateId } from '../utils/id';
 import { getCurrencySymbol } from '../utils/currencySymbol';
-import { getActiveFocusCategoryId, isFocusCategoryId, isSpendingExpense } from '../data/focusCategory';
-import { parsePrimaryGoal } from '../data/primaryGoalConfig';
+import { isFocusCategoryId } from '../data/focusCategory';
 
 const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
   { value: 'one-time', label: 'One-time' },
@@ -32,13 +31,6 @@ const fieldLabel: CSSProperties = {
   marginBottom: 4,
   display: 'block',
 };
-
-function getLastUsedCategoryId(expenses: Expense[]): string | null {
-  const spending = expenses.filter(isSpendingExpense);
-  if (spending.length === 0) return null;
-  const sorted = [...spending].sort((a, b) => b.date.localeCompare(a.date));
-  return sorted[0]?.categoryId ?? null;
-}
 
 function formatPreviewDate(iso: string): string {
   const today = new Date().toISOString().slice(0, 10);
@@ -55,7 +47,6 @@ export function AddExpenseModal() {
     closeAddModal,
     dispatch,
     expensePickerCategories,
-    getCategory,
     state,
   } = useApp();
   const c = useAppColors();
@@ -67,7 +58,7 @@ export function AddExpenseModal() {
 
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
-  const [categoryId, setCategoryId] = useState('other');
+  const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(today);
   const [type, setType] = useState<ExpenseType>('one-time');
   const [startDate, setStartDate] = useState(today);
@@ -75,7 +66,7 @@ export function AddExpenseModal() {
   const [notes, setNotes] = useState('');
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [touched, setTouched] = useState({ amount: false });
+  const [touched, setTouched] = useState({ amount: false, name: false, category: false });
 
   const recentCategoryIds = useMemo(
     () => getRecentCategoryIds(state.expenses),
@@ -97,7 +88,7 @@ export function AddExpenseModal() {
     } else if (addModalDraft) {
       setAmount(addModalDraft.amount ?? '');
       setName(addModalDraft.name ?? '');
-      setCategoryId(addModalDraft.categoryId ?? 'other');
+      setCategoryId(addModalDraft.categoryId ?? '');
       setDate(addModalDraft.date ?? today);
       setType(addModalDraft.type ?? 'one-time');
       setStartDate(addModalDraft.startDate ?? addModalDraft.date ?? today);
@@ -112,13 +103,9 @@ export function AddExpenseModal() {
         ),
       );
     } else {
-      const lastUsed = getLastUsedCategoryId(state.expenses);
-      const defaultFocusId = getActiveFocusCategoryId(
-        parsePrimaryGoal(state.primaryGoal ?? undefined),
-      );
       setAmount('');
       setName('');
-      setCategoryId(lastUsed ?? defaultFocusId ?? 'other');
+      setCategoryId('');
       setDate(today);
       setType('one-time');
       setStartDate(today);
@@ -127,11 +114,12 @@ export function AddExpenseModal() {
       setShowNotes(false);
       setShowMoreDetails(false);
     }
-    setTouched({ amount: false });
-  }, [editingExpense, addModalDraft, showAddModal, today, state.expenses, state.primaryGoal]);
+    setTouched({ amount: false, name: false, category: false });
+  }, [editingExpense, addModalDraft, showAddModal, today]);
 
-  const selectedCategory = getCategory(categoryId);
-  const isFocusContribution = isFocusCategoryId(categoryId);
+  const hasValidCategory = categoryId.trim() !== '';
+  const hasValidName = name.trim() !== '';
+  const isFocusContribution = hasValidCategory && isFocusCategoryId(categoryId);
 
   const parsedAmount = parseFloat(amount);
   const hasValidAmount =
@@ -139,8 +127,7 @@ export function AddExpenseModal() {
     !Number.isNaN(parsedAmount) &&
     (isFocusContribution ? parsedAmount !== 0 : parsedAmount > 0);
 
-  const resolvedName = name.trim() || selectedCategory.name;
-  const canSave = hasValidAmount;
+  const canSave = hasValidAmount && hasValidName && hasValidCategory;
   const saveDisabled = !canSave;
 
   const amountError = useMemo(() => {
@@ -151,19 +138,24 @@ export function AddExpenseModal() {
     return 'Enter an amount greater than zero';
   }, [amount, hasValidAmount, isFocusContribution, parsedAmount]);
 
+  const nameError = hasValidName ? null : 'Enter a name';
+  const categoryError = hasValidCategory ? null : 'Select a category';
+
   const showAmountError = Boolean(amountError && touched.amount);
+  const showNameError = Boolean(nameError && touched.name);
+  const showCategoryError = Boolean(categoryError && touched.category);
 
   const previewDate = type === 'one-time' ? date : startDate;
 
   const handleSave = () => {
     if (!canSave) {
-      setTouched({ amount: true });
+      setTouched({ amount: true, name: true, category: true });
       return;
     }
 
     const expense: Expense = {
       id: editingExpense?.id ?? generateId(),
-      name: resolvedName,
+      name: name.trim(),
       categoryId,
       amount: parsedAmount,
       date: type === 'one-time' ? date : startDate,
@@ -211,11 +203,26 @@ export function AddExpenseModal() {
 
   const saveLabel = isEditMode ? 'SAVE' : 'ADD';
 
+  const summaryBadges = (
+    <ExpenseAddSummaryBadges
+      categoryId={hasValidCategory ? categoryId : null}
+      expenseType={type}
+      dateLabel={formatPreviewDate(previewDate)}
+      showMoreDetails={showMoreDetails}
+      onToggleMoreDetails={() => setShowMoreDetails(prev => !prev)}
+      align="end"
+      compact
+      showToggle={false}
+    />
+  );
+
   return (
     <AppBottomSheetLayout
       open={showAddModal}
       onClose={closeAddModal}
       title={title}
+      headerTrailing={summaryBadges}
+      showCloseButton={false}
       bodyScroll={showMoreDetails}
       sheetStyle={{ maxHeight: '92vh', minHeight: 'min(82vh, 720px)' }}
       footer={
@@ -231,12 +238,48 @@ export function AddExpenseModal() {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <ExpenseCategoryChipStrip
-            categories={expensePickerCategories}
-            selectedId={categoryId}
-            onSelect={setCategoryId}
-            recentIds={recentCategoryIds}
-          />
+          <div>
+            <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
+              NAME
+            </label>
+            <input
+              id="expense-name"
+              type="text"
+              placeholder="Expense name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+              required
+              aria-invalid={showNameError}
+              style={{
+                ...inputStyle,
+                border: showNameError ? `1px solid ${c.danger}` : '1px solid transparent',
+                backgroundColor: showNameError ? c.dangerSoft : c.inputBg,
+              }}
+            />
+            {showNameError ? (
+              <p style={{ fontSize: 11, color: c.danger, margin: '6px 0 0', fontWeight: 600 }}>
+                {nameError}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <ExpenseCategoryChipStrip
+              categories={expensePickerCategories}
+              selectedId={categoryId}
+              onSelect={id => {
+                setCategoryId(id);
+                setTouched(prev => ({ ...prev, category: false }));
+              }}
+              recentIds={recentCategoryIds}
+            />
+            {showCategoryError ? (
+              <p style={{ fontSize: 11, color: c.danger, margin: '6px 0 0', fontWeight: 600 }}>
+                {categoryError}
+              </p>
+            ) : null}
+          </div>
 
           <div>
             <p
@@ -339,57 +382,22 @@ export function AddExpenseModal() {
 
         <ExpenseAmountNumpad value={amount} onChange={setAmount} />
 
-        {!isEditMode ? (
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 4 }}>
           <ExpenseAddSummaryBadges
-            categoryId={categoryId}
+            categoryId={hasValidCategory ? categoryId : null}
             expenseType={type}
             dateLabel={formatPreviewDate(previewDate)}
             showMoreDetails={showMoreDetails}
             onToggleMoreDetails={() => setShowMoreDetails(prev => !prev)}
+            align="center"
+            compact
+            showBadges={false}
+            showToggle
           />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowMoreDetails(prev => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              border: 'none',
-              background: 'none',
-              padding: '4px 0 16px',
-              fontSize: 13,
-              fontWeight: 600,
-              color: c.accent,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              width: '100%',
-            }}
-          >
-            {showMoreDetails ? 'Less details' : 'More details'}
-          </button>
-        )}
+        </div>
 
         {showMoreDetails ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
-                NAME
-              </label>
-              <input
-                id="expense-name"
-                type="text"
-                placeholder={selectedCategory.name}
-                value={name}
-                onChange={e => setName(e.target.value)}
-                style={inputStyle}
-              />
-              <p style={{ fontSize: 11, color: c.textFaint, margin: '4px 0 0' }}>
-                Leave blank to use &ldquo;{selectedCategory.name}&rdquo;
-              </p>
-            </div>
-
             <div
               style={
                 type !== 'one-time'
@@ -458,7 +466,7 @@ export function AddExpenseModal() {
 
         {isReviewMode && !showMoreDetails ? (
           <p style={{ fontSize: 11, color: c.textFaint, margin: 0, textAlign: 'center' }}>
-            Open more details to edit name or date before saving.
+            Open more details to edit date or notes before saving.
           </p>
         ) : null}
       </div>

@@ -30,18 +30,29 @@ export function ExpenseAddSummaryBadges({
   dateLabel,
   showMoreDetails,
   onToggleMoreDetails,
+  align = 'center',
+  compact = false,
+  showToggle = true,
+  showBadges = true,
 }: {
-  categoryId: string;
+  categoryId: string | null;
   expenseType: ExpenseType;
   dateLabel: string;
   showMoreDetails: boolean;
   onToggleMoreDetails: () => void;
+  align?: 'center' | 'end';
+  compact?: boolean;
+  showToggle?: boolean;
+  showBadges?: boolean;
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
   const { getCategory } = useApp();
-  const category = getCategory(categoryId);
-  const categoryColors = categoryExpenseBadge(category, isDark);
+  const hasCategory = Boolean(categoryId);
+  const category = hasCategory ? getCategory(categoryId!) : null;
+  const categoryColors = category
+    ? categoryExpenseBadge(category, isDark)
+    : { color: c.textMuted, bg: c.surfaceInset };
   const typeColors = expenseTypeBadge(expenseType, c, isDark);
   const dateColors = dateSummaryBadge(isDark, c);
 
@@ -50,77 +61,86 @@ export function ExpenseAddSummaryBadges({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        gap: 10,
-        paddingTop: 4,
-        paddingBottom: 24,
+        alignItems: align === 'end' ? 'flex-end' : 'center',
+        gap: compact ? 8 : 10,
+        paddingTop: compact ? 0 : 4,
+        paddingBottom: compact ? 0 : 24,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-        }}
-      >
-        <span
+      {showBadges ? (
+        <div
           style={{
-            ...summaryBadgeStyle,
-            color: categoryColors.color,
-            backgroundColor: categoryColors.bg,
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: align === 'end' ? 'flex-end' : 'center',
+            gap: 6,
           }}
         >
-          {categoryPillLabel(category.name)}
-        </span>
-        <span
-          style={{
-            ...summaryBadgeStyle,
-            color: typeColors.color,
-            backgroundColor: typeColors.bg,
-          }}
-        >
-          {EXPENSE_TYPE_LABEL[expenseType]}
-        </span>
-        <span
-          style={{
-            ...summaryBadgeStyle,
-            color: dateColors.color,
-            backgroundColor: dateColors.bg,
-          }}
-        >
-          {dateLabel}
-        </span>
-      </div>
+          {hasCategory && category ? (
+            <span
+              style={{
+                ...summaryBadgeStyle,
+                color: categoryColors.color,
+                backgroundColor: categoryColors.bg,
+              }}
+            >
+              {categoryPillLabel(category.name)}
+            </span>
+          ) : null}
+          <span
+            style={{
+              ...summaryBadgeStyle,
+              color: typeColors.color,
+              backgroundColor: typeColors.bg,
+            }}
+          >
+            {EXPENSE_TYPE_LABEL[expenseType]}
+          </span>
+          <span
+            style={{
+              ...summaryBadgeStyle,
+              color: dateColors.color,
+              backgroundColor: dateColors.bg,
+            }}
+          >
+            {dateLabel}
+          </span>
+        </div>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={onToggleMoreDetails}
-        aria-label={showMoreDetails ? 'Less details' : 'More details'}
-        aria-expanded={showMoreDetails}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 44,
-          height: 36,
-          padding: 0,
-          borderRadius: 10,
-          border: `1px solid ${isDark ? c.accentBorder : c.accentSoft}`,
-          backgroundColor: c.accentSoft,
-          color: c.accent,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          flexShrink: 0,
-        }}
-      >
-        {showMoreDetails ? (
-          <CaretUp size={22} weight="bold" aria-hidden />
-        ) : (
-          <CaretDown size={22} weight="bold" aria-hidden />
-        )}
-      </button>
+      {showToggle ? (
+        <button
+          type="button"
+          onClick={onToggleMoreDetails}
+          aria-label={showMoreDetails ? 'Less details' : 'More details'}
+          aria-expanded={showMoreDetails}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            minHeight: 36,
+            padding: '0 12px',
+            borderRadius: 10,
+            border: `1px solid ${isDark ? c.accentBorder : c.accentSoft}`,
+            backgroundColor: c.accentSoft,
+            color: c.accent,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {showMoreDetails ? 'Less Details' : 'More Details'}
+          </span>
+          {showMoreDetails ? (
+            <CaretUp size={20} weight="bold" aria-hidden />
+          ) : (
+            <CaretDown size={20} weight="bold" aria-hidden />
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -10,18 +10,22 @@ export function AppBottomSheetLayout({
   title,
   titleSubline,
   headerLeading,
+  headerTrailing,
   children,
   footer,
   scrollLockRef,
   lockBackgroundScroll,
   bodyScroll = false,
   sheetStyle,
+  showCloseButton = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   titleSubline?: string;
   headerLeading?: ReactNode;
+  /** Right side of title row (e.g. summary badges). Shown instead of close when both apply. */
+  headerTrailing?: ReactNode;
   children: ReactNode;
   footer: ReactNode;
   scrollLockRef?: RefObject<HTMLElement | null>;
@@ -30,6 +34,8 @@ export function AppBottomSheetLayout({
   bodyScroll?: boolean;
   /** Merged onto default bottom sheet chrome (e.g. taller max height). */
   sheetStyle?: CSSProperties;
+  /** Header top-right close icon (use false when footer has explicit cancel action). */
+  showCloseButton?: boolean;
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
@@ -85,25 +91,29 @@ export function AppBottomSheetLayout({
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              flexShrink: 0,
-              background: c.inputBg,
-              border: `1px solid ${isDark ? c.inputBorder : c.border}`,
-              borderRadius: 10,
-              width: 32,
-              height: 32,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={16} weight="bold" color={c.textMuted} />
-          </button>
+          {headerTrailing ? (
+            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{headerTrailing}</div>
+          ) : showCloseButton ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                flexShrink: 0,
+                background: c.inputBg,
+                border: `1px solid ${isDark ? c.inputBorder : c.border}`,
+                borderRadius: 10,
+                width: 32,
+                height: 32,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={16} weight="bold" color={c.textMuted} />
+            </button>
+          ) : null}
         </div>
       </div>
 

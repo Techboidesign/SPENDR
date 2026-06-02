@@ -15,6 +15,7 @@ export function CategorySelectPill({
   iconColor,
   selected,
   onSelect,
+  emphasis = 'default',
 }: {
   categoryId: string;
   name: string;
@@ -23,9 +24,12 @@ export function CategorySelectPill({
   iconColor?: string;
   selected: boolean;
   onSelect: () => void;
+  /** `solid` — full-opacity pills for add-expense chip strip (better contrast). */
+  emphasis?: 'default' | 'solid';
 }) {
   const displayColor = iconColor || color;
   const pillShadow = `0 1px 3px ${displayColor}18`;
+  const solid = emphasis === 'solid';
 
   return (
     <button
@@ -39,16 +43,26 @@ export function CategorySelectPill({
         padding: selected ? '2px 8px 2px 4px' : '2px 14px 2px 4px',
         borderRadius: 20,
         backgroundColor: bg,
-        border: `1px solid ${selected ? displayColor : `${displayColor}20`}`,
+        border: solid
+          ? `1.5px solid ${selected ? displayColor : `${displayColor}66`}`
+          : `1px solid ${selected ? displayColor : `${displayColor}20`}`,
         cursor: 'pointer',
         fontFamily: 'inherit',
         boxShadow: pillShadow,
-        opacity: selected ? 1 : 0.55,
+        opacity: solid ? 1 : selected ? 1 : 0.55,
         transition: 'opacity 0.15s ease, border-color 0.15s ease, transform 0.15s ease',
       }}
     >
       <CategoryIcon categoryId={categoryId} size="xs" />
-      <span style={{ fontSize: 11, fontWeight: 500, color: displayColor }}>{categoryPillLabel(name)}</span>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: solid ? 600 : 500,
+          color: displayColor,
+        }}
+      >
+        {categoryPillLabel(name)}
+      </span>
       {selected ? (
         <span
           style={{

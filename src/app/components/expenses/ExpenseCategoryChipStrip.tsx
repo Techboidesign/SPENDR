@@ -63,10 +63,12 @@ export function ExpenseCategoryChipStrip({
   recentIds,
 }: {
   categories: CategoryChipOption[];
+  /** Empty string = no category selected yet */
   selectedId: string;
   onSelect: (categoryId: string) => void;
   recentIds: string[];
 }) {
+  const activeId = selectedId || null;
   const c = useAppColors();
 
   const ordered = useMemo(
@@ -133,7 +135,7 @@ export function ExpenseCategoryChipStrip({
             <div
               key={cat.id}
               role="option"
-              aria-selected={cat.id === selectedId}
+              aria-selected={cat.id === activeId}
               style={{ scrollSnapAlign: 'start', flexShrink: 0 }}
             >
               <CategorySelectPill
@@ -142,8 +144,9 @@ export function ExpenseCategoryChipStrip({
                 bg={cat.bg}
                 color={cat.color}
                 iconColor={cat.iconColor}
-                selected={cat.id === selectedId}
+                selected={cat.id === activeId}
                 onSelect={() => onSelect(cat.id)}
+                emphasis="solid"
               />
             </div>
           ))}
