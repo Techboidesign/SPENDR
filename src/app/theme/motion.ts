@@ -8,6 +8,12 @@ export const EASE_OUT_SINE = [0.61, 1, 0.88, 1] as const;
 /** Horizontal chip-strip scroll when category is auto-selected from name. */
 export const CHIP_STRIP_SCROLL_MS = 220;
 
+/** Disabled save hint — pop above ADD button */
+export const SAVE_HINT_VISIBLE_MS = 2000;
+export const SAVE_HINT_ENTER_S = 0.22;
+export const SAVE_HINT_EXIT_S = 0.18;
+export const SAVE_HINT_EASE_IN = [0.55, 0, 0.75, 0] as const;
+
 export const MODAL_ANIMATION_MS = 0.3;
 
 export const MODAL_TRANSITION = {

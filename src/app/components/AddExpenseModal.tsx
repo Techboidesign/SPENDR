@@ -268,19 +268,33 @@ export function AddExpenseModal() {
     boxSizing: 'border-box',
   };
 
-  /** iOS Safari date inputs overflow unless ancestors and inputs can shrink below min-content. */
   const dateInputStyle: CSSProperties = {
-    ...inputStyle,
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
+    backgroundColor: c.inputBg,
     border: `1px solid ${c.borderSubtle}`,
+    borderRadius: 12,
+    fontSize: 16,
+    color: c.text,
+    outline: 'none',
+    fontFamily: 'inherit',
   };
 
   const dateFieldCellStyle: CSSProperties = {
     minWidth: 0,
     width: '100%',
+    maxWidth: '100%',
   };
+
+  const dateRowStyle: CSSProperties =
+    type !== 'one-time'
+      ? {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          width: '100%',
+          minWidth: 0,
+          maxWidth: '100%',
+        }
+      : { width: '100%', minWidth: 0, maxWidth: '100%' };
 
   const saveLabel = isEditMode ? 'SAVE' : 'ADD';
 
@@ -410,43 +424,37 @@ export function AddExpenseModal() {
             </div>
           </div>
 
-          <div
-            style={
-              type !== 'one-time'
-                ? {
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-                    gap: 8,
-                    width: '100%',
-                    minWidth: 0,
-                  }
-                : { width: '100%', minWidth: 0 }
-            }
-          >
+          <div style={dateRowStyle}>
             <div style={dateFieldCellStyle}>
               <label style={{ ...fieldLabel, color: c.textMuted }}>
                 {type === 'one-time' ? 'DATE' : 'START'}
               </label>
-              <input
-                type="date"
-                aria-label={type === 'one-time' ? 'Date' : 'Start date'}
-                value={type === 'one-time' ? date : startDate}
-                onChange={e =>
-                  type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
-                }
-                style={dateInputStyle}
-              />
+              <div className="expense-date-field">
+                <input
+                  type="date"
+                  className="expense-date-input"
+                  aria-label={type === 'one-time' ? 'Date' : 'Start date'}
+                  value={type === 'one-time' ? date : startDate}
+                  onChange={e =>
+                    type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
+                  }
+                  style={dateInputStyle}
+                />
+              </div>
             </div>
             {type !== 'one-time' ? (
               <div style={dateFieldCellStyle}>
                 <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
-                <input
-                  type="date"
-                  aria-label="End date (optional)"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  style={dateInputStyle}
-                />
+                <div className="expense-date-field">
+                  <input
+                    type="date"
+                    className="expense-date-input"
+                    aria-label="End date (optional)"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    style={dateInputStyle}
+                  />
+                </div>
               </div>
             ) : null}
           </div>

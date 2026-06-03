@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { FloppyDisk } from '@phosphor-icons/react';
 import { useAppColors, useAppearance } from '../context/AppearanceContext';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import {
+  EASE_OUT_SINE,
+  SAVE_HINT_EASE_IN,
+  SAVE_HINT_ENTER_S,
+  SAVE_HINT_EXIT_S,
+  SAVE_HINT_VISIBLE_MS,
+} from '../theme/motion';
 
 export const MODAL_ACTION_BAR_HEIGHT = 76;
 
@@ -43,13 +50,61 @@ export function ModalActionBar({
   const resolvedLeftLabel = leftLabel ?? secondaryLabel ?? 'CANCEL';
   const resolvedSaveLabel = saveLabel ?? primaryLabel ?? 'SAVE';
   const resolvedSaveDisabled = saveDisabled || Boolean(primaryDisabled);
-  const [saveHintOpen, setSaveHintOpen] = useState(false);
-  const showSaveHint = resolvedSaveDisabled && Boolean(saveDisabledHint);
+  const [saveHintVisible, setSaveHintVisible] = useState(false);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveHintHoverRef = useRef(false);
+  const saveHintTapPinRef = useRef(false);
+
+  const syncSaveHint = () => {
+    const show =
+      resolvedSaveDisabled &&
+      Boolean(saveDisabledHint) &&
+      (saveHintHoverRef.current || saveHintTapPinRef.current);
+    setSaveHintVisible(show);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!resolvedSaveDisabled) {
+      saveHintHoverRef.current = false;
+      saveHintTapPinRef.current = false;
+      setSaveHintVisible(false);
+    }
+  }, [resolvedSaveDisabled]);
+
+  const showSaveHintOnTap = () => {
+    if (!resolvedSaveDisabled || !saveDisabledHint) return;
+    saveHintTapPinRef.current = true;
+    syncSaveHint();
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => {
+      saveHintTapPinRef.current = false;
+      syncSaveHint();
+    }, SAVE_HINT_VISIBLE_MS);
+  };
+
+  const onSaveHintEnter = () => {
+    if (!resolvedSaveDisabled || !saveDisabledHint) return;
+    saveHintHoverRef.current = true;
+    syncSaveHint();
+  };
+
+  const onSaveHintLeave = () => {
+    saveHintHoverRef.current = false;
+    syncSaveHint();
+  };
 
   if (!handleSave || !handleLeft) return null;
   const c = useAppColors();
   const { isDark: appDark } = useAppearance();
   const isDark = dark ?? appDark;
+  const reduceMotion = useReducedMotion();
+  const hintBg = isDark ? '#1E1E2A' : '#1A1A2E';
 
   const leftBg =
     leftVariant === 'delete'
@@ -63,6 +118,24 @@ export function ModalActionBar({
   const leftBorder =
     leftVariant === 'delete' ? 'none' : `1px solid ${isDark ? c.inputBorder : '#E5E7EB'}`;
 
+  const saveBg = resolvedSaveDisabled ? (isDark ? '#3D3A6E' : '#C7C5FF') : c.accent;
+
+  const actionButtonStyle = {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    padding: '14px',
+    borderRadius: 14,
+    fontSize: 14,
+    fontWeight: 700,
+    letterSpacing: 0.6,
+    fontFamily: 'inherit',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 48,
+  };
+
   return (
     <div
       style={{
@@ -73,111 +146,116 @@ export function ModalActionBar({
         boxShadow: isDark ? c.shadow : '0 -8px 24px rgba(0,0,0,0.08)',
       }}
     >
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 10,
+          width: '100%',
+          alignItems: 'stretch',
+        }}
+      >
         <button
           type="button"
           onClick={handleLeft}
           style={{
-            flex: 1,
-            padding: '14px',
-            borderRadius: 14,
+            ...actionButtonStyle,
             border: leftBorder,
             backgroundColor: leftBg,
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: 0.6,
             color: leftColor,
             cursor: 'pointer',
-            fontFamily: 'inherit',
           }}
         >
           {resolvedLeftLabel}
         </button>
-        {showSaveHint ? (
-          <Tooltip open={saveHintOpen} onOpenChange={setSaveHintOpen}>
-            <TooltipTrigger asChild>
-              <span
-                style={{ flex: 1, display: 'flex', minWidth: 0 }}
-                onClick={() => setSaveHintOpen(true)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSaveHintOpen(true);
-                  }
+
+        <div
+          style={{ position: 'relative', minWidth: 0, width: '100%' }}
+          onMouseEnter={onSaveHintEnter}
+          onMouseLeave={onSaveHintLeave}
+        >
+          <AnimatePresence>
+            {saveHintVisible && saveDisabledHint ? (
+              <motion.div
+                key="save-disabled-hint"
+                role="status"
+                aria-live="polite"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  transition: reduceMotion
+                    ? { duration: 0 }
+                    : { duration: SAVE_HINT_ENTER_S, ease: EASE_OUT_SINE },
                 }}
-                role="button"
-                tabIndex={0}
-                aria-label={saveDisabledHint}
+                exit={{
+                  opacity: 0,
+                  y: 6,
+                  transition: reduceMotion
+                    ? { duration: 0 }
+                    : { duration: SAVE_HINT_EXIT_S, ease: SAVE_HINT_EASE_IN },
+                }}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 'calc(100% + 8px)',
+                  zIndex: 20,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  backgroundColor: hintBg,
+                  color: '#F8FAFC',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  textAlign: 'center',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'normal',
+                }}
               >
-                <button
-                  type="button"
-                  disabled
+                {saveDisabledHint}
+                <span
+                  aria-hidden
                   style={{
-                    flex: 1,
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: 14,
-                    border: 'none',
-                    backgroundColor: isDark ? '#3D3A6E' : '#C7C5FF',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: 0.6,
-                    color: c.onAccent,
-                    cursor: 'not-allowed',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    pointerEvents: 'none',
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: -5,
+                    width: 10,
+                    height: 10,
+                    transform: 'translateX(-50%) rotate(45deg)',
+                    backgroundColor: hintBg,
                   }}
-                >
-                  <FloppyDisk size={18} weight="bold" />
-                  {resolvedSaveLabel}
-                </button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              sideOffset={6}
-              className="border-0 shadow-md"
-              style={{
-                backgroundColor: isDark ? '#1E1E2A' : '#1A1A2E',
-                color: '#F8FAFC',
-                fontSize: 12,
-                fontWeight: 500,
-                padding: '6px 10px',
-              }}
-            >
-              {saveDisabledHint}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
           <button
             type="button"
-            onClick={handleSave}
+            aria-disabled={resolvedSaveDisabled}
+            onClick={() => {
+              if (resolvedSaveDisabled) {
+                showSaveHintOnTap();
+                return;
+              }
+              handleSave();
+            }}
             style={{
-              flex: 1,
-              padding: '14px',
-              borderRadius: 14,
+              ...actionButtonStyle,
               border: 'none',
-              backgroundColor: c.accent,
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: 0.6,
+              backgroundColor: saveBg,
               color: c.onAccent,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
+              cursor: resolvedSaveDisabled ? 'not-allowed' : 'pointer',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             <FloppyDisk size={18} weight="bold" />
             {resolvedSaveLabel}
           </button>
-        )}
+        </div>
       </div>
     </div>
   );
