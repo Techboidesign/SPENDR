@@ -1,8 +1,17 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useReducedMotion } from 'motion/react';
 import type { Expense } from '../../data/types';
 import { isSpendingExpense } from '../../data/focusCategory';
+import { CHIP_STRIP_SCROLL_MS } from '../../theme/motion';
+import { animateScrollLeft, scrollOffsetToRevealChip } from '../../utils/animateScrollLeft';
 import { CategorySelectPill } from '../shared/CategorySelectPill';
 import { useAppColors } from '../../context/AppearanceContext';
+
+export type CategoryChipScrollTarget = {
+  categoryId: string;
+  /** Increment to replay scroll when a new auto-suggestion lands on the same id. */
+  token: number;
+};
 
 export type CategoryChipOption = {
   id: string;
@@ -33,10 +42,15 @@ export function getRecentCategoryIds(expenses: Expense[], limit = RECENT_LIMIT):
   return ids;
 }
 
-/** Recent first (stable recency order), then the rest in catalog order — selection does not reorder chips. */
+/** Recent first (stable recency order), then the rest in catalog order. */
 export function orderCategoriesForChipStrip(
   categories: CategoryChipOption[],
   recentIds: string[],
+  options?: {
+    /** When true (name auto-suggest), selected chip is moved to the front. */
+    pinSelectedFirst?: boolean;
+    selectedId?: string;
+  },
 ): CategoryChipOption[] {
   const byId = new Map(categories.map(c => [c.id, c]));
   const ordered: CategoryChipOption[] = [];
@@ -53,6 +67,14 @@ export function orderCategoriesForChipStrip(
   for (const id of recentIds) push(id);
   for (const cat of categories) push(cat.id);
 
+  const selectedId = options?.selectedId?.trim();
+  if (options?.pinSelectedFirst && selectedId) {
+    const selected = byId.get(selectedId);
+    if (selected) {
+      return [selected, ...ordered.filter(c => c.id !== selectedId)];
+    }
+  }
+
   return ordered;
 }
 
@@ -65,6 +87,8 @@ export function ExpenseCategoryChipStrip({
   headingColor,
   invalid = false,
   errorId,
+  scrollToCategory,
+  pinSelectedFirst = false,
 }: {
   categories: CategoryChipOption[];
   /** Empty string = no category selected yet */
@@ -75,14 +99,53 @@ export function ExpenseCategoryChipStrip({
   headingColor?: string;
   invalid?: boolean;
   errorId?: string;
+  /** Auto-suggestion: ease-out-sine scroll to the selected chip */
+  scrollToCategory?: CategoryChipScrollTarget | null;
+  /** Name auto-suggest: show selected chip first; manual tap keeps catalog order */
+  pinSelectedFirst?: boolean;
 }) {
   const activeId = selectedId || null;
   const c = useAppColors();
+  const reduceMotion = useReducedMotion();
+  const stripRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef(new Map<string, HTMLDivElement>());
 
   const ordered = useMemo(
-    () => orderCategoriesForChipStrip(categories, recentIds),
-    [categories, recentIds],
+    () =>
+      orderCategoriesForChipStrip(categories, recentIds, {
+        pinSelectedFirst,
+        selectedId: selectedId || undefined,
+      }),
+    [categories, recentIds, pinSelectedFirst, selectedId],
   );
+
+  useLayoutEffect(() => {
+    const target = scrollToCategory;
+    if (!target?.categoryId || !target.token) return;
+
+    const run = () => {
+      const container = stripRef.current;
+      const chip = chipRefs.current.get(target.categoryId);
+      if (!container || !chip) return;
+
+      const offset = scrollOffsetToRevealChip(container, chip, {
+        align: pinSelectedFirst ? 'nearest' : 'center',
+        padding: STRIP_CONTENT_INSET_PX,
+      });
+      animateScrollLeft(container, offset, {
+        durationMs: CHIP_STRIP_SCROLL_MS,
+        reducedMotion: reduceMotion ?? false,
+      });
+    };
+
+    requestAnimationFrame(run);
+  }, [
+    scrollToCategory?.categoryId,
+    scrollToCategory?.token,
+    ordered,
+    reduceMotion,
+    pinSelectedFirst,
+  ]);
 
   const fadeEdge = (side: 'left' | 'right'): CSSProperties => ({
     position: 'absolute',
@@ -120,6 +183,7 @@ export function ExpenseCategoryChipStrip({
         }}
       >
         <div
+          ref={stripRef}
           className="expense-category-chip-strip"
           role="listbox"
           aria-label={heading}
@@ -149,6 +213,10 @@ export function ExpenseCategoryChipStrip({
           {ordered.map(cat => (
             <div
               key={cat.id}
+              ref={node => {
+                if (node) chipRefs.current.set(cat.id, node);
+                else chipRefs.current.delete(cat.id);
+              }}
               role="option"
               aria-selected={cat.id === activeId}
               style={{ scrollSnapAlign: 'start', flexShrink: 0 }}

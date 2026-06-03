@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAppColors } from '../context/AppearanceContext';
 import { Expense, ExpenseType } from '../data/types';
@@ -17,6 +17,12 @@ import {
 import { generateId } from '../utils/id';
 import { getCurrencySymbol } from '../utils/currencySymbol';
 import { isFocusCategoryId } from '../data/focusCategory';
+import {
+  buildExpenseNameCategoryIndex,
+  suggestCategoryFromName,
+} from '../utils/suggestCategoryFromName';
+
+const CATEGORY_SUGGEST_DEBOUNCE_MS = 280;
 
 const TYPE_OPTIONS: { value: ExpenseType; label: string }[] = [
   { value: 'one-time', label: 'One-time' },
@@ -72,6 +78,25 @@ export function AddExpenseModal() {
     [state.expenses],
   );
 
+  const categoryHistoryIndex = useMemo(
+    () => buildExpenseNameCategoryIndex(state.expenses),
+    [state.expenses],
+  );
+
+  const pickerCategoryIds = useMemo(
+    () => expensePickerCategories.map(c => c.id),
+    [expensePickerCategories],
+  );
+
+  const pickerCatalogNames = useMemo(
+    () => expensePickerCategories.map(c => ({ id: c.id, name: c.name })),
+    [expensePickerCategories],
+  );
+
+  const categoryTouchedRef = useRef(false);
+  const [categoryScrollToken, setCategoryScrollToken] = useState(0);
+  const [categoryAutoOrdered, setCategoryAutoOrdered] = useState(false);
+
   useEffect(() => {
     if (editingExpense) {
       setAmount(editingExpense.amount.toString());
@@ -102,6 +127,49 @@ export function AddExpenseModal() {
       setNotes('');
     }
   }, [editingExpense, addModalDraft, showAddModal, today]);
+
+  useEffect(() => {
+    categoryTouchedRef.current = false;
+    setCategoryScrollToken(0);
+    setCategoryAutoOrdered(false);
+  }, [editingExpense, addModalDraft, showAddModal]);
+
+  useEffect(() => {
+    if (!showAddModal || !isNewExpenseForm) return;
+    if (categoryTouchedRef.current) return;
+
+    const trimmed = name.trim();
+
+    const timer = window.setTimeout(() => {
+      if (categoryTouchedRef.current) return;
+
+      if (trimmed.length < 2) {
+        setCategoryId('');
+        setCategoryAutoOrdered(false);
+        return;
+      }
+
+      const suggested = suggestCategoryFromName({
+        name: trimmed,
+        allowedCategoryIds: pickerCategoryIds,
+        historyIndex: categoryHistoryIndex,
+        catalogNames: pickerCatalogNames,
+      });
+
+      setCategoryId(suggested);
+      setCategoryAutoOrdered(true);
+      setCategoryScrollToken(t => t + 1);
+    }, CATEGORY_SUGGEST_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    name,
+    showAddModal,
+    isNewExpenseForm,
+    pickerCategoryIds,
+    categoryHistoryIndex,
+    pickerCatalogNames,
+  ]);
 
   const hasValidCategory = categoryId.trim() !== '';
   const isFocusContribution = hasValidCategory && isFocusCategoryId(categoryId);
@@ -170,6 +238,20 @@ export function AddExpenseModal() {
     boxSizing: 'border-box',
   };
 
+  /** iOS Safari date inputs overflow unless ancestors and inputs can shrink below min-content. */
+  const dateInputStyle: CSSProperties = {
+    ...inputStyle,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    border: `1px solid ${c.borderSubtle}`,
+  };
+
+  const dateFieldCellStyle: CSSProperties = {
+    minWidth: 0,
+    width: '100%',
+  };
+
   const saveLabel = isEditMode ? 'SAVE' : 'ADD';
 
   const summaryBadges = (
@@ -202,8 +284,8 @@ export function AddExpenseModal() {
         />
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, width: '100%' }}>
           <div>
             {!isNewExpenseForm ? (
               <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
@@ -215,7 +297,11 @@ export function AddExpenseModal() {
               type="text"
               placeholder={isNewExpenseForm ? 'Expense name (optional)' : 'Expense name'}
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => {
+                categoryTouchedRef.current = false;
+                setCategoryAutoOrdered(false);
+                setName(e.target.value);
+              }}
               aria-label="Expense name"
               style={{
                 ...inputStyle,
@@ -228,9 +314,19 @@ export function AddExpenseModal() {
             <ExpenseCategoryChipStrip
               categories={expensePickerCategories}
               selectedId={categoryId}
-              onSelect={setCategoryId}
+              onSelect={id => {
+                categoryTouchedRef.current = true;
+                setCategoryAutoOrdered(false);
+                setCategoryId(id);
+              }}
               recentIds={recentCategoryIds}
               heading={isNewExpenseForm ? 'CHOOSE A CATEGORY' : 'CATEGORY'}
+              pinSelectedFirst={isNewExpenseForm && categoryAutoOrdered && Boolean(categoryId)}
+              scrollToCategory={
+                isNewExpenseForm && categoryId && categoryAutoOrdered
+                  ? { categoryId, token: categoryScrollToken }
+                  : null
+              }
             />
           </div>
 
@@ -283,11 +379,17 @@ export function AddExpenseModal() {
           <div
             style={
               type !== 'one-time'
-                ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }
-                : undefined
+                ? {
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                    gap: 8,
+                    width: '100%',
+                    minWidth: 0,
+                  }
+                : { width: '100%', minWidth: 0 }
             }
           >
-            <div>
+            <div style={dateFieldCellStyle}>
               <label style={{ ...fieldLabel, color: c.textMuted }}>
                 {type === 'one-time' ? 'DATE' : 'START'}
               </label>
@@ -298,18 +400,18 @@ export function AddExpenseModal() {
                 onChange={e =>
                   type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
                 }
-                style={{ ...inputStyle, border: `1px solid ${c.borderSubtle}` }}
+                style={dateInputStyle}
               />
             </div>
             {type !== 'one-time' ? (
-              <div>
+              <div style={dateFieldCellStyle}>
                 <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
                 <input
                   type="date"
                   aria-label="End date (optional)"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
-                  style={{ ...inputStyle, border: `1px solid ${c.borderSubtle}` }}
+                  style={dateInputStyle}
                 />
               </div>
             ) : null}

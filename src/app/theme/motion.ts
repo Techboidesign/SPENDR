@@ -2,6 +2,12 @@
 
 export const EASE_OUT_QUINT = [0.32, 0.72, 0, 1] as const;
 
+/** CSS-equivalent ease-out-sine — gentle deceleration for short scroll nudges. */
+export const EASE_OUT_SINE = [0.61, 1, 0.88, 1] as const;
+
+/** Horizontal chip-strip scroll when category is auto-selected from name. */
+export const CHIP_STRIP_SCROLL_MS = 220;
+
 export const MODAL_ANIMATION_MS = 0.3;
 
 export const MODAL_TRANSITION = {
