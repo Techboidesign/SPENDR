@@ -50,9 +50,27 @@ export function orderCategoriesForChipStrip(
     /** When true (name auto-suggest), selected chip is moved to the front. */
     pinSelectedFirst?: boolean;
     selectedId?: string;
+    /** Manual pick: freeze visual order so chips do not jump in the strip. */
+    orderLockIds?: readonly string[] | null;
   },
 ): CategoryChipOption[] {
   const byId = new Map(categories.map(c => [c.id, c]));
+
+  if (options?.orderLockIds?.length) {
+    const ordered: CategoryChipOption[] = [];
+    const seen = new Set<string>();
+    for (const id of options.orderLockIds) {
+      const cat = byId.get(id);
+      if (!cat || seen.has(id)) continue;
+      ordered.push(cat);
+      seen.add(id);
+    }
+    for (const cat of categories) {
+      if (!seen.has(cat.id)) ordered.push(cat);
+    }
+    return ordered;
+  }
+
   const ordered: CategoryChipOption[] = [];
   const seen = new Set<string>();
 
@@ -89,6 +107,7 @@ export function ExpenseCategoryChipStrip({
   errorId,
   scrollToCategory,
   pinSelectedFirst = false,
+  orderLockIds = null,
 }: {
   categories: CategoryChipOption[];
   /** Empty string = no category selected yet */
@@ -103,6 +122,8 @@ export function ExpenseCategoryChipStrip({
   scrollToCategory?: CategoryChipScrollTarget | null;
   /** Name auto-suggest: show selected chip first; manual tap keeps catalog order */
   pinSelectedFirst?: boolean;
+  /** Frozen chip order after manual select (prevents jump when auto-order ends). */
+  orderLockIds?: readonly string[] | null;
 }) {
   const activeId = selectedId || null;
   const c = useAppColors();
@@ -110,13 +131,16 @@ export function ExpenseCategoryChipStrip({
   const stripRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef(new Map<string, HTMLDivElement>());
 
+  const autoScrollActive = Boolean(scrollToCategory?.token);
+
   const ordered = useMemo(
     () =>
       orderCategoriesForChipStrip(categories, recentIds, {
-        pinSelectedFirst,
+        pinSelectedFirst: pinSelectedFirst && !orderLockIds?.length,
         selectedId: selectedId || undefined,
+        orderLockIds,
       }),
-    [categories, recentIds, pinSelectedFirst, selectedId],
+    [categories, recentIds, pinSelectedFirst, selectedId, orderLockIds],
   );
 
   useLayoutEffect(() => {
@@ -200,7 +224,7 @@ export function ExpenseCategoryChipStrip({
             boxShadow: invalid ? `inset 0 0 0 1.5px ${c.danger}` : undefined,
             backgroundColor: invalid ? c.dangerSoft : undefined,
             WebkitOverflowScrolling: 'touch',
-            scrollSnapType: 'x proximity',
+            scrollSnapType: autoScrollActive ? 'x proximity' : 'none',
             scrollPaddingLeft: STRIP_CONTENT_INSET_PX,
             scrollPaddingRight: STRIP_CONTENT_INSET_PX,
             overscrollBehaviorX: 'contain',

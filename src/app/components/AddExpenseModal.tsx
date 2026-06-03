@@ -13,6 +13,7 @@ import { ExpenseAddSummaryBadges } from './expenses/ExpenseAddSummaryBadges';
 import {
   ExpenseCategoryChipStrip,
   getRecentCategoryIds,
+  orderCategoriesForChipStrip,
 } from './expenses/ExpenseCategoryChipStrip';
 import { generateId } from '../utils/id';
 import { getCurrencySymbol } from '../utils/currencySymbol';
@@ -96,6 +97,7 @@ export function AddExpenseModal() {
   const categoryTouchedRef = useRef(false);
   const [categoryScrollToken, setCategoryScrollToken] = useState(0);
   const [categoryAutoOrdered, setCategoryAutoOrdered] = useState(false);
+  const [lockedChipOrderIds, setLockedChipOrderIds] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (editingExpense) {
@@ -132,7 +134,25 @@ export function AddExpenseModal() {
     categoryTouchedRef.current = false;
     setCategoryScrollToken(0);
     setCategoryAutoOrdered(false);
+    setLockedChipOrderIds(null);
   }, [editingExpense, addModalDraft, showAddModal]);
+
+  const chipStripOrder = useMemo(
+    () =>
+      orderCategoriesForChipStrip(expensePickerCategories, recentCategoryIds, {
+        pinSelectedFirst: isNewExpenseForm && categoryAutoOrdered && Boolean(categoryId),
+        selectedId: categoryId || undefined,
+        orderLockIds: lockedChipOrderIds,
+      }),
+    [
+      expensePickerCategories,
+      recentCategoryIds,
+      isNewExpenseForm,
+      categoryAutoOrdered,
+      categoryId,
+      lockedChipOrderIds,
+    ],
+  );
 
   useEffect(() => {
     if (!showAddModal || !isNewExpenseForm) return;
@@ -146,6 +166,7 @@ export function AddExpenseModal() {
       if (trimmed.length < 2) {
         setCategoryId('');
         setCategoryAutoOrdered(false);
+        setLockedChipOrderIds(null);
         return;
       }
 
@@ -156,6 +177,7 @@ export function AddExpenseModal() {
         catalogNames: pickerCatalogNames,
       });
 
+      setLockedChipOrderIds(null);
       setCategoryId(suggested);
       setCategoryAutoOrdered(true);
       setCategoryScrollToken(t => t + 1);
@@ -181,6 +203,14 @@ export function AddExpenseModal() {
     (isFocusContribution ? parsedAmount !== 0 : parsedAmount > 0);
 
   const canSave = hasValidAmount && hasValidCategory;
+
+  const saveDisabledHint = useMemo(() => {
+    if (canSave) return undefined;
+    if (!hasValidCategory && !hasValidAmount) return 'Add a category and amount';
+    if (!hasValidCategory) return 'Choose a category';
+    if (!hasValidAmount) return 'Enter an amount';
+    return 'Finish required fields';
+  }, [canSave, hasValidCategory, hasValidAmount]);
 
   const previewDate = type === 'one-time' ? date : startDate;
 
@@ -281,6 +311,7 @@ export function AddExpenseModal() {
           onSave={handleSave}
           saveLabel={saveLabel}
           saveDisabled={!canSave}
+          saveDisabledHint={saveDisabledHint}
         />
       }
     >
@@ -300,6 +331,7 @@ export function AddExpenseModal() {
               onChange={e => {
                 categoryTouchedRef.current = false;
                 setCategoryAutoOrdered(false);
+                setLockedChipOrderIds(null);
                 setName(e.target.value);
               }}
               aria-label="Expense name"
@@ -317,11 +349,13 @@ export function AddExpenseModal() {
               onSelect={id => {
                 categoryTouchedRef.current = true;
                 setCategoryAutoOrdered(false);
-                setCategoryId(id);
+                setLockedChipOrderIds(chipStripOrder.map(c => c.id));
+                setCategoryId(prev => (prev === id ? '' : id));
               }}
               recentIds={recentCategoryIds}
               heading={isNewExpenseForm ? 'CHOOSE A CATEGORY' : 'CATEGORY'}
               pinSelectedFirst={isNewExpenseForm && categoryAutoOrdered && Boolean(categoryId)}
+              orderLockIds={lockedChipOrderIds}
               scrollToCategory={
                 isNewExpenseForm && categoryId && categoryAutoOrdered
                   ? { categoryId, token: categoryScrollToken }

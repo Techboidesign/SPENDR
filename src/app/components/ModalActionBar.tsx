@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { FloppyDisk } from '@phosphor-icons/react';
 import { useAppColors, useAppearance } from '../context/AppearanceContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export const MODAL_ACTION_BAR_HEIGHT = 76;
 
@@ -17,6 +19,8 @@ export function ModalActionBar({
   primaryLabel,
   saveDisabled = false,
   primaryDisabled,
+  /** Shown when the user taps save while it is disabled */
+  saveDisabledHint,
   /** Force dark chrome (e.g. avatar crop). Defaults to app appearance. */
   dark,
 }: {
@@ -31,6 +35,7 @@ export function ModalActionBar({
   primaryLabel?: string;
   saveDisabled?: boolean;
   primaryDisabled?: boolean;
+  saveDisabledHint?: string;
   dark?: boolean;
 }) {
   const handleSave = onSave ?? onPrimary;
@@ -38,6 +43,8 @@ export function ModalActionBar({
   const resolvedLeftLabel = leftLabel ?? secondaryLabel ?? 'CANCEL';
   const resolvedSaveLabel = saveLabel ?? primaryLabel ?? 'SAVE';
   const resolvedSaveDisabled = saveDisabled || Boolean(primaryDisabled);
+  const [saveHintOpen, setSaveHintOpen] = useState(false);
+  const showSaveHint = resolvedSaveDisabled && Boolean(saveDisabledHint);
 
   if (!handleSave || !handleLeft) return null;
   const c = useAppColors();
@@ -86,31 +93,91 @@ export function ModalActionBar({
         >
           {resolvedLeftLabel}
         </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={resolvedSaveDisabled}
-          style={{
-            flex: 1,
-            padding: '14px',
-            borderRadius: 14,
-            border: 'none',
-            backgroundColor: resolvedSaveDisabled ? (isDark ? '#3D3A6E' : '#C7C5FF') : c.accent,
-            fontSize: 14,
-            fontWeight: 700,
-            letterSpacing: 0.6,
-            color: c.onAccent,
-            cursor: resolvedSaveDisabled ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
-        >
-          <FloppyDisk size={18} weight="bold" />
-          {resolvedSaveLabel}
-        </button>
+        {showSaveHint ? (
+          <Tooltip open={saveHintOpen} onOpenChange={setSaveHintOpen}>
+            <TooltipTrigger asChild>
+              <span
+                style={{ flex: 1, display: 'flex', minWidth: 0 }}
+                onClick={() => setSaveHintOpen(true)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSaveHintOpen(true);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={saveDisabledHint}
+              >
+                <button
+                  type="button"
+                  disabled
+                  style={{
+                    flex: 1,
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: 14,
+                    border: 'none',
+                    backgroundColor: isDark ? '#3D3A6E' : '#C7C5FF',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: 0.6,
+                    color: c.onAccent,
+                    cursor: 'not-allowed',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <FloppyDisk size={18} weight="bold" />
+                  {resolvedSaveLabel}
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              sideOffset={6}
+              className="border-0 shadow-md"
+              style={{
+                backgroundColor: isDark ? '#1E1E2A' : '#1A1A2E',
+                color: '#F8FAFC',
+                fontSize: 12,
+                fontWeight: 500,
+                padding: '6px 10px',
+              }}
+            >
+              {saveDisabledHint}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSave}
+            style={{
+              flex: 1,
+              padding: '14px',
+              borderRadius: 14,
+              border: 'none',
+              backgroundColor: c.accent,
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              color: c.onAccent,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <FloppyDisk size={18} weight="bold" />
+            {resolvedSaveLabel}
+          </button>
+        )}
       </div>
     </div>
   );
