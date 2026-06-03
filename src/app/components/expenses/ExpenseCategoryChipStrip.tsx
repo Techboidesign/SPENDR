@@ -61,12 +61,20 @@ export function ExpenseCategoryChipStrip({
   selectedId,
   onSelect,
   recentIds,
+  heading = 'CATEGORY',
+  headingColor,
+  invalid = false,
+  errorId,
 }: {
   categories: CategoryChipOption[];
   /** Empty string = no category selected yet */
   selectedId: string;
   onSelect: (categoryId: string) => void;
   recentIds: string[];
+  heading?: string;
+  headingColor?: string;
+  invalid?: boolean;
+  errorId?: string;
 }) {
   const activeId = selectedId || null;
   const c = useAppColors();
@@ -93,15 +101,16 @@ export function ExpenseCategoryChipStrip({
   return (
     <div>
       <p
+        id={errorId ? `${errorId}-label` : undefined}
         style={{
           margin: '0 0 8px',
           fontSize: 11,
           fontWeight: 600,
-          color: c.textMuted,
+          color: headingColor ?? (invalid ? c.danger : c.textMuted),
           letterSpacing: 0.4,
         }}
       >
-        CATEGORY
+        {heading}
       </p>
       <div
         style={{
@@ -113,13 +122,19 @@ export function ExpenseCategoryChipStrip({
         <div
           className="expense-category-chip-strip"
           role="listbox"
-          aria-label="Category"
+          aria-label={heading}
+          aria-invalid={invalid}
+          aria-labelledby={errorId ? `${errorId}-label` : undefined}
+          aria-describedby={invalid && errorId ? errorId : undefined}
           style={{
             display: 'flex',
             gap: 8,
             overflowX: 'auto',
             overflowY: 'hidden',
-            paddingBottom: 4,
+            padding: invalid ? '8px 0 4px' : '0 0 4px',
+            borderRadius: invalid ? 12 : undefined,
+            boxShadow: invalid ? `inset 0 0 0 1.5px ${c.danger}` : undefined,
+            backgroundColor: invalid ? c.dangerSoft : undefined,
             WebkitOverflowScrolling: 'touch',
             scrollSnapType: 'x proximity',
             scrollPaddingLeft: STRIP_CONTENT_INSET_PX,

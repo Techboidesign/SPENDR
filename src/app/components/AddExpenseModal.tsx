@@ -47,6 +47,7 @@ export function AddExpenseModal() {
     closeAddModal,
     dispatch,
     expensePickerCategories,
+    getCategory,
     state,
   } = useApp();
   const c = useAppColors();
@@ -55,6 +56,7 @@ export function AddExpenseModal() {
   const today = new Date().toISOString().slice(0, 10);
   const isEditMode = Boolean(editingExpense);
   const isReviewMode = Boolean(addModalDraft) && !isEditMode;
+  const isNewExpenseForm = !isEditMode && !isReviewMode;
 
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
@@ -64,9 +66,6 @@ export function AddExpenseModal() {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
-  const [touched, setTouched] = useState({ amount: false, name: false, category: false });
 
   const recentCategoryIds = useMemo(
     () => getRecentCategoryIds(state.expenses),
@@ -83,8 +82,6 @@ export function AddExpenseModal() {
       setStartDate(editingExpense.startDate ?? editingExpense.date);
       setEndDate(editingExpense.endDate ?? '');
       setNotes(editingExpense.notes ?? '');
-      setShowNotes(Boolean(editingExpense.notes?.trim()));
-      setShowMoreDetails(true);
     } else if (addModalDraft) {
       setAmount(addModalDraft.amount ?? '');
       setName(addModalDraft.name ?? '');
@@ -94,14 +91,6 @@ export function AddExpenseModal() {
       setStartDate(addModalDraft.startDate ?? addModalDraft.date ?? today);
       setEndDate(addModalDraft.endDate ?? '');
       setNotes(addModalDraft.notes ?? '');
-      setShowNotes(Boolean(addModalDraft.notes?.trim()));
-      setShowMoreDetails(
-        Boolean(
-          addModalDraft.name?.trim() ||
-            addModalDraft.notes?.trim() ||
-            addModalDraft.type !== 'one-time',
-        ),
-      );
     } else {
       setAmount('');
       setName('');
@@ -111,14 +100,10 @@ export function AddExpenseModal() {
       setStartDate(today);
       setEndDate('');
       setNotes('');
-      setShowNotes(false);
-      setShowMoreDetails(false);
     }
-    setTouched({ amount: false, name: false, category: false });
   }, [editingExpense, addModalDraft, showAddModal, today]);
 
   const hasValidCategory = categoryId.trim() !== '';
-  const hasValidName = name.trim() !== '';
   const isFocusContribution = hasValidCategory && isFocusCategoryId(categoryId);
 
   const parsedAmount = parseFloat(amount);
@@ -127,35 +112,19 @@ export function AddExpenseModal() {
     !Number.isNaN(parsedAmount) &&
     (isFocusContribution ? parsedAmount !== 0 : parsedAmount > 0);
 
-  const canSave = hasValidAmount && hasValidName && hasValidCategory;
-  const saveDisabled = !canSave;
-
-  const amountError = useMemo(() => {
-    if (hasValidAmount) return null;
-    if (amount.trim() === '') return 'Enter an amount';
-    if (Number.isNaN(parsedAmount)) return 'Enter a valid number';
-    if (isFocusContribution) return 'Enter a non-zero amount';
-    return 'Enter an amount greater than zero';
-  }, [amount, hasValidAmount, isFocusContribution, parsedAmount]);
-
-  const nameError = hasValidName ? null : 'Enter a name';
-  const categoryError = hasValidCategory ? null : 'Select a category';
-
-  const showAmountError = Boolean(amountError && touched.amount);
-  const showNameError = Boolean(nameError && touched.name);
-  const showCategoryError = Boolean(categoryError && touched.category);
+  const canSave = hasValidAmount && hasValidCategory;
 
   const previewDate = type === 'one-time' ? date : startDate;
 
   const handleSave = () => {
-    if (!canSave) {
-      setTouched({ amount: true, name: true, category: true });
-      return;
-    }
+    if (!canSave) return;
+
+    const resolvedName =
+      name.trim() || (hasValidCategory ? getCategory(categoryId).name : 'Expense');
 
     const expense: Expense = {
       id: editingExpense?.id ?? generateId(),
-      name: name.trim(),
+      name: resolvedName,
       categoryId,
       amount: parsedAmount,
       date: type === 'one-time' ? date : startDate,
@@ -194,7 +163,7 @@ export function AddExpenseModal() {
     backgroundColor: c.inputBg,
     border: '1px solid transparent',
     borderRadius: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: c.text,
     outline: 'none',
     fontFamily: 'inherit',
@@ -208,11 +177,8 @@ export function AddExpenseModal() {
       categoryId={hasValidCategory ? categoryId : null}
       expenseType={type}
       dateLabel={formatPreviewDate(previewDate)}
-      showMoreDetails={showMoreDetails}
-      onToggleMoreDetails={() => setShowMoreDetails(prev => !prev)}
       align="end"
       compact
-      showToggle={false}
     />
   );
 
@@ -223,7 +189,7 @@ export function AddExpenseModal() {
       title={title}
       headerTrailing={summaryBadges}
       showCloseButton={false}
-      bodyScroll={showMoreDetails}
+      bodyScroll
       sheetStyle={{ maxHeight: '92vh', minHeight: 'min(82vh, 720px)' }}
       footer={
         <ModalActionBar
@@ -232,53 +198,40 @@ export function AddExpenseModal() {
           leftVariant={isEditMode ? 'delete' : 'cancel'}
           onSave={handleSave}
           saveLabel={saveLabel}
-          saveDisabled={saveDisabled}
+          saveDisabled={!canSave}
         />
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
-              NAME
-            </label>
+            {!isNewExpenseForm ? (
+              <label htmlFor="expense-name" style={{ ...fieldLabel, color: c.textMuted }}>
+                NAME
+              </label>
+            ) : null}
             <input
               id="expense-name"
               type="text"
-              placeholder="Expense name"
+              placeholder={isNewExpenseForm ? 'Expense name (optional)' : 'Expense name'}
               value={name}
               onChange={e => setName(e.target.value)}
-              onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
-              required
-              aria-invalid={showNameError}
+              aria-label="Expense name"
               style={{
                 ...inputStyle,
-                border: showNameError ? `1px solid ${c.danger}` : '1px solid transparent',
-                backgroundColor: showNameError ? c.dangerSoft : c.inputBg,
+                border: `1px solid ${c.borderSubtle}`,
               }}
             />
-            {showNameError ? (
-              <p style={{ fontSize: 11, color: c.danger, margin: '6px 0 0', fontWeight: 600 }}>
-                {nameError}
-              </p>
-            ) : null}
           </div>
 
           <div>
             <ExpenseCategoryChipStrip
               categories={expensePickerCategories}
               selectedId={categoryId}
-              onSelect={id => {
-                setCategoryId(id);
-                setTouched(prev => ({ ...prev, category: false }));
-              }}
+              onSelect={setCategoryId}
               recentIds={recentCategoryIds}
+              heading={isNewExpenseForm ? 'CHOOSE A CATEGORY' : 'CATEGORY'}
             />
-            {showCategoryError ? (
-              <p style={{ fontSize: 11, color: c.danger, margin: '6px 0 0', fontWeight: 600 }}>
-                {categoryError}
-              </p>
-            ) : null}
           </div>
 
           <div>
@@ -326,149 +279,88 @@ export function AddExpenseModal() {
               ))}
             </div>
           </div>
-        </div>
 
-        <div
-          aria-live="polite"
-          aria-atomic
-          style={{
-            backgroundColor: showAmountError ? c.dangerSoft : c.inputBg,
-            borderRadius: 16,
-            padding: '14px 16px',
-            textAlign: 'center',
-            border: showAmountError ? `1px solid ${c.danger}` : `1px solid ${c.borderSubtle}`,
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 11,
-              fontWeight: 600,
-              color: c.textMuted,
-              letterSpacing: 0.5,
-              marginBottom: 4,
-            }}
+          <div
+            style={
+              type !== 'one-time'
+                ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }
+                : undefined
+            }
           >
-            AMOUNT
-          </p>
-          <p
-            className="font-figure"
-            style={{
-              margin: 0,
-              fontSize: 36,
-              fontWeight: 800,
-              color: showAmountError ? c.danger : c.text,
-              lineHeight: 1.1,
-              letterSpacing: -0.5,
-            }}
-          >
-            <span style={{ color: c.accent, fontWeight: 700 }}>{currencySymbol}</span>
-            {formatNumpadAmountDisplay(amount)}
-          </p>
-        </div>
-        {showAmountError ? (
-          <p
-            style={{
-              fontSize: 11,
-              color: c.danger,
-              margin: '-4px 0 0',
-              fontWeight: 600,
-              textAlign: 'center',
-            }}
-          >
-            {amountError}
-          </p>
-        ) : null}
-
-        <ExpenseAmountNumpad value={amount} onChange={setAmount} />
-
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 4 }}>
-          <ExpenseAddSummaryBadges
-            categoryId={hasValidCategory ? categoryId : null}
-            expenseType={type}
-            dateLabel={formatPreviewDate(previewDate)}
-            showMoreDetails={showMoreDetails}
-            onToggleMoreDetails={() => setShowMoreDetails(prev => !prev)}
-            align="center"
-            compact
-            showBadges={false}
-            showToggle
-          />
-        </div>
-
-        {showMoreDetails ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div
-              style={
-                type !== 'one-time'
-                  ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }
-                  : undefined
-              }
-            >
+            <div>
+              <label style={{ ...fieldLabel, color: c.textMuted }}>
+                {type === 'one-time' ? 'DATE' : 'START'}
+              </label>
+              <input
+                type="date"
+                aria-label={type === 'one-time' ? 'Date' : 'Start date'}
+                value={type === 'one-time' ? date : startDate}
+                onChange={e =>
+                  type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
+                }
+                style={{ ...inputStyle, border: `1px solid ${c.borderSubtle}` }}
+              />
+            </div>
+            {type !== 'one-time' ? (
               <div>
-                <label style={{ ...fieldLabel, color: c.textMuted }}>
-                  {type === 'one-time' ? 'DATE' : 'START'}
-                </label>
+                <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
                 <input
                   type="date"
-                  value={type === 'one-time' ? date : startDate}
-                  onChange={e =>
-                    type === 'one-time' ? setDate(e.target.value) : setStartDate(e.target.value)
-                  }
-                  style={inputStyle}
+                  aria-label="End date (optional)"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  style={{ ...inputStyle, border: `1px solid ${c.borderSubtle}` }}
                 />
               </div>
-              {type !== 'one-time' ? (
-                <div>
-                  <label style={{ ...fieldLabel, color: c.textMuted }}>END (OPT.)</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-              ) : null}
-            </div>
-
-            {showNotes ? (
-              <div>
-                <label style={{ ...fieldLabel, color: c.textMuted }}>NOTE</label>
-                <textarea
-                  placeholder="Add a note..."
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  rows={2}
-                  style={{ ...inputStyle, resize: 'none' }}
-                />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowNotes(true)}
-                style={{
-                  border: 'none',
-                  background: 'none',
-                  padding: 0,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: c.accent,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  textAlign: 'left',
-                }}
-              >
-                + Add note
-              </button>
-            )}
+            ) : null}
           </div>
-        ) : null}
+        </div>
 
-        {isReviewMode && !showMoreDetails ? (
-          <p style={{ fontSize: 11, color: c.textFaint, margin: 0, textAlign: 'center' }}>
-            Open more details to edit date or notes before saving.
-          </p>
-        ) : null}
+        <div>
+          {!isNewExpenseForm ? (
+            <p
+              style={{
+                margin: '0 0 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: c.textMuted,
+                letterSpacing: 0.4,
+              }}
+            >
+              AMOUNT
+            </p>
+          ) : null}
+          <div
+            aria-live="polite"
+            aria-atomic
+            style={{
+              backgroundColor: c.inputBg,
+              borderRadius: 16,
+              padding: '14px 16px',
+              textAlign: 'center',
+              border: `1px solid ${c.borderSubtle}`,
+            }}
+          >
+            <p
+              className="font-figure"
+              style={{
+                margin: 0,
+                fontSize: 36,
+                fontWeight: 800,
+                color: c.text,
+                lineHeight: 1.1,
+                letterSpacing: -0.5,
+              }}
+            >
+              <span style={{ color: c.accent, fontWeight: 700 }}>{currencySymbol}</span>
+              {formatNumpadAmountDisplay(amount)}
+            </p>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <ExpenseAmountNumpad value={amount} onChange={setAmount} />
+          </div>
+        </div>
       </div>
     </AppBottomSheetLayout>
   );
