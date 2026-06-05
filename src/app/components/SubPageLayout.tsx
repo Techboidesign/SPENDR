@@ -7,6 +7,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import { useAppColors } from '../context/AppearanceContext';
 import { useAppMotion } from '../hooks/useAppMotion';
 import { SLIDE_DURATION, SLIDE_EASE } from '../theme/motion';
+import { AppGlobalOverlays } from './AppGlobalOverlays';
 import { MODAL_HOST_ID, MODAL_OVERLAY_Z } from './BottomSheetModal';
 const SETTINGS_PATH = '/settings';
 
@@ -66,6 +67,7 @@ export default function SubPageLayout() {
           />
         </>
       }
+      overlay={<AppGlobalOverlays />}
     >
       <SubPageNavContext.Provider value={{ exit }}>
         <motion.div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>

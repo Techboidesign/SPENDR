@@ -48,7 +48,7 @@ export function ReceiptParseOverlay({ message }: { message: string }) {
           <Sparkle size={28} weight="fill" color={c.accent} />
         </motion.div>
         <p style={{ fontSize: 16, fontWeight: 700, color: c.text, margin: '0 0 6px' }}>
-          Reading with AI
+          Reading receipt
         </p>
         <p style={{ fontSize: 13, color: c.textMuted, margin: 0, lineHeight: 1.45 }}>
           {message}

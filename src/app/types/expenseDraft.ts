@@ -20,3 +20,10 @@ export type ParsedExpenseItem = {
   type: ExpenseType;
   notes?: string;
 };
+
+/** OCR pipeline result — one expense per receipt/document. */
+export type ReceiptScanResult = {
+  item: ParsedExpenseItem;
+  /** When true, save immediately without opening the add sheet. */
+  autoSave: boolean;
+};

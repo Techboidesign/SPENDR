@@ -49,8 +49,12 @@ import {
   completeOnboardingOnServer,
   mergeOnboardingIntoAppState,
 } from '../services/completeOnboarding';
-import { parseReceiptFiles, parseReceiptImage } from '../services/receiptParseService';
-import type { ExpenseFormDraft } from '../types/expenseDraft';
+import {
+  parseReceiptFiles,
+  parseReceiptImage,
+  type ReceiptParseContext,
+} from '../services/receiptParseService';
+import type { ExpenseFormDraft, ReceiptScanResult } from '../types/expenseDraft';
 import { generateId } from '../utils/id';
 import {
   buildFocusCategory,
@@ -243,6 +247,8 @@ interface AppContextType {
   parseStatusMessage: string;
   scanReceiptFromCamera: (file: File) => Promise<void>;
   uploadReceiptDocuments: (files: File[]) => Promise<void>;
+  receiptScanToast: { id: string; title: string; message: string } | null;
+  clearReceiptScanToast: () => void;
   completeOnboardingAndSync: () => Promise<void>;
   eraseAllData: () => Promise<void>;
 }
@@ -297,7 +303,12 @@ export function AppProvider({
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [addModalDraft, setAddModalDraft] = useState<ExpenseFormDraft | null>(null);
   const [isParsingReceipt, setIsParsingReceipt] = useState(false);
-  const [parseStatusMessage, setParseStatusMessage] = useState('Analyzing receipt…');
+  const [parseStatusMessage, setParseStatusMessage] = useState('Reading receipt…');
+  const [receiptScanToast, setReceiptScanToast] = useState<{
+    id: string;
+    title: string;
+    message: string;
+  } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const authRef = useRef(auth);
@@ -488,76 +499,30 @@ export function AppProvider({
     setAddModalDraft(null);
   };
 
-  const applyParsedExpenses = useCallback(
-    (items: Awaited<ReturnType<typeof parseReceiptImage>>) => {
-      if (items.length === 1) {
-        const item = items[0];
-        setEditingExpense(null);
-        setAddModalDraft({
-          name: item.name,
-          amount: String(item.amount),
-          categoryId: item.categoryId,
-          date: item.date,
-          type: item.type,
-          notes: item.notes,
-          startDate: item.date,
-        });
-        setShowAddModal(true);
-        return;
-      }
+  const buildReceiptParseContext = useCallback((): ReceiptParseContext => {
+    const current = stateRef.current;
+    const resolved = resolveCategories(
+      current.categoryCustomizations,
+      current.customCategories,
+      current.disabledCategoryIds,
+    );
+    const focusGoal = parsePrimaryGoal(current.primaryGoal ?? undefined);
+    const activeFocusCategoryId = getActiveFocusCategoryId(focusGoal);
+    const picker =
+      activeFocusCategoryId && (focusGoal === 'save' || focusGoal === 'debt' || focusGoal === 'emergency')
+        ? [...resolved, buildFocusCategory(focusGoal)]
+        : resolved;
 
-      const expenses: Expense[] = items.map(item => ({
-        id: generateId(),
-        name: item.name,
-        amount: item.amount,
-        categoryId: item.categoryId,
-        date: item.date,
-        type: item.type,
-        notes: item.notes,
-        startDate: item.type !== 'one-time' ? item.date : undefined,
-      }));
-      dispatch({ type: 'ADD_EXPENSES', expenses });
-    },
-    [dispatch],
-  );
+    return {
+      expenses: current.expenses,
+      allowedCategoryIds: picker.map(c => c.id),
+      catalogNames: picker.map(c => ({ id: c.id, name: c.name })),
+    };
+  }, []);
 
-  const scanReceiptFromCamera = useCallback(
-    async (file: File) => {
-      setIsParsingReceipt(true);
-      setParseStatusMessage('Scanning receipt…');
-      try {
-        const items = await parseReceiptImage(file);
-        applyParsedExpenses(items);
-      } catch (err) {
-        console.error(err);
-        setParseStatusMessage(err instanceof Error ? err.message : 'Scan failed');
-        window.setTimeout(() => setIsParsingReceipt(false), 2200);
-        return;
-      }
-      setIsParsingReceipt(false);
-    },
-    [applyParsedExpenses],
-  );
-
-  const uploadReceiptDocuments = useCallback(
-    async (files: File[]) => {
-      setIsParsingReceipt(true);
-      setParseStatusMessage(
-        files.length > 1 ? `Parsing ${files.length} documents…` : 'Parsing document…',
-      );
-      try {
-        const items = await parseReceiptFiles(files);
-        applyParsedExpenses(items);
-      } catch (err) {
-        console.error(err);
-        setParseStatusMessage(err instanceof Error ? err.message : 'Upload failed');
-        window.setTimeout(() => setIsParsingReceipt(false), 2200);
-        return;
-      }
-      setIsParsingReceipt(false);
-    },
-    [applyParsedExpenses],
-  );
+  const clearReceiptScanToast = useCallback(() => {
+    setReceiptScanToast(null);
+  }, []);
 
   const formatCurrency = (amount: number) => {
     const symbol =
@@ -624,6 +589,112 @@ export function AppProvider({
     return sumFocusCategoryContributions(state.expenses, id);
   }, [activeFocusCategoryId, state.expenses]);
 
+  const formatCurrencyFromState = useCallback((amount: number) => {
+    const currency = stateRef.current.currency;
+    if (currency === 'EUR') return `€${amount.toFixed(2)}`;
+    if (currency === 'USD') return `$${amount.toFixed(2)}`;
+    if (currency === 'GBP') return `£${amount.toFixed(2)}`;
+    return `${currency}${amount.toFixed(2)}`;
+  }, []);
+
+  const openDraftFromScan = useCallback((item: ReceiptScanResult['item']) => {
+    setEditingExpense(null);
+    setAddModalDraft({
+      name: item.name,
+      amount: item.amount > 0 ? String(item.amount) : '',
+      categoryId: item.categoryId,
+      date: item.date,
+      type: item.type,
+      notes: item.notes,
+      startDate: item.date,
+    });
+    setShowAddModal(true);
+  }, []);
+
+  const applyReceiptScanResults = useCallback(
+    (results: ReceiptScanResult[]) => {
+      const autoSaved: ReceiptScanResult[] = [];
+      const needsReview: ReceiptScanResult[] = [];
+
+      for (const result of results) {
+        if (result.autoSave && result.item.amount > 0) {
+          autoSaved.push(result);
+        } else {
+          needsReview.push(result);
+        }
+      }
+
+      if (autoSaved.length > 0) {
+        const expenses: Expense[] = autoSaved.map(result => ({
+          id: generateId(),
+          name: result.item.name,
+          amount: result.item.amount,
+          categoryId: result.item.categoryId,
+          date: result.item.date,
+          type: result.item.type,
+          notes: result.item.notes,
+          startDate: result.item.type !== 'one-time' ? result.item.date : undefined,
+        }));
+        dispatch({ type: 'ADD_EXPENSES', expenses });
+
+        const labels = autoSaved.map(
+          r => `${formatCurrencyFromState(r.item.amount)} · ${r.item.name}`,
+        );
+        setReceiptScanToast({
+          id: `receipt-scan-${Date.now()}`,
+          title: autoSaved.length === 1 ? 'Expense added' : `${autoSaved.length} expenses added`,
+          message:
+            autoSaved.length === 1
+              ? labels[0]
+              : `${labels.slice(0, 2).join(' · ')}${labels.length > 2 ? '…' : ''}`,
+        });
+      }
+
+      if (needsReview.length > 0) {
+        openDraftFromScan(needsReview[0].item);
+      }
+    },
+    [dispatch, formatCurrencyFromState, openDraftFromScan],
+  );
+
+  const scanReceiptFromCamera = useCallback(
+    async (file: File) => {
+      setIsParsingReceipt(true);
+      setParseStatusMessage('Reading receipt…');
+      try {
+        const result = await parseReceiptImage(file, buildReceiptParseContext());
+        applyReceiptScanResults([result]);
+      } catch (err) {
+        console.error(err);
+        setParseStatusMessage(err instanceof Error ? err.message : 'Scan failed');
+        window.setTimeout(() => setIsParsingReceipt(false), 2200);
+        return;
+      }
+      setIsParsingReceipt(false);
+    },
+    [applyReceiptScanResults, buildReceiptParseContext],
+  );
+
+  const uploadReceiptDocuments = useCallback(
+    async (files: File[]) => {
+      setIsParsingReceipt(true);
+      setParseStatusMessage(
+        files.length > 1 ? `Reading ${files.length} documents…` : 'Reading document…',
+      );
+      try {
+        const results = await parseReceiptFiles(files, buildReceiptParseContext());
+        applyReceiptScanResults(results);
+      } catch (err) {
+        console.error(err);
+        setParseStatusMessage(err instanceof Error ? err.message : 'Upload failed');
+        window.setTimeout(() => setIsParsingReceipt(false), 2200);
+        return;
+      }
+      setIsParsingReceipt(false);
+    },
+    [applyReceiptScanResults, buildReceiptParseContext],
+  );
+
   return (
     <AppContext.Provider
       value={{
@@ -645,6 +716,8 @@ export function AppProvider({
         parseStatusMessage,
         scanReceiptFromCamera,
         uploadReceiptDocuments,
+        receiptScanToast,
+        clearReceiptScanToast,
         completeOnboardingAndSync,
         eraseAllData,
       }}

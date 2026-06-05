@@ -2,15 +2,12 @@ import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { BottomTabBar } from './BottomTabBar';
 import { MODAL_OVERLAY_Z } from './BottomSheetModal';
-import { AddExpenseModal } from './AddExpenseModal';
-import { ReceiptParseOverlay } from './ReceiptParseOverlay';
-import { useApp } from '../context/AppContext';
+import { AppGlobalOverlays } from './AppGlobalOverlays';
 import DeviceShell from './DeviceShell';
 import { NotificationAlertRunner } from './NotificationAlertRunner';
 import { releaseAppScrollElement } from '../hooks/useScrollLock';
 
 export default function RootLayout() {
-  const { showAddModal, isParsingReceipt, parseStatusMessage } = useApp();
   const location = useLocation();
 
   useEffect(() => {
@@ -36,12 +33,7 @@ export default function RootLayout() {
           />
         </>
       }
-      overlay={
-        <>
-          {isParsingReceipt && <ReceiptParseOverlay message={parseStatusMessage} />}
-          {showAddModal ? <AddExpenseModal /> : null}
-        </>
-      }
+      overlay={<AppGlobalOverlays />}
     >
       <NotificationAlertRunner />
       <Outlet />
