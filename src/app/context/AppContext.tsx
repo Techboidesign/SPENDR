@@ -657,6 +657,11 @@ export function AppProvider({
     [dispatch, formatCurrencyFromState, openDraftFromScan],
   );
 
+  const dismissParseOverlayAfterError = useCallback((message: string) => {
+    setParseStatusMessage(message);
+    window.setTimeout(() => setIsParsingReceipt(false), 2200);
+  }, []);
+
   const scanReceiptFromCamera = useCallback(
     async (file: File) => {
       setIsParsingReceipt(true);
@@ -664,15 +669,13 @@ export function AppProvider({
       try {
         const result = await parseReceiptImage(file, buildReceiptParseContext());
         applyReceiptScanResults([result]);
+        setIsParsingReceipt(false);
       } catch (err) {
-        console.error(err);
-        setParseStatusMessage(err instanceof Error ? err.message : 'Scan failed');
-        window.setTimeout(() => setIsParsingReceipt(false), 2200);
-        return;
+        console.error('[receipt scan]', err);
+        dismissParseOverlayAfterError(err instanceof Error ? err.message : 'Scan failed');
       }
-      setIsParsingReceipt(false);
     },
-    [applyReceiptScanResults, buildReceiptParseContext],
+    [applyReceiptScanResults, buildReceiptParseContext, dismissParseOverlayAfterError],
   );
 
   const uploadReceiptDocuments = useCallback(
@@ -684,15 +687,13 @@ export function AppProvider({
       try {
         const results = await parseReceiptFiles(files, buildReceiptParseContext());
         applyReceiptScanResults(results);
+        setIsParsingReceipt(false);
       } catch (err) {
-        console.error(err);
-        setParseStatusMessage(err instanceof Error ? err.message : 'Upload failed');
-        window.setTimeout(() => setIsParsingReceipt(false), 2200);
-        return;
+        console.error('[receipt upload]', err);
+        dismissParseOverlayAfterError(err instanceof Error ? err.message : 'Upload failed');
       }
-      setIsParsingReceipt(false);
     },
-    [applyReceiptScanResults, buildReceiptParseContext],
+    [applyReceiptScanResults, buildReceiptParseContext, dismissParseOverlayAfterError],
   );
 
   return (

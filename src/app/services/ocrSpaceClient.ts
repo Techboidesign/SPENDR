@@ -1,4 +1,6 @@
 const OCR_SPACE_ENDPOINT = 'https://api.ocr.space/parse/image';
+/** Mobile networks + large photos can be slow; hang without this never clears the overlay. */
+const OCR_FETCH_TIMEOUT_MS = 45_000;
 
 type OcrSpaceParsedResult = {
   ParsedText?: string | null;
@@ -54,11 +56,25 @@ export async function extractTextWithOcrSpace(file: File): Promise<string> {
     form.append('filetype', 'PDF');
   }
 
-  const res = await fetch(OCR_SPACE_ENDPOINT, {
-    method: 'POST',
-    headers: { apikey: getApiKey() },
-    body: form,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OCR_FETCH_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(OCR_SPACE_ENDPOINT, {
+      method: 'POST',
+      headers: { apikey: getApiKey() },
+      body: form,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('OCR timed out. Check your connection and try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');

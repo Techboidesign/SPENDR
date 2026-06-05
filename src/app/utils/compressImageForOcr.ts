@@ -6,11 +6,21 @@ const MAX_EDGE = 2200;
  * Returns the original file when already small enough or not an image.
  */
 export async function compressImageForOcr(file: File, maxBytes = MAX_OCR_BYTES): Promise<File> {
-  if (!file.type.startsWith('image/') || file.size <= maxBytes) {
+  const isImage =
+    file.type.startsWith('image/') ||
+    /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+
+  if (!isImage || file.size <= maxBytes) {
     return file;
   }
 
-  const bitmap = await createImageBitmap(file);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    if (file.size <= maxBytes * 1.05) return file;
+    throw new Error('Could not process this photo. Try upload instead of camera.');
+  }
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
