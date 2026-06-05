@@ -47,6 +47,20 @@ export const FAB_COLOR_TRANSITION = {
   ease: [0.4, 0, 0.2, 1] as const,
 };
 
+/** FAB satellite menu stays open after tap, then auto-closes. */
+export const FAB_MENU_AUTO_CLOSE_MS = 1000;
+
+/** Closed main FAB — purple glow + neutral lift (tab-bar FAB). */
+export const FAB_ELEVATION_SHADOW =
+  '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)';
+
+/** Open menu satellites — same family, tuned for smaller circles. */
+export const FAB_SATELLITE_SHADOW =
+  '0 8px 26px rgba(62, 55, 255, 0.5), 0 3px 10px rgba(15, 23, 42, 0.18)';
+
+export const FAB_SATELLITE_SHADOW_HOVER =
+  '0 12px 34px rgba(62, 55, 255, 0.6), 0 4px 14px rgba(15, 23, 42, 0.22)';
+
 /** Shared-element slide for the active tab pill in the bottom bar. */
 export const TAB_LAYOUT_SPRING = {
   type: 'spring' as const,

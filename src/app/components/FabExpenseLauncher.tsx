@@ -4,7 +4,15 @@ import { Camera, Plus, UploadSimple, X } from '@phosphor-icons/react';
 import { useApp } from '../context/AppContext';
 import { useAppColors } from '../context/AppearanceContext';
 import { useAppMotion } from '../hooks/useAppMotion';
-import { FAB_COLOR_TRANSITION, FAB_ICON_SWAP_TRANSITION } from '../theme/motion';
+import {
+  FAB_COLOR_TRANSITION,
+  FAB_ELEVATION_SHADOW,
+  FAB_ICON_SWAP_TRANSITION,
+  FAB_MENU_AUTO_CLOSE_MS,
+  FAB_SATELLITE_SHADOW,
+  FAB_SATELLITE_SHADOW_HOVER,
+} from '../theme/motion';
+
 export const FAB_SIZE = 68;
 const FAB_BORDER = 2;
 const SAT_SIZE = 52;
@@ -60,17 +68,6 @@ const SLOTS: {
 const TAP_TRANSITION = { duration: 0.1, ease: [0.4, 0, 0.2, 1] as const };
 const POP_SCALE_FROM = 0.92;
 
-/** Pick satellite from hub-center delta while finger is held (options sit above the FAB). */
-function slotIndexFromDelta(dx: number, dy: number): number | null {
-  if (dy > 10) return null;
-
-  if (dx < -SPREAD_X * 0.38) return 0;
-  if (dx > SPREAD_X * 0.38) return 2;
-  if (dy < -14) return 1;
-
-  return null;
-}
-
 export function FabExpenseLauncher() {
   const { openAddModal, showAddModal, scanReceiptFromCamera, uploadReceiptDocuments, isParsingReceipt } =
     useApp();
@@ -80,105 +77,102 @@ export function FabExpenseLauncher() {
   const brandActive = c.accent;
 
   const [open, setOpen] = useState(false);
-  const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [pressing, setPressing] = useState(false);
-  const hubRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const pointerInMenuRef = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAutoClose = useCallback(() => {
+    if (autoCloseRef.current) {
+      clearTimeout(autoCloseRef.current);
+      autoCloseRef.current = null;
+    }
+  }, []);
 
   const closeMenu = useCallback(() => {
+    clearAutoClose();
     setOpen(false);
-    setActiveSlot(null);
     setPressing(false);
+  }, [clearAutoClose]);
+
+  /** Close after 3s with no pointer over hub or satellites. */
+  const scheduleAutoClose = useCallback(() => {
+    clearAutoClose();
+    autoCloseRef.current = setTimeout(() => {
+      setOpen(false);
+      autoCloseRef.current = null;
+    }, FAB_MENU_AUTO_CLOSE_MS);
+  }, [clearAutoClose]);
+
+  const syncInactivityTimer = useCallback(() => {
+    if (!open) return;
+    if (pointerInMenuRef.current) {
+      clearAutoClose();
+      return;
+    }
+    scheduleAutoClose();
+  }, [open, clearAutoClose, scheduleAutoClose]);
+
+  const handleMenuPointerEnter = useCallback(() => {
+    pointerInMenuRef.current = true;
+    clearAutoClose();
+  }, [clearAutoClose]);
+
+  const handleMenuPointerLeave = useCallback(() => {
+    pointerInMenuRef.current = false;
+    syncInactivityTimer();
+  }, [syncInactivityTimer]);
+
+  const openMenu = useCallback(() => {
+    setOpen(true);
   }, []);
+
+  const toggleMenu = useCallback(() => {
+    if (open) {
+      closeMenu();
+      return;
+    }
+    openMenu();
+  }, [open, closeMenu, openMenu]);
 
   useEffect(() => {
     if (showAddModal) closeMenu();
   }, [showAddModal, closeMenu]);
 
+  useEffect(() => () => clearAutoClose(), [clearAutoClose]);
+
   useEffect(() => {
-    if (!open) return;
-
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (hubRef.current?.contains(target)) return;
-      closeMenu();
-    };
-
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
-  }, [open, closeMenu]);
+    if (!open) {
+      clearAutoClose();
+      return;
+    }
+    syncInactivityTimer();
+  }, [open, clearAutoClose, syncInactivityTimer]);
 
   const runSlot = useCallback(
     (slot: FabSlot) => {
-      closeMenu();
+      clearAutoClose();
+
       if (slot === 'edit') {
+        closeMenu();
         openAddModal();
         return;
       }
+
       if (slot === 'camera') {
-        requestAnimationFrame(() => {
-          cameraRef.current?.click();
-        });
+        // Synchronous click — required for file/camera picker (iOS/Safari).
+        cameraRef.current?.click();
+        closeMenu();
         return;
       }
-      requestAnimationFrame(() => {
-        uploadRef.current?.click();
-      });
-    },
-    [closeMenu, openAddModal],
-  );
 
-  const updateActiveSlotFromPointer = useCallback((clientX: number, clientY: number) => {
-    const rect = hubRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = clientX - cx;
-    const dy = clientY - cy;
-    setActiveSlot(slotIndexFromDelta(dx, dy));
-  }, []);
-
-  const handleHubPointerDown = (e: React.PointerEvent) => {
-    if (isParsingReceipt) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setPressing(true);
-    setOpen(true);
-    updateActiveSlotFromPointer(e.clientX, e.clientY);
-  };
-
-  const handleHubPointerMove = (e: React.PointerEvent) => {
-    if (!pressing) return;
-    updateActiveSlotFromPointer(e.clientX, e.clientY);
-  };
-
-  const finishPress = (e: React.PointerEvent) => {
-    if (!pressing) return;
-
-    const rect = hubRef.current?.getBoundingClientRect();
-    let slot: number | null = activeSlot;
-    if (rect) {
-      const dx = e.clientX - (rect.left + rect.width / 2);
-      const dy = e.clientY - (rect.top + rect.height / 2);
-      slot = slotIndexFromDelta(dx, dy);
-    }
-
-    if (slot !== null) {
-      runSlot(SLOTS[slot].id);
-    } else {
+      uploadRef.current?.click();
       closeMenu();
-    }
-
-    setPressing(false);
-    setActiveSlot(null);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* already released */
-    }
-  };
+    },
+    [clearAutoClose, closeMenu, openAddModal],
+  );
 
   const onCameraChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,7 +206,9 @@ export function FabExpenseLauncher() {
       />
 
       <div
-        ref={hubRef}
+        ref={menuRef}
+        onPointerEnter={handleMenuPointerEnter}
+        onPointerLeave={handleMenuPointerLeave}
         style={{
           position: 'absolute',
           left: '50%',
@@ -227,7 +223,6 @@ export function FabExpenseLauncher() {
         <AnimatePresence>
           {open &&
             SLOTS.map((slot, i) => {
-              const isActive = activeSlot === i;
               const sat = slot.size;
               return (
                 <motion.button
@@ -240,11 +235,25 @@ export function FabExpenseLauncher() {
                     opacity: 0,
                   }}
                   animate={{
-                    scale: isActive ? 1.12 : 1,
+                    scale: 1,
                     x: slot.offsetX,
                     y: slot.offsetY,
                     opacity: 1,
+                    backgroundColor: brand,
+                    boxShadow: FAB_SATELLITE_SHADOW,
                   }}
+                  whileHover={
+                    reduceMotion || isParsingReceipt
+                      ? undefined
+                      : {
+                          scale: 1.08,
+                          backgroundColor: brandActive,
+                          boxShadow: FAB_SATELLITE_SHADOW_HOVER,
+                        }
+                  }
+                  whileTap={
+                    reduceMotion || isParsingReceipt ? undefined : { scale: 0.96 }
+                  }
                   exit={{
                     scale: POP_SCALE_FROM,
                     x: 0,
@@ -254,9 +263,12 @@ export function FabExpenseLauncher() {
                   transition={{
                     ...fabPopTransition,
                     delay: reduceMotion ? 0 : i * 0.015,
+                    backgroundColor: FAB_COLOR_TRANSITION,
+                    boxShadow: FAB_COLOR_TRANSITION,
                   }}
                   onClick={e => {
                     e.stopPropagation();
+                    if (isParsingReceipt) return;
                     runSlot(slot.id);
                   }}
                   aria-label={slot.label}
@@ -270,18 +282,13 @@ export function FabExpenseLauncher() {
                     width: sat,
                     height: sat,
                     borderRadius: '50%',
-                    border: `1px solid ${isActive ? '#FFFFFF' : 'rgba(255,255,255,0.95)'}`,
-                    backgroundColor: isActive ? brandActive : brand,
-                    cursor: 'pointer',
+                    border: `${FAB_BORDER}px solid rgba(255, 255, 255, 0.95)`,
+                    cursor: isParsingReceipt ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: isActive
-                      ? '0 10px 28px rgba(62, 55, 255, 0.55)'
-                      : '0 6px 18px rgba(62, 55, 255, 0.38)',
-                    pointerEvents: pressing ? 'none' : 'auto',
+                    pointerEvents: 'auto',
                     padding: 0,
-                    transition: 'background-color 0.12s ease',
                   }}
                 >
                   <slot.Icon size={slot.iconSize} weight="bold" color="#FFFFFF" />
@@ -292,20 +299,24 @@ export function FabExpenseLauncher() {
 
         <motion.button
           type="button"
-          onPointerDown={handleHubPointerDown}
-          onPointerMove={handleHubPointerMove}
-          onPointerUp={finishPress}
-          onPointerCancel={finishPress}
-          aria-label={open ? 'Choose expense action' : 'Add expense'}
+          onClick={e => {
+            e.stopPropagation();
+            if (isParsingReceipt) return;
+            toggleMenu();
+          }}
+          onPointerDown={() => setPressing(true)}
+          onPointerUp={() => setPressing(false)}
+          onPointerCancel={() => setPressing(false)}
+          aria-label={open ? 'Close expense menu' : 'Add expense'}
           aria-expanded={open}
           aria-haspopup="menu"
           disabled={isParsingReceipt}
           animate={{
-            scale: pressing ? 0.9 : 1,
+            scale: pressing ? 0.92 : 1,
             backgroundColor: open ? c.surface : brand,
             boxShadow: open
               ? '0 4px 16px rgba(0, 0, 0, 0.12)'
-              : '0 8px 28px rgba(62, 55, 255, 0.45), 0 2px 8px rgba(15, 23, 42, 0.15)',
+              : FAB_ELEVATION_SHADOW,
           }}
           transition={{
             scale: TAP_TRANSITION,
@@ -328,7 +339,6 @@ export function FabExpenseLauncher() {
             justifyContent: 'center',
             pointerEvents: 'auto',
             padding: 0,
-            touchAction: 'none',
             userSelect: 'none',
           }}
         >
@@ -379,28 +389,6 @@ export function FabExpenseLauncher() {
             </AnimatePresence>
           </span>
         </motion.button>
-
-        {open && pressing && (
-          <motion.p
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: '100%',
-              transform: 'translateX(-50%)',
-              marginTop: 4,
-              fontSize: 10,
-              fontWeight: 600,
-              color: '#9CA3AF',
-              whiteSpace: 'nowrap',
-              pointerEvents: 'none',
-            }}
-          >
-            Drag up to choose
-          </motion.p>
-        )}
       </div>
     </>
   );
