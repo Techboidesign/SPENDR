@@ -2,9 +2,9 @@ import { useApp } from '../../context/AppContext';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import type { AppColorPalette } from '../../theme/appColors';
 import type { ExpenseType } from '../../data/types';
+import { categorySummaryBadgeColors } from '../../theme/categoryDisplayColor';
 import {
   EXPENSE_TYPE_LABEL,
-  categoryExpenseBadge,
   expenseMetaBadgeStyle,
   expenseTypeBadge,
 } from '../../theme/darkModeUi';
@@ -44,7 +44,7 @@ export function ExpenseAddSummaryBadges({
   const hasCategory = Boolean(categoryId);
   const category = hasCategory ? getCategory(categoryId!) : null;
   const categoryColors = category
-    ? categoryExpenseBadge(category, isDark)
+    ? categorySummaryBadgeColors(category, isDark, c.modalSheet)
     : { color: c.textMuted, bg: c.surfaceInset };
   const typeColors = expenseTypeBadge(expenseType, c, isDark);
   const dateColors = dateSummaryBadge(isDark, c);

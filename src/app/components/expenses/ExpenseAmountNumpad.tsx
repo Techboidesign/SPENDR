@@ -1,5 +1,5 @@
 import { Backspace } from '@phosphor-icons/react';
-import { useAppColors } from '../../context/AppearanceContext';
+import { useAppearance, useAppColors } from '../../context/AppearanceContext';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace'] as const;
 
@@ -29,6 +29,7 @@ export function ExpenseAmountNumpad({
   onChange: (value: string) => void;
 }) {
   const c = useAppColors();
+  const { isDark } = useAppearance();
 
   const handleKey = (key: (typeof KEYS)[number]) => {
     if (key === 'backspace') {
@@ -59,7 +60,7 @@ export function ExpenseAmountNumpad({
             style={{
               height: 48,
               borderRadius: 12,
-              border: 'none',
+              border: isDark ? `1px solid ${c.inputBorder}` : 'none',
               backgroundColor: c.inputBg,
               color: c.text,
               fontSize: isBackspace ? 0 : 22,

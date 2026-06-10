@@ -15,6 +15,8 @@ interface CategoryIconProps {
   tone?: 'light' | 'dark' | 'auto';
   /** Pill chips use a fully round icon container */
   shape?: 'rounded' | 'circle';
+  /** Override glyph color (e.g. WCAG-safe hue on dark modal pills). */
+  glyphColor?: string;
 }
 
 const SIZE_MAP = {
@@ -30,6 +32,7 @@ export function CategoryIcon({
   size = 'md',
   tone = 'auto',
   shape = 'rounded',
+  glyphColor,
 }: CategoryIconProps) {
   const { getCategory } = useApp();
   const { isDark: appDark } = useAppearance();
@@ -39,9 +42,9 @@ export function CategoryIcon({
     CATEGORY_ICON_MAP[category.iconKey as CategoryIconKey] ?? Package;
   const isDark = tone === 'dark' || (tone === 'auto' && appDark);
   const chipAccent = categoryDisplayColor(category, isDark);
-  const iconStroke = isDark
-    ? ONBOARDING_CHIP_ICON
-    : category.iconColor || category.color;
+  const iconStroke =
+    glyphColor ??
+    (isDark ? ONBOARDING_CHIP_ICON : category.iconColor || category.color);
   const chipBg = isDark
     ? { background: onboardingIconGradient(chipAccent) }
     : tone === 'light'

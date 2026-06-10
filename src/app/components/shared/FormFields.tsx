@@ -33,8 +33,8 @@ export const formFieldStyle: CSSProperties = {
 /** App modals/screens: shared overrides for `FormInput`, `CurrencyAmountInput`, `MonthYearFieldInput`. */
 export function appFormFieldStyle(c: AppColorPalette): CSSProperties {
   return {
-    borderColor: c.border,
-    backgroundColor: c.surfaceAlt,
+    borderColor: c.inputBorder,
+    backgroundColor: c.inputBg,
     color: c.text,
   };
 }

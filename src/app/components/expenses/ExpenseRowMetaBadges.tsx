@@ -20,7 +20,7 @@ export function ExpenseRowMetaBadges({
   const { isDark } = useAppearance();
   const { getCategory } = useApp();
   const category = getCategory(categoryId);
-  const categoryBadge = categoryExpenseBadge(category, isDark);
+  const categoryBadge = categoryExpenseBadge(category, isDark, isDark ? c.surface : c.canvas);
   const typeBadge = expenseTypeBadge(expenseType, c, isDark);
 
   return (

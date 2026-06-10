@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { ExpenseType } from '../data/types';
 import type { AppColorPalette } from './appColors';
-import { categoryDisplayColor } from './categoryDisplayColor';
+import { categoryDisplayColor, categorySummaryBadgeColors } from './categoryDisplayColor';
 import { ONBOARDING_CHIP_ICON, onboardingIconGradient } from './onboardingDarkUi';
 
 export function hexToRgba(hex: string, alpha: number): string {
@@ -207,12 +207,9 @@ export function expenseTypeBadge(
 export function categoryExpenseBadge(
   category: { id: string; color: string; bg: string; iconColor?: string },
   isDark: boolean,
+  surfaceHex = '#1C1C28',
 ): { color: string; bg: string } {
-  const accent = categoryDisplayColor(category, isDark);
-  if (isDark) {
-    return { color: accent, bg: hexToRgba(accent, 0.18) };
-  }
-  return { color: accent, bg: category.bg };
+  return categorySummaryBadgeColors(category, isDark, surfaceHex);
 }
 
 export const expenseMetaBadgeStyle: CSSProperties = {
@@ -248,4 +245,62 @@ export function changeBadgeColors(
 /** Selected pill/tab foreground on light active background (dark mode Month/Year, List/Insights). */
 export function activePillForeground(isDark: boolean, c: AppColorPalette, lightFg = '#FFFFFF'): string {
   return isDark ? c.tabActiveIcon : lightFg;
+}
+
+/** Segmented control track inside bottom-sheet modals. */
+export function modalSegmentTrackStyle(c: AppColorPalette, isDark: boolean): CSSProperties {
+  return {
+    display: 'flex',
+    backgroundColor: c.surfaceInset,
+    borderRadius: 12,
+    padding: 3,
+    gap: 3,
+    border: isDark ? `1px solid ${c.border}` : 'none',
+  };
+}
+
+/** One option in a modal segmented control (e.g. expense type). */
+export function modalSegmentOptionStyle(
+  selected: boolean,
+  c: AppColorPalette,
+  isDark: boolean,
+): CSSProperties {
+  const base: CSSProperties = {
+    flex: 1,
+    padding: '7px 0',
+    borderRadius: 9,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 11,
+    fontFamily: 'inherit',
+  };
+
+  if (!selected) {
+    return {
+      ...base,
+      fontWeight: 500,
+      backgroundColor: 'transparent',
+      color: c.textMuted,
+      boxShadow: 'none',
+    };
+  }
+
+  if (isDark) {
+    return {
+      ...base,
+      fontWeight: 700,
+      backgroundColor: c.chipSelectedBg,
+      color: c.chipSelectedText,
+      border: `1px solid ${c.accentBorder}`,
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
+    };
+  }
+
+  return {
+    ...base,
+    fontWeight: 600,
+    backgroundColor: c.surface,
+    color: c.chipSelectedText,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+  };
 }

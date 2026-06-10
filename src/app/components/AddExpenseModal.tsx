@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useApp } from '../context/AppContext';
-import { useAppColors } from '../context/AppearanceContext';
+import { useAppearance, useAppColors } from '../context/AppearanceContext';
+import { modalSegmentOptionStyle, modalSegmentTrackStyle } from '../theme/darkModeUi';
 import { Expense, ExpenseType } from '../data/types';
 import type { ExpenseFormDraft } from '../types/expenseDraft';
 import { AppBottomSheetLayout } from './AppBottomSheetLayout';
@@ -58,6 +59,7 @@ export function AddExpenseModal() {
     state,
   } = useApp();
   const c = useAppColors();
+  const { isDark } = useAppearance();
   const currencySymbol = getCurrencySymbol(state.currency);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -259,7 +261,7 @@ export function AddExpenseModal() {
     marginTop: 0,
     padding: '10px 12px',
     backgroundColor: c.inputBg,
-    border: '1px solid transparent',
+    border: `1px solid ${isDark ? c.inputBorder : 'transparent'}`,
     borderRadius: 12,
     fontSize: 16,
     color: c.text,
@@ -270,7 +272,7 @@ export function AddExpenseModal() {
 
   const dateInputStyle: CSSProperties = {
     backgroundColor: c.inputBg,
-    border: `1px solid ${c.borderSubtle}`,
+    border: `1px solid ${isDark ? c.inputBorder : c.borderSubtle}`,
     borderRadius: 12,
     fontSize: 16,
     color: c.text,
@@ -349,10 +351,7 @@ export function AddExpenseModal() {
                 setName(e.target.value);
               }}
               aria-label="Expense name"
-              style={{
-                ...inputStyle,
-                border: `1px solid ${c.borderSubtle}`,
-              }}
+              style={inputStyle}
             />
           </div>
 
@@ -390,33 +389,13 @@ export function AddExpenseModal() {
             >
               TYPE
             </p>
-            <div
-              style={{
-                display: 'flex',
-                backgroundColor: c.surfaceInset,
-                borderRadius: 12,
-                padding: 3,
-                gap: 3,
-              }}
-            >
+            <div style={modalSegmentTrackStyle(c, isDark)}>
               {TYPE_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setType(opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '7px 0',
-                    borderRadius: 9,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 11,
-                    fontWeight: type === opt.value ? 600 : 500,
-                    backgroundColor: type === opt.value ? c.surface : 'transparent',
-                    color: type === opt.value ? c.chipSelectedText : c.textMuted,
-                    boxShadow: type === opt.value ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                    fontFamily: 'inherit',
-                  }}
+                  style={modalSegmentOptionStyle(type === opt.value, c, isDark)}
                 >
                   {opt.label}
                 </button>
@@ -482,7 +461,7 @@ export function AddExpenseModal() {
               borderRadius: 16,
               padding: '14px 16px',
               textAlign: 'center',
-              border: `1px solid ${c.borderSubtle}`,
+              border: `1px solid ${isDark ? c.inputBorder : c.borderSubtle}`,
             }}
           >
             <p
