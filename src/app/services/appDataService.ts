@@ -21,6 +21,7 @@ import type {
   DbUserPreferences,
 } from '../data/database.types';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../data/notificationPreferences';
+import { resolveAppearanceMode } from '../theme/appColors';
 import { getSupabase } from '../../lib/supabase';
 import { toCustomCategoryAppId, toCustomCategoryDbId } from '../utils/customCategoryId';
 import { recurringSeriesKey } from '../utils/recurringExpense';
@@ -175,11 +176,11 @@ export function createEmptyAppState(overrides?: Partial<AppState>): AppState {
     disabledCategoryIds: [],
     customCategories: [],
     notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
-    appearance: 'light',
     primaryGoal: null,
     primaryGoalTarget: null,
     savingsGoals: [],
     ...overrides,
+    appearance: resolveAppearanceMode(overrides?.appearance),
   };
 }
 

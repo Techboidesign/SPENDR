@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect, typ
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   MagnifyingGlass,
-  Trash,
   X,
   Receipt,
   ArrowCounterClockwise,
@@ -91,13 +90,10 @@ export default function ExpensesScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [isMultiSelect, setIsMultiSelect] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [undoSnack, setUndoSnack] = useState<{ expense: Expense; expiresAt: number } | null>(null);
   const pendingDeletesRef = useRef<Map<string, PendingDeleteEntry>>(new Map());
-  const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pendingScrollRef = useRef<number | null>(null);
@@ -201,18 +197,6 @@ export default function ExpensesScreen() {
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const groupKeys = Object.keys(grouped);
 
-  const toggleSelect = (id: string) => {
-    preserveScroll(() => {
-      const next = new Set(selected);
-      next.has(id) ? next.delete(id) : next.add(id);
-      setSelected(next);
-    });
-  };
-
-  const selectAll = () => {
-    setSelected(new Set(filtered.map(e => e.id)));
-  };
-
   useEffect(() => {
     if (!openRowId) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -223,64 +207,9 @@ export default function ExpensesScreen() {
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, [openRowId]);
 
-  const handleSwipeSelect = useCallback((expenseId: string) => {
-    setUndoSnack(null);
-    setIsMultiSelect(true);
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.add(expenseId);
-      return next;
-    });
-    setOpenRowId(null);
-  }, []);
-
-  const enterMultiSelectWith = useCallback(
-    (expenseId: string) => {
-      handleSwipeSelect(expenseId);
-    },
-    [handleSwipeSelect],
-  );
-
-  const handleRowTouchStart = (expenseId: string) => {
-    longPressTimer.current = setTimeout(() => enterMultiSelectWith(expenseId), 500);
-  };
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  }, []);
-
-  const handleRowTouchEnd = () => {
-    cancelLongPress();
-  };
-
-  const clearMultiSelect = useCallback(() => {
-    setIsMultiSelect(false);
-    setSelected(new Set());
-  }, []);
-
   const onDeleteGestureStart = useCallback(() => {
-    cancelLongPress();
-    clearMultiSelect();
     setOpenRowId(null);
-  }, [cancelLongPress, clearMultiSelect]);
-
-  const exitMultiSelect = () => {
-    setIsMultiSelect(false);
-    setSelected(new Set());
-    setOpenRowId(null);
-  };
-
-  const bulkDelete = () => {
-    preserveScroll(() => {
-      for (const id of selected) {
-        const expense = state.expenses.find(e => e.id === id);
-        if (expense) scheduleDelete(expense, { preserve: false });
-      }
-      setIsMultiSelect(false);
-      setSelected(new Set());
-      setOpenRowId(null);
-    });
-  };
+  }, []);
 
   const finalizeDelete = useCallback(
     (id: string) => {
@@ -311,8 +240,6 @@ export default function ExpensesScreen() {
         }
 
         setOpenRowId(null);
-        setIsMultiSelect(false);
-        setSelected(new Set());
         setHiddenIds(prev => new Set(prev).add(expense.id));
 
         const expiresAt = Date.now() + UNDO_DURATION_MS;
@@ -388,96 +315,10 @@ export default function ExpensesScreen() {
   const listIsEmpty = groupKeys.length === 0;
   const showListChromeFilters = !searchOpen;
   const expensesChromeHeight = EXPENSES_LIST_CHROME_HEIGHT;
-  const headerLocked = isMultiSelect || !!undoSnack;
+  const headerLocked = !!undoSnack;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: c.canvas, position: 'relative' }}>
-      <AnimatePresence initial={false}>
-        {isMultiSelect && !undoSnack && (
-          <motion.div
-            key="multi-select-bar"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            role="toolbar"
-            aria-label="Selection actions"
-            style={{
-              ...topActionBarStyle,
-              backgroundColor: CHARCOAL,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.22)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={exitMultiSelect}
-              aria-label="Close selection"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 4,
-                display: 'flex',
-                alignItems: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <X size={20} weight="light" color="#FFFFFF" />
-            </button>
-            <span
-              style={{
-                flex: 1,
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#FFFFFF',
-              }}
-            >
-              {selected.size} selected
-            </span>
-            <button
-              type="button"
-              onClick={selectAll}
-              style={{
-                backgroundColor: c.surface,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
-                color: CHARCOAL,
-                fontFamily: 'inherit',
-                padding: '8px 14px',
-                borderRadius: 9999,
-                flexShrink: 0,
-              }}
-            >
-              Select all
-            </button>
-            {selected.size > 0 && (
-              <button
-                type="button"
-                onClick={bulkDelete}
-                style={{
-                  background: '#EF4444',
-                  border: 'none',
-                  cursor: 'pointer',
-                  borderRadius: 9999,
-                  padding: '8px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  flexShrink: 0,
-                }}
-              >
-                <Trash size={15} weight="light" color="#FFFFFF" />
-                <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, fontFamily: 'inherit' }}>
-                  Delete all
-                </span>
-              </button>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence initial={false}>
         {undoSnack && (
           <motion.div
@@ -800,26 +641,19 @@ export default function ExpensesScreen() {
           </AnimatePresence>
         </div>
         <div
+          ref={scrollRef}
+          data-app-scroll
           style={{
-            position: 'relative',
             flex: 1,
             minHeight: 0,
-            overflow: 'hidden',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehavior: 'none',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: TAB_BAR_CLEARANCE,
+            overflowAnchor: 'none',
           }}
         >
-          <div
-            ref={scrollRef}
-            data-app-scroll
-            style={{
-              position: 'absolute',
-              inset: 0,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              overscrollBehavior: 'none',
-              paddingBottom: TAB_BAR_CLEARANCE,
-              overflowAnchor: 'none',
-            }}
-          >
             {listIsEmpty ? (
               <div
                 style={{
@@ -841,29 +675,17 @@ export default function ExpensesScreen() {
                     <SectionTitle inset>{dateLabel}</SectionTitle>
                     <div style={{ backgroundColor: c.surface }}>
                       {grouped[dateLabel].map(exp => (
-                        <div
+                        <ExpenseSwipeRow
                           key={exp.id}
-                          onTouchStart={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                          onTouchEnd={handleRowTouchEnd}
-                          onMouseDown={() => !isMultiSelect && handleRowTouchStart(exp.id)}
-                          onMouseUp={handleRowTouchEnd}
-                        >
-                          <ExpenseSwipeRow
-                            expense={exp}
-                            isMultiSelect={isMultiSelect}
-                            isSelected={selected.has(exp.id)}
-                            isRowOpen={openRowId === exp.id}
-                            onRowOpen={id => setOpenRowId(id)}
-                            onRowClose={() => setOpenRowId(null)}
-                            onSelect={toggleSelect}
-                            onSwipeSelect={handleSwipeSelect}
-                            onCancelLongPress={cancelLongPress}
-                            onDeleteGestureStart={onDeleteGestureStart}
-                            onEdit={openAddModal}
-                            onRequestDelete={exp => scheduleDelete(exp)}
-                            formatCurrency={formatCurrency}
-                          />
-                        </div>
+                          expense={exp}
+                          isRowOpen={openRowId === exp.id}
+                          onRowOpen={id => setOpenRowId(id)}
+                          onRowClose={() => setOpenRowId(null)}
+                          onDeleteGestureStart={onDeleteGestureStart}
+                          onEdit={openAddModal}
+                          onRequestDelete={exp => scheduleDelete(exp)}
+                          formatCurrency={formatCurrency}
+                        />
                       ))}
                     </div>
                   </section>
@@ -871,7 +693,6 @@ export default function ExpensesScreen() {
               </div>
             )}
           </div>
-        </div>
       </motion.div>
 
       <style>{`

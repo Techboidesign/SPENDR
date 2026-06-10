@@ -14,7 +14,6 @@ import {
 } from '../theme/motion';
 
 export const FAB_SIZE = 68;
-const FAB_BORDER = 2;
 const SAT_SIZE = 52;
 /** Center “add manually” satellite — slightly larger than camera / upload */
 const EDIT_SAT_SIZE = 62;
@@ -282,7 +281,7 @@ export function FabExpenseLauncher() {
                     width: sat,
                     height: sat,
                     borderRadius: '50%',
-                    border: `${FAB_BORDER}px solid rgba(255, 255, 255, 0.95)`,
+                    border: 'none',
                     cursor: isParsingReceipt ? 'wait' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -332,7 +331,7 @@ export function FabExpenseLauncher() {
             width: FAB_SIZE,
             height: FAB_SIZE,
             borderRadius: '50%',
-            border: `${FAB_BORDER}px solid rgba(255, 255, 255, 0.95)`,
+            border: 'none',
             cursor: isParsingReceipt ? 'wait' : 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -367,7 +366,7 @@ export function FabExpenseLauncher() {
                     justifyContent: 'center',
                   }}
                 >
-                  <X size={28} weight="bold" color={brand} />
+                  <X size={28} weight="bold" color={c.text} />
                 </motion.span>
               ) : (
                 <motion.span

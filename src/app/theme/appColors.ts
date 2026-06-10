@@ -1,3 +1,5 @@
+import { getItem } from '../utils/storage';
+
 /** User-facing appearance (main app shell only; auth/onboarding keep their own look). */
 export type AppearanceMode = 'light' | 'dark';
 
@@ -176,3 +178,13 @@ export const APP_COLORS: Record<AppearanceMode, AppColorPalette> = {
 };
 
 export const APPEARANCE_STORAGE_KEY = 'spendr:appearance:v1';
+
+/** Device-local light/dark preference (survives reload and cloud hydrate). */
+export function readStoredAppearance(): AppearanceMode | null {
+  const stored = getItem<AppearanceMode>(APPEARANCE_STORAGE_KEY);
+  return stored === 'dark' || stored === 'light' ? stored : null;
+}
+
+export function resolveAppearanceMode(fallback?: AppearanceMode): AppearanceMode {
+  return readStoredAppearance() ?? (fallback === 'dark' ? 'dark' : 'light');
+}

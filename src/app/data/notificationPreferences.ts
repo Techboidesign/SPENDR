@@ -1,5 +1,6 @@
 import type { AppState, NotificationPreferences } from './types';
 import { migrateSavingsGoals } from './savingsGoals';
+import { resolveAppearanceMode } from '../theme/appColors';
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   budgetAlerts: true,
@@ -19,7 +20,7 @@ export function mergeNotificationPreferences(
 export function normalizeAppState(state: AppState): AppState {
   return {
     ...state,
-    appearance: state.appearance === 'dark' ? 'dark' : 'light',
+    appearance: resolveAppearanceMode(state.appearance),
     notificationPreferences: mergeNotificationPreferences(state.notificationPreferences),
     disabledCategoryIds: state.disabledCategoryIds ?? [],
     primaryGoal: state.primaryGoal ?? null,

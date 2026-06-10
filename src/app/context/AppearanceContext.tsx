@@ -9,11 +9,12 @@ import {
 import {
   APPEARANCE_STORAGE_KEY,
   APP_COLORS,
+  readStoredAppearance,
   type AppearanceMode,
   type AppColorPalette,
 } from '../theme/appColors';
 import type { Action, AppState } from '../data/types';
-import { getItem, setItem } from '../utils/storage';
+import { setItem } from '../utils/storage';
 
 interface AppearanceContextValue {
   mode: AppearanceMode;
@@ -24,11 +25,6 @@ interface AppearanceContextValue {
 }
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null);
-
-function readStoredAppearance(): AppearanceMode | null {
-  const stored = getItem<AppearanceMode>(APPEARANCE_STORAGE_KEY);
-  return stored === 'dark' || stored === 'light' ? stored : null;
-}
 
 /** Wired inside AppProvider — must not import AppContext (avoids circular modules). */
 export function AppearanceProviderInner({

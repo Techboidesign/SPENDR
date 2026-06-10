@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppColors } from '../../context/AppearanceContext';
 import { motion, useReducedMotion } from 'motion/react';
-import { CaretRight, CheckSquare, Square, Trash } from '@phosphor-icons/react';
+import { CaretRight, Trash } from '@phosphor-icons/react';
 import { CategoryIcon } from '../CategoryIcon';
 import { isFocusCategoryId } from '../../data/focusCategory';
 import type { Expense } from '../../data/types';
@@ -18,7 +18,6 @@ function formatExpenseRowAmount(
   return `-${formatCurrency(expense.amount)}`;
 }
 
-const SELECT_WIDTH = 76;
 const DELETE_WIDTH = 76;
 const DELETE_SNAP = -DELETE_WIDTH;
 const FULL_DELETE_THRESHOLD = 118;
@@ -26,7 +25,6 @@ const MAX_LEFT_DRAG = 168;
 const SNAP_RATIO = 0.4;
 const HORIZONTAL_LOCK_PX = 8;
 
-const SELECT_BRAND = '#3E37FF';
 const DELETE_RED = '#EF4444';
 const DELETE_DEEP = '#DC2626';
 
@@ -40,9 +38,7 @@ function applyRubberBand(value: number, min: number, max: number): number {
 }
 
 function clampDragOffset(value: number): number {
-  if (value > SELECT_WIDTH) {
-    return SELECT_WIDTH + (value - SELECT_WIDTH) * 0.06;
-  }
+  if (value > 0) return 0;
   return applyRubberBand(value, -MAX_LEFT_DRAG, 0);
 }
 
@@ -55,14 +51,9 @@ function deletePullProgress(offset: number): number {
 
 export interface ExpenseSwipeRowProps {
   expense: Expense;
-  isMultiSelect: boolean;
-  isSelected: boolean;
   isRowOpen: boolean;
   onRowOpen: (id: string) => void;
   onRowClose: () => void;
-  onSelect: (id: string) => void;
-  onSwipeSelect: (id: string) => void;
-  onCancelLongPress?: () => void;
   onDeleteGestureStart?: () => void;
   onEdit: (expense: Expense) => void;
   onRequestDelete: (expense: Expense) => void;
@@ -71,14 +62,9 @@ export interface ExpenseSwipeRowProps {
 
 export function ExpenseSwipeRow({
   expense,
-  isMultiSelect,
-  isSelected,
   isRowOpen,
   onRowOpen,
   onRowClose,
-  onSelect,
-  onSwipeSelect,
-  onCancelLongPress,
   onDeleteGestureStart,
   onEdit,
   onRequestDelete,
@@ -108,12 +94,6 @@ export function ExpenseSwipeRow({
     }
   }, [isRowOpen, isExiting, setOffsetSafe]);
 
-  useEffect(() => {
-    if (isMultiSelect && offsetRef.current > 0) {
-      setOffsetSafe(0);
-    }
-  }, [isMultiSelect, setOffsetSafe]);
-
   const closeSwipe = useCallback(() => {
     setOffsetSafe(0);
     onRowClose();
@@ -132,70 +112,66 @@ export function ExpenseSwipeRow({
     onRequestDelete(expense);
   }, [isExiting, expense, onRequestDelete]);
 
-  const commitSelectFromSwipe = useCallback(() => {
-    setOffsetSafe(0);
-    onRowClose();
-    onSwipeSelect(expense.id);
-  }, [expense.id, onRowClose, onSwipeSelect, setOffsetSafe]);
-
   const settleOffset = useCallback(() => {
     if (isExiting) return;
-
     const current = offsetRef.current;
 
     if (current <= -FULL_DELETE_THRESHOLD) {
       runExitDelete();
       return;
     }
-
-    if (current >= SELECT_WIDTH * SNAP_RATIO) {
-      commitSelectFromSwipe();
-      return;
-    }
-
-    if (current > 0) {
-      setOffsetSafe(0);
-      onRowClose();
-      return;
-    }
-
     if (current <= DELETE_SNAP * SNAP_RATIO) {
       setOffsetSafe(DELETE_SNAP);
       onRowOpen(expense.id);
       return;
     }
-
     setOffsetSafe(0);
     onRowClose();
-  }, [commitSelectFromSwipe, expense.id, isExiting, onRowClose, onRowOpen, runExitDelete, setOffsetSafe]);
+  }, [expense.id, isExiting, onRowClose, onRowOpen, runExitDelete, setOffsetSafe]);
+
+  // ── pointer handlers ──────────────────────────────────────────────────────
+  // Mirror the proven original pattern: draggingRef=true immediately on down,
+  // direction detected on first significant move, vertical → cancel drag.
+  // This ensures the browser can take over for vertical scroll without us
+  // intercepting touch gestures.
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isExiting) return;
-    if (isMultiSelect) return;
     if ((e.target as HTMLElement).closest('button[data-swipe-action]')) return;
 
     horizontalRef.current = false;
     draggingRef.current = true;
     setPressed(true);
-    onCancelLongPress?.();
     pointerStart.current = { x: e.clientX, y: e.clientY, offset: offsetRef.current };
 
     if (offsetRef.current !== 0) onRowOpen(expense.id);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingRef.current || isMultiSelect || isExiting) return;
+    if (!draggingRef.current || isExiting) return;
 
     const dx = e.clientX - pointerStart.current.x;
     const dy = e.clientY - pointerStart.current.y;
 
     if (!horizontalRef.current) {
+      // Stay undecided while movement is tiny
       if (Math.abs(dx) < HORIZONTAL_LOCK_PX && Math.abs(dy) < HORIZONTAL_LOCK_PX) return;
-      if (Math.abs(dx) <= Math.abs(dy) * 1.15) {
+
+      // Vertical scroll: cancel drag, let browser handle it
+      if (Math.abs(dy) > Math.abs(dx)) {
         draggingRef.current = false;
         setPressed(false);
         return;
       }
+
+      // Right swipe from rest: nothing to do, cancel
+      if (dx > 0 && pointerStart.current.offset === 0) {
+        draggingRef.current = false;
+        setPressed(false);
+        return;
+      }
+
+      // Confirmed horizontal left-swipe
       horizontalRef.current = true;
       setIsDragging(true);
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -226,10 +202,6 @@ export function ExpenseSwipeRow({
   };
 
   const handleRowClick = () => {
-    if (isMultiSelect) {
-      onSelect(expense.id);
-      return;
-    }
     if (offsetRef.current !== 0) {
       closeSwipe();
       return;
@@ -253,8 +225,10 @@ export function ExpenseSwipeRow({
         overflow: 'hidden',
         backgroundColor: c.surface,
         borderBottom: `1px solid ${c.border}`,
+        touchAction: 'pan-y',
       }}
     >
+      {/* Delete action background */}
       <div
         aria-hidden
         style={{
@@ -262,24 +236,10 @@ export function ExpenseSwipeRow({
           inset: 0,
           display: 'flex',
           alignItems: 'stretch',
+          justifyContent: 'flex-end',
           pointerEvents: 'none',
         }}
       >
-        <div
-          style={{
-            width: SELECT_WIDTH,
-            flexShrink: 0,
-            backgroundColor: SELECT_BRAND,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: offset > 4 ? 1 : 0,
-            transition: isDragging ? 'none' : 'opacity 0.15s ease',
-          }}
-        >
-          <CheckSquare size={22} weight="fill" color="#FFFFFF" />
-        </div>
-        <div style={{ flex: 1 }} />
         <div
           style={{
             width: DELETE_WIDTH,
@@ -351,23 +311,11 @@ export function ExpenseSwipeRow({
           alignItems: 'center',
           gap: 12,
           padding: '14px 16px',
-          cursor: isMultiSelect ? 'pointer' : 'default',
+          cursor: 'default',
           touchAction: 'pan-y',
           userSelect: 'none',
-          outline: isMultiSelect && isSelected ? '1px solid #3E37FF' : 'none',
-          outlineOffset: -2,
         }}
       >
-        {isMultiSelect && (
-          <div style={{ flexShrink: 0 }}>
-            {isSelected ? (
-              <CheckSquare size={20} weight="fill" color="#3E37FF" />
-            ) : (
-              <Square size={20} weight="light" color="#D1D5DB" />
-            )}
-          </div>
-        )}
-
         <CategoryIcon categoryId={expense.categoryId} size="sm" />
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -395,7 +343,7 @@ export function ExpenseSwipeRow({
         </div>
       </motion.div>
 
-      {offset <= DELETE_SNAP * 0.55 && offset > -FULL_DELETE_THRESHOLD && !isMultiSelect && !isExiting && (
+      {offset <= DELETE_SNAP * 0.55 && offset > -FULL_DELETE_THRESHOLD && !isExiting && (
         <button
           type="button"
           data-swipe-action="delete"
