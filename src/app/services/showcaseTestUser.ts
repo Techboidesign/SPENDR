@@ -49,7 +49,6 @@ export function createShowcaseOnboarding(): OnboardingState {
     data: {
       firstName: SHOWCASE_PROFILE.userName,
       currency: 'EUR',
-      country: 'Germany',
       savingsGoals: buildShowcaseSavingsGoals(),
       monthlyAmount: { value: 3200, type: 'income' },
       incomeFrequency: 'monthly',

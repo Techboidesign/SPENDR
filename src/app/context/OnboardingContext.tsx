@@ -38,7 +38,6 @@ export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'sk
 export interface OnboardingData {
   firstName?: string;
   currency?: string;
-  country?: string;
   savingsGoals?: import('../data/types').SavingsGoal[];
   monthlyAmount?: {
     value: number;

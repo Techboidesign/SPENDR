@@ -12,6 +12,7 @@ export function OnboardingSummaryRow({
   value,
   detail,
   trailing,
+  footer,
   compact = false,
 }: {
   icon: Icon;
@@ -22,7 +23,9 @@ export function OnboardingSummaryRow({
   value: ReactNode;
   detail?: string;
   trailing?: ReactNode;
-  /** Tighter card for 2-column setup grid */
+  /** Extra content below value (e.g. category icon strip) */
+  footer?: ReactNode;
+  /** Tighter tile for 2-column setup grid — no card chrome */
   compact?: boolean;
 }) {
   const { theme, isLight } = useOnboardingChrome();
@@ -41,38 +44,47 @@ export function OnboardingSummaryRow({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          gap: 8,
+          gap: 6,
           minHeight: 0,
         }}
       >
         <div
           style={{
-            width: iconSize,
-            height: iconSize,
-            borderRadius: 9,
-            background: chip.iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
+            fontSize: 10,
+            fontWeight: 600,
+            color: theme.textMuted,
+            letterSpacing: 0.02,
           }}
         >
-          <IconComp size={glyphSize} weight="light" color={chip.iconColor} />
+          {label}
         </div>
-        <div style={{ width: '100%', minWidth: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            minWidth: 0,
+          }}
+        >
           <div
             style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: theme.textMuted,
-              letterSpacing: 0.02,
-              marginBottom: 2,
+              width: iconSize,
+              height: iconSize,
+              borderRadius: 9,
+              background: chip.iconBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            {label}
+            <IconComp size={glyphSize} weight="light" color={chip.iconColor} />
           </div>
           <div
             style={{
+              flex: 1,
+              minWidth: 0,
               fontSize: 13,
               fontWeight: 700,
               color: theme.textPrimary,
@@ -81,23 +93,23 @@ export function OnboardingSummaryRow({
           >
             {value}
           </div>
-          {detail ? (
-            <div
-              style={{
-                fontSize: 11,
-                color: theme.textFaint,
-                marginTop: 2,
-                lineHeight: 1.3,
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {detail}
-            </div>
-          ) : null}
         </div>
+        {detail ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: theme.textFaint,
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {detail}
+          </div>
+        ) : null}
+        {footer ? <div style={{ width: '100%', minWidth: 0 }}>{footer}</div> : null}
       </div>
     );
   }

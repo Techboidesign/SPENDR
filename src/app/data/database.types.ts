@@ -10,7 +10,6 @@ export interface DbProfile {
   phone: string | null;
   avatar_url: string | null;
   currency: string;
-  country: string | null;
   primary_goal: string | null;
   primary_goal_name?: string | null;
   primary_goal_target_amount?: number | null;

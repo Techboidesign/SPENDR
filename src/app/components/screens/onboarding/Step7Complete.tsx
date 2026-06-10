@@ -1,23 +1,13 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Sparkle, Wallet } from '@phosphor-icons/react';
+import { ChartPieSlice, SquaresFour, Wallet } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { useApp } from '../../../context/AppContext';
 import { CATEGORIES } from '../../../data/categories';
-import type { CategoryIconKey } from '../../../data/categoryConfig';
-import {
-  OnboardingCategoryPreviewStrip,
-  type CategoryStripItem,
-} from '../../onboarding/OnboardingCategoryPreviewStrip';
 import { getCurrencyIcon } from '../../../data/currencyConfig';
 import { APP_PRIMARY } from '../../../theme/authTheme';
 import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
-import {
-  onboardingHeroGradient,
-  onboardingRowCard,
-  onboardingSuccessColor,
-} from '../../../theme/onboardingUi';
-import { hexToRgba } from '../../../theme/onboardingDarkUi';
+import { onboardingRowCard } from '../../../theme/onboardingUi';
 import {
   OnboardingSummaryRow,
   useOnboardingSectionLabelStyle,
@@ -44,7 +34,7 @@ export default function Step7Complete() {
   const navigate = useNavigate();
   const { back, onboarding, complete } = useOnboarding();
   const { completeOnboardingAndSync } = useApp();
-  const { theme, isLight } = useOnboardingChrome();
+  const { theme } = useOnboardingChrome();
   const titleStyle = useOnboardingTitleStyle();
   const sectionLabelStyle = useOnboardingSectionLabelStyle();
   const [loading, setLoading] = useState(false);
@@ -69,28 +59,6 @@ export default function Step7Complete() {
   const customCats = data.customCategories ?? [];
   const categoryCount = selectedIds.length + customCats.length;
 
-  const categoryStripItems = useMemo((): CategoryStripItem[] => {
-    const builtIn: CategoryStripItem[] = selectedIds
-      .map(id => {
-        const cat = CATEGORIES.find(c => c.id === id);
-        if (!cat) return null;
-        return { kind: 'builtin' as const, id: cat.id, name: cat.name };
-      })
-      .filter((item): item is CategoryStripItem => item !== null);
-
-    const custom: CategoryStripItem[] = customCats.map(cat => ({
-      kind: 'custom' as const,
-      id: cat.id,
-      name: cat.name,
-      iconKey: cat.iconKey as CategoryIconKey,
-      color: cat.color,
-      bg: cat.bg,
-      iconColor: cat.iconColor,
-    }));
-
-    return [...builtIn, ...custom];
-  }, [selectedIds, customCats]);
-
   const handleBack = () => {
     back();
     navigate('/onboarding/name-basics');
@@ -111,6 +79,21 @@ export default function Step7Complete() {
     }
   };
 
+  const incomeValue =
+    monthlyAmount && monthlyAmount.value > 0
+      ? formatMoney(monthlyAmount.value, currency)
+      : 'Not set';
+
+  const budgetValue =
+    monthlyBudget != null && monthlyBudget > 0
+      ? formatMoney(monthlyBudget, currency)
+      : 'Not set';
+
+  const categoryValue =
+    categoryCount > 0
+      ? `${categoryCount} selected${customCats.length > 0 ? ` · ${customCats.length} custom` : ''}`
+      : 'None selected';
+
   const setupGridItems: ReactNode[] = [
     <OnboardingSummaryRow
       key="currency"
@@ -120,44 +103,35 @@ export default function Step7Complete() {
       iconLightBg="#EDEDFF"
       label="Currency"
       value={currency}
-      detail={data.country ?? undefined}
+    />,
+    <OnboardingSummaryRow
+      key="income"
+      compact
+      icon={Wallet}
+      accent="#10B981"
+      iconLightBg="#D1FAE5"
+      label="Monthly income"
+      value={incomeValue}
+    />,
+    <OnboardingSummaryRow
+      key="budget"
+      compact
+      icon={ChartPieSlice}
+      accent="#0D9488"
+      iconLightBg="#CCFBF1"
+      label="Monthly budget"
+      value={budgetValue}
+    />,
+    <OnboardingSummaryRow
+      key="categories"
+      compact
+      icon={SquaresFour}
+      accent="#8B5CF6"
+      iconLightBg="#EDE9FE"
+      label="Categories"
+      value={categoryValue}
     />,
   ];
-
-  if (monthlyAmount && monthlyAmount.value > 0) {
-    setupGridItems.push(
-      <OnboardingSummaryRow
-        key="income"
-        compact
-        icon={Wallet}
-        accent="#10B981"
-        iconLightBg="#D1FAE5"
-        label="Monthly income"
-        value={formatMoney(monthlyAmount.value, currency)}
-      />,
-    );
-  }
-
-  if (monthlyBudget != null && monthlyBudget > 0) {
-    setupGridItems.push(
-      <OnboardingSummaryRow
-        key="budget"
-        compact
-        icon={Wallet}
-        accent="#0D9488"
-        iconLightBg="#CCFBF1"
-        label="Monthly budget"
-        value={formatMoney(monthlyBudget, currency)}
-      />,
-    );
-  }
-
-  const readyBadgeBg = isLight
-    ? hexToRgba(onboardingSuccessColor, 0.14)
-    : hexToRgba(onboardingSuccessColor, 0.22);
-  const readyBadgeBorder = isLight
-    ? hexToRgba(onboardingSuccessColor, 0.38)
-    : hexToRgba(onboardingSuccessColor, 0.5);
 
   return (
     <OnboardingLayout
@@ -169,78 +143,14 @@ export default function Step7Complete() {
       nextDisabled={loading}
       showSkip={false}
     >
-      <div
+      <h1
         style={{
-          position: 'relative',
-          borderRadius: 16,
-          padding: '12px 14px',
-          marginBottom: 14,
-          overflow: 'hidden',
-          border: `1px solid ${theme.surfaceBorder}`,
-          background: onboardingHeroGradient(theme, isLight),
-          boxShadow: isLight
-            ? '0 4px 20px rgba(62, 55, 255, 0.12)'
-            : `0 4px 20px ${hexToRgba(APP_PRIMARY, 0.28)}`,
+          ...titleStyle,
+          margin: '0 0 14px',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            marginBottom: 6,
-          }}
-        >
-          <h1
-            style={{
-              ...titleStyle,
-              margin: 0,
-              fontSize: 20,
-              lineHeight: 1.2,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            You&apos;re all set, {firstName}!
-          </h1>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '4px 9px',
-              borderRadius: 20,
-              backgroundColor: readyBadgeBg,
-              border: `1px solid ${readyBadgeBorder}`,
-              flexShrink: 0,
-            }}
-          >
-            <Sparkle size={11} color={onboardingSuccessColor} weight="fill" />
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: onboardingSuccessColor,
-                letterSpacing: 0.03,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Ready to go
-            </span>
-          </div>
-        </div>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: theme.textMuted,
-            lineHeight: 1.4,
-          }}
-        >
-          Add saving goals anytime under Budget when you&apos;re ready.
-        </p>
-      </div>
+        You&apos;re all set, {firstName}!
+      </h1>
 
       {error ? (
         <div
@@ -263,54 +173,11 @@ export default function Step7Complete() {
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: 8,
+          gap: '14px 12px',
           marginBottom: 12,
         }}
       >
         {setupGridItems}
-
-        {categoryCount > 0 ? (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              ...onboardingRowCard(theme),
-              padding: '10px 12px 11px',
-            }}
-          >
-            <div style={{ marginBottom: 10 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: theme.textMuted,
-                  marginBottom: 2,
-                }}
-              >
-                Categories
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: theme.textPrimary }}>
-                {categoryCount} selected
-                {customCats.length > 0 ? (
-                  <span style={{ fontWeight: 600, color: theme.textFaint }}>
-                    {' '}
-                    · {customCats.length} custom
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                backgroundColor: isLight ? '#F4F4F8' : hexToRgba(APP_PRIMARY, 0.08),
-                border: `1px solid ${isLight ? '#EBEBF0' : theme.surfaceBorder}`,
-              }}
-            >
-              <OnboardingCategoryPreviewStrip items={categoryStripItems} />
-            </div>
-          </div>
-        ) : null}
       </div>
 
       <p

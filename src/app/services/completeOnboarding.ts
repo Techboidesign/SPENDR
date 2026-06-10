@@ -88,7 +88,6 @@ export async function completeOnboardingOnServer(
     currency: merged.currency,
     income: merged.income,
     monthly_budget: merged.monthlyBudget,
-    country: onboarding.data.country ?? null,
     primary_goal: merged.primaryGoal,
     income_frequency: onboarding.data.incomeFrequency ?? null,
     onboarding_completed_at: completed.completedAt,
