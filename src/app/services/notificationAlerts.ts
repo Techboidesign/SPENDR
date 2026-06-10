@@ -10,12 +10,20 @@ import { isSpendingExpense } from '../data/focusCategory';
 
 export type NotificationBannerVariant = 'info' | 'warning' | 'success';
 
+export type NotificationAlertAction = {
+  type: 'view-expense';
+  expenseId: string;
+  monthKey: string;
+};
+
 export interface NotificationAlertPayload {
   /** Stable dedupe id */
   id: string;
   title: string;
   message: string;
   variant: NotificationBannerVariant;
+  /** Optional tap action (e.g. jump to a newly added expense). */
+  action?: NotificationAlertAction;
 }
 
 type ScoredAlert = NotificationAlertPayload & { priority: number };

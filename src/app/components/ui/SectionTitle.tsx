@@ -10,11 +10,14 @@ export function SectionTitle({
   children,
   action,
   inset,
+  dense,
 }: {
   children: ReactNode;
   action?: ReactNode;
   /** Extra horizontal padding (e.g. expense date groups). */
   inset?: boolean;
+  /** Tighter vertical spacing (e.g. expense list under filter chips). */
+  dense?: boolean;
 }) {
   const c = useAppColors();
   const label =
@@ -26,8 +29,8 @@ export function SectionTitle({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
-        padding: inset ? '12px 16px 6px' : '0 2px',
+        marginBottom: dense ? 4 : 8,
+        padding: inset ? (dense ? '2px 16px 2px' : '12px 16px 6px') : '0 2px',
         gap: 8,
       }}
     >

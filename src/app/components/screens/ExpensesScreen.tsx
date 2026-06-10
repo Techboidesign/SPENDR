@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect, useLayoutEffect, typ
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   MagnifyingGlass,
+  Trash,
   X,
   Receipt,
   ArrowCounterClockwise,
@@ -10,7 +11,7 @@ import {
   useApp,
   getMonthExpenses,
 } from '../../context/AppContext';
-import { useAppColors } from '../../context/AppearanceContext';
+import { useAppearance, useAppColors } from '../../context/AppearanceContext';
 import { Expense } from '../../data/types';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { SectionTitle } from '../ui/SectionTitle';
@@ -30,13 +31,13 @@ const screenTitleStyle: CSSProperties = {
   lineHeight: 1.2,
   margin: 0,
 };
-/** Close: search bounces up — then month + filter chips fade in. Open: month/filters out — search slides down. */
+/** Close: search bounces up — then filter chips fade in. Open: filters out — search slides down. */
 const SEARCH_DISSOLVE_DURATION = 0.12;
 const SEARCH_SLIDE_DURATION = 0.22;
 const SEARCH_EASE_OUT_BOUNCE = [0.34, 1.52, 0.64, 1] as const;
 const SEARCH_EXIT_Y = -22;
-/** Month + filter row — fixed height so list layout does not jump during search. */
-const EXPENSES_LIST_CHROME_HEIGHT = 106;
+const EXPENSES_FILTER_CHROME_HEIGHT = 52;
+const EXPENSES_SEARCH_CHROME_HEIGHT = 74;
 
 const UNDO_DURATION_MS = 10_000;
 const TOP_ACTION_BAR_HEIGHT = 60;
@@ -84,12 +85,17 @@ function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
 
 export default function ExpensesScreen() {
   const c = useAppColors();
+  const { isDark } = useAppearance();
   const reduceMotion = useReducedMotion();
-  const { state, dispatch, openAddModal, formatCurrency } = useApp();
+  const { state, dispatch, openAddModal, formatCurrency, expenseFocus, clearExpenseFocus } =
+    useApp();
   const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isMultiSelect, setIsMultiSelect] = useState(false);
+  const [multiSelectEpoch, setMultiSelectEpoch] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [undoSnack, setUndoSnack] = useState<{ expense: Expense; expiresAt: number } | null>(null);
@@ -99,6 +105,7 @@ export default function ExpensesScreen() {
   const pendingScrollRef = useRef<number | null>(null);
   const skipListFiltersEnterRef = useRef(true);
   const [listFiltersEnterDelay, setListFiltersEnterDelay] = useState(0);
+  const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
 
   const preserveScroll = useCallback((action: () => void) => {
     const el = scrollRef.current;
@@ -129,6 +136,42 @@ export default function ExpensesScreen() {
   useEffect(() => {
     skipListFiltersEnterRef.current = false;
   }, []);
+
+  useEffect(() => {
+    if (!expenseFocus) return;
+
+    setSelectedMonthKey(expenseFocus.monthKey);
+    setSearch('');
+    setSearchOpen(false);
+    setFilter('all');
+    setIsMultiSelect(false);
+    setSelected(new Set());
+    setOpenRowId(null);
+    setUndoSnack(null);
+
+    const { expenseId } = expenseFocus;
+    const scrollBehavior = reduceMotion ? 'auto' : ('smooth' as ScrollBehavior);
+
+    const scrollTimer = window.setTimeout(() => {
+      const row = scrollRef.current?.querySelector<HTMLElement>(
+        `[data-expense-id="${expenseId}"]`,
+      );
+      if (row) {
+        row.scrollIntoView({ block: 'start', behavior: scrollBehavior });
+        setHighlightedExpenseId(expenseId);
+      }
+      clearExpenseFocus();
+    }, 150);
+
+    const highlightTimer = window.setTimeout(() => {
+      setHighlightedExpenseId(current => (current === expenseId ? null : current));
+    }, 2800);
+
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(highlightTimer);
+    };
+  }, [expenseFocus?.requestId, clearExpenseFocus, reduceMotion]);
 
   const scheduleListFiltersEnterDelayReset = useCallback(() => {
     window.setTimeout(() => setListFiltersEnterDelay(0), 800);
@@ -197,6 +240,18 @@ export default function ExpensesScreen() {
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
   const groupKeys = Object.keys(grouped);
 
+  const toggleSelect = (id: string) => {
+    preserveScroll(() => {
+      const next = new Set(selected);
+      next.has(id) ? next.delete(id) : next.add(id);
+      setSelected(next);
+    });
+  };
+
+  const selectAll = () => {
+    setSelected(new Set(filtered.map(e => e.id)));
+  };
+
   useEffect(() => {
     if (!openRowId) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -207,9 +262,45 @@ export default function ExpensesScreen() {
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, [openRowId]);
 
-  const onDeleteGestureStart = useCallback(() => {
+  const handleSwipeSelect = useCallback((expenseId: string) => {
+    setUndoSnack(null);
+    setMultiSelectEpoch(e => e + 1);
+    setIsMultiSelect(true);
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.add(expenseId);
+      return next;
+    });
     setOpenRowId(null);
   }, []);
+
+  const clearMultiSelect = useCallback(() => {
+    setIsMultiSelect(false);
+    setSelected(new Set());
+  }, []);
+
+  const onDeleteGestureStart = useCallback(() => {
+    clearMultiSelect();
+    setOpenRowId(null);
+  }, [clearMultiSelect]);
+
+  const exitMultiSelect = () => {
+    setIsMultiSelect(false);
+    setSelected(new Set());
+    setOpenRowId(null);
+  };
+
+  const bulkDelete = () => {
+    preserveScroll(() => {
+      for (const id of selected) {
+        const expense = state.expenses.find(e => e.id === id);
+        if (expense) scheduleDelete(expense, { preserve: false });
+      }
+      setIsMultiSelect(false);
+      setSelected(new Set());
+      setOpenRowId(null);
+    });
+  };
 
   const finalizeDelete = useCallback(
     (id: string) => {
@@ -240,6 +331,8 @@ export default function ExpensesScreen() {
         }
 
         setOpenRowId(null);
+        setIsMultiSelect(false);
+        setSelected(new Set());
         setHiddenIds(prev => new Set(prev).add(expense.id));
 
         const expiresAt = Date.now() + UNDO_DURATION_MS;
@@ -313,12 +406,96 @@ export default function ExpensesScreen() {
 
   const showSearchBar = searchOpen;
   const listIsEmpty = groupKeys.length === 0;
-  const showListChromeFilters = !searchOpen;
-  const expensesChromeHeight = EXPENSES_LIST_CHROME_HEIGHT;
-  const headerLocked = !!undoSnack;
+  const headerLocked = isMultiSelect || !!undoSnack;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: c.canvas, position: 'relative' }}>
+      <AnimatePresence initial={false}>
+        {isMultiSelect && !undoSnack && (
+          <motion.div
+            key="multi-select-bar"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            role="toolbar"
+            aria-label="Selection actions"
+            style={{
+              ...topActionBarStyle,
+              backgroundColor: CHARCOAL,
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.22)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={exitMultiSelect}
+              aria-label="Close selection"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <X size={20} weight="light" color="#FFFFFF" />
+            </button>
+            <span
+              style={{
+                flex: 1,
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#FFFFFF',
+              }}
+            >
+              {selected.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={selectAll}
+              style={{
+                backgroundColor: c.surface,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                color: CHARCOAL,
+                fontFamily: 'inherit',
+                padding: '8px 14px',
+                borderRadius: 9999,
+                flexShrink: 0,
+              }}
+            >
+              Select all
+            </button>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                onClick={bulkDelete}
+                style={{
+                  background: '#EF4444',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderRadius: 9999,
+                  padding: '8px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+              >
+                <Trash size={15} weight="light" color="#FFFFFF" />
+                <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, fontFamily: 'inherit' }}>
+                  Delete all
+                </span>
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence initial={false}>
         {undoSnack && (
           <motion.div
@@ -327,20 +504,30 @@ export default function ExpensesScreen() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            role="status"
-            aria-live="polite"
+            role="alert"
+            aria-live="assertive"
             style={{
               ...topActionBarStyle,
-              backgroundColor: CHARCOAL,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.22)',
+              backgroundColor: c.dangerSoft,
+              borderBottom: `1px solid ${isDark ? 'rgba(248, 113, 113, 0.45)' : 'rgba(239, 68, 68, 0.35)'}`,
+              boxShadow: isDark
+                ? '0 4px 24px rgba(0, 0, 0, 0.45)'
+                : '0 4px 20px rgba(239, 68, 68, 0.16)',
             }}
           >
+            <Trash
+              size={18}
+              weight="fill"
+              color={c.danger}
+              style={{ flexShrink: 0 }}
+              aria-hidden
+            />
             <span
               style={{
                 flex: 1,
                 fontSize: 14,
-                fontWeight: 500,
-                color: '#FFFFFF',
+                fontWeight: 600,
+                color: isDark ? '#FECACA' : '#B91C1C',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -355,19 +542,19 @@ export default function ExpensesScreen() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '10px 16px',
+                padding: '9px 15px',
                 borderRadius: 9999,
-                border: 'none',
-                backgroundColor: BRAND,
-                color: '#FFFFFF',
+                border: `1.5px solid ${c.danger}`,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF',
+                color: isDark ? '#FECACA' : '#DC2626',
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 flexShrink: 0,
               }}
             >
-              <ArrowCounterClockwise size={16} weight="bold" color="#FFFFFF" />
+              <ArrowCounterClockwise size={16} weight="bold" color={isDark ? '#FECACA' : '#DC2626'} />
               Undo
             </button>
           </motion.div>
@@ -379,13 +566,29 @@ export default function ExpensesScreen() {
           flexShrink: 0,
           backgroundColor: c.surface,
           borderBottom: `1px solid ${c.border}`,
-          padding: '20px 20px 0',
+          padding: '20px 20px 14px',
           opacity: headerLocked ? 0.38 : 1,
           pointerEvents: headerLocked ? 'none' : 'auto',
           transition: 'opacity 0.15s ease',
         }}
       >
-        <h1 style={{ ...screenTitleStyle, padding: '0 0 14px', marginBottom: -1 }}>Expenses</h1>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            minWidth: 0,
+          }}
+        >
+          <h1 style={{ ...screenTitleStyle, flexShrink: 0, margin: 0 }}>Expenses</h1>
+          <ExpensesMonthPill
+            variant="inline"
+            monthKey={selectedMonthKey}
+            onMonthChange={setSelectedMonthKey}
+            disabled={headerLocked}
+          />
+        </div>
       </header>
 
       <motion.div
@@ -404,9 +607,8 @@ export default function ExpensesScreen() {
       >
         <div
           style={{
-            position: 'relative',
             flexShrink: 0,
-            minHeight: expensesChromeHeight,
+            minHeight: showSearchBar ? EXPENSES_SEARCH_CHROME_HEIGHT : EXPENSES_FILTER_CHROME_HEIGHT,
             overflow: 'hidden',
             opacity: headerLocked ? 0.38 : 1,
             pointerEvents: headerLocked ? 'none' : 'auto',
@@ -422,10 +624,6 @@ export default function ExpensesScreen() {
                 exit={searchCloseExit}
                 transition={searchDissolveTransition}
                 style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
                   padding: '16px 20px 14px',
                   boxSizing: 'border-box',
                 }}
@@ -498,41 +696,6 @@ export default function ExpensesScreen() {
                 </motion.div>
               </motion.div>
             ) : (
-              <motion.div
-                key="expenses-month-pill"
-                initial={reduceMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={reduceMotion ? undefined : { opacity: 0 }}
-                transition={
-                  reduceMotion
-                    ? { duration: 0 }
-                    : {
-                        opacity: {
-                          duration: SEARCH_DISSOLVE_DURATION,
-                          ease: 'easeOut',
-                        },
-                      }
-                }
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  padding: '16px 20px 0',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <ExpensesMonthPill
-                  monthKey={selectedMonthKey}
-                  onMonthChange={setSelectedMonthKey}
-                  disabled={headerLocked}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence initial={false}>
-            {showListChromeFilters && (
             <motion.div
               key="expenses-filter-row"
               className="expenses-filter-row"
@@ -551,14 +714,10 @@ export default function ExpensesScreen() {
               }
               transition={listFiltersEnterTransition}
               style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '14px 20px',
+                padding: '8px 20px 6px',
                 boxSizing: 'border-box',
                 filter: headerLocked ? 'grayscale(1)' : 'none',
                 pointerEvents: headerLocked ? 'none' : 'auto',
@@ -593,9 +752,18 @@ export default function ExpensesScreen() {
                         backgroundColor: headerLocked
                           ? c.surfaceInset
                           : isActive
-                            ? c.chipSelectedBg
-                            : c.chipBg,
-                        color: headerLocked ? c.textFaint : isActive ? c.chipSelectedText : c.textMuted,
+                            ? c.accent
+                            : c.surfaceInset,
+                        border: headerLocked
+                          ? `1px solid ${c.borderSubtle}`
+                          : isActive
+                            ? `1px solid ${c.accent}`
+                            : `1px solid ${c.borderSubtle}`,
+                        color: headerLocked
+                          ? c.textFaint
+                          : isActive
+                            ? c.onAccent
+                            : c.textSecondary,
                         whiteSpace: 'nowrap',
                         flexShrink: 0,
                         transition: 'all 0.2s',
@@ -670,26 +838,41 @@ export default function ExpensesScreen() {
               </div>
             ) : (
               <div>
-                {groupKeys.map(dateLabel => (
-                  <section key={dateLabel}>
-                    <SectionTitle inset>{dateLabel}</SectionTitle>
-                    <div style={{ backgroundColor: c.surface }}>
-                      {grouped[dateLabel].map(exp => (
-                        <ExpenseSwipeRow
-                          key={exp.id}
-                          expense={exp}
-                          isRowOpen={openRowId === exp.id}
-                          onRowOpen={id => setOpenRowId(id)}
-                          onRowClose={() => setOpenRowId(null)}
-                          onDeleteGestureStart={onDeleteGestureStart}
-                          onEdit={openAddModal}
-                          onRequestDelete={exp => scheduleDelete(exp)}
-                          formatCurrency={formatCurrency}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
+                {(() => {
+                  let rowIndex = 0;
+                  return groupKeys.map(dateLabel => (
+                    <section key={dateLabel}>
+                      <SectionTitle inset dense>
+                        {dateLabel}
+                      </SectionTitle>
+                      <div style={{ backgroundColor: c.surface }}>
+                        {grouped[dateLabel].map(exp => {
+                          const listIndex = rowIndex++;
+                          return (
+                            <ExpenseSwipeRow
+                              key={exp.id}
+                              expense={exp}
+                              listIndex={listIndex}
+                              multiSelectEpoch={multiSelectEpoch}
+                              isHighlighted={highlightedExpenseId === exp.id}
+                              isMultiSelect={isMultiSelect}
+                              isSelected={selected.has(exp.id)}
+                              isRowOpen={openRowId === exp.id}
+                              onRowOpen={id => setOpenRowId(id)}
+                              onRowClose={() => setOpenRowId(null)}
+                              onSelect={toggleSelect}
+                              onSwipeSelect={handleSwipeSelect}
+                              onDeleteGestureStart={onDeleteGestureStart}
+                              onEdit={openAddModal}
+                              onRequestDelete={exp => scheduleDelete(exp)}
+                              formatCurrency={formatCurrency}
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ));
+                })()}
               </div>
             )}
           </div>

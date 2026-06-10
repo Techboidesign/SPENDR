@@ -1,10 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppColors } from '../../context/AppearanceContext';
-import { motion, useReducedMotion } from 'motion/react';
+import { useAppearance, useAppColors } from '../../context/AppearanceContext';
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+} from 'motion/react';
 import { CaretRight, Trash } from '@phosphor-icons/react';
 import { CategoryIcon } from '../CategoryIcon';
+import {
+  EXPENSE_SELECT_BRAND,
+  EXPENSE_SELECT_CHECKBOX_SIZE,
+  ExpenseRowSelectCheckbox,
+  expenseRowSelectedBackground,
+} from './ExpenseRowSelectCheckbox';
 import { isFocusCategoryId } from '../../data/focusCategory';
 import type { Expense } from '../../data/types';
+import {
+  EXPENSE_MULTISELECT_STAGGER,
+  EXPENSE_SWIPE_DELETE_EXIT,
+  EXPENSE_SWIPE_SETTLE,
+  EXPENSE_SWIPE_SETTLE_REDUCED,
+} from '../../theme/motion';
 import { ExpenseRowMetaBadges } from './ExpenseRowMetaBadges';
 
 function formatExpenseRowAmount(
@@ -18,6 +36,7 @@ function formatExpenseRowAmount(
   return `-${formatCurrency(expense.amount)}`;
 }
 
+const SELECT_WIDTH = 76;
 const DELETE_WIDTH = 76;
 const DELETE_SNAP = -DELETE_WIDTH;
 const FULL_DELETE_THRESHOLD = 118;
@@ -25,11 +44,13 @@ const MAX_LEFT_DRAG = 168;
 const SNAP_RATIO = 0.4;
 const HORIZONTAL_LOCK_PX = 8;
 
-const DELETE_RED = '#EF4444';
-const DELETE_DEEP = '#DC2626';
-
-const SNAP_SPRING = { type: 'spring' as const, stiffness: 480, damping: 36, mass: 0.85 };
-const EXIT_EASE = [0.32, 0.72, 0, 1] as const;
+const SELECT_BRAND_RGB = '62, 55, 255';
+const DELETE_RED_RGB = '252, 165, 165';
+const DELETE_LABEL = '#FDA4AF';
+const DELETE_LABEL_ACTIVE = '#F87171';
+const SWIPE_GRADIENT_FADE = 42;
+const SWIPE_GRADIENT_INNER = 28;
+const SWIPE_GRADIENT_OUTER = 72;
 
 function applyRubberBand(value: number, min: number, max: number): number {
   if (value > max) return max + (value - max) * 0.18;
@@ -38,7 +59,11 @@ function applyRubberBand(value: number, min: number, max: number): number {
 }
 
 function clampDragOffset(value: number): number {
-  if (value > 0) return 0;
+  if (value > 0) {
+    if (value <= SELECT_WIDTH) return value;
+    const excess = value - SELECT_WIDTH;
+    return SELECT_WIDTH + excess * 0.12;
+  }
   return applyRubberBand(value, -MAX_LEFT_DRAG, 0);
 }
 
@@ -49,11 +74,51 @@ function deletePullProgress(offset: number): number {
   return Math.min(1, Math.max(0, beyond / range));
 }
 
+function deleteRevealProgress(offset: number): number {
+  if (offset >= 0) return 0;
+  return Math.min(1, -offset / DELETE_WIDTH);
+}
+
+function selectRevealProgress(offset: number): number {
+  if (offset <= 0) return 0;
+  return Math.min(1, offset / SELECT_WIDTH);
+}
+
+function settleTransition(reduceMotion: boolean | null) {
+  return reduceMotion ? EXPENSE_SWIPE_SETTLE_REDUCED : EXPENSE_SWIPE_SETTLE;
+}
+
+/** Mirrored full-row wash — delete reveals from the right, select from the left. */
+function deleteRevealGradient(
+  offset: number,
+  deleteReveal: number,
+  pullProgress: number,
+): string {
+  const fadeStop = Math.max(0, 100 + (offset / MAX_LEFT_DRAG) * SWIPE_GRADIENT_FADE);
+  const midAlpha = 0.035 + deleteReveal * 0.08 + pullProgress * 0.05;
+  const edgeAlpha = 0.06 + deleteReveal * 0.11 + pullProgress * 0.07;
+  return `linear-gradient(90deg, transparent ${fadeStop}%, rgba(${DELETE_RED_RGB}, ${midAlpha}) ${SWIPE_GRADIENT_OUTER}%, rgba(${DELETE_RED_RGB}, ${edgeAlpha}) 100%)`;
+}
+
+function selectRevealGradient(offset: number, selectReveal: number): string {
+  const fadeStop = Math.max(0, Math.min(100, 100 - (offset / MAX_LEFT_DRAG) * SWIPE_GRADIENT_FADE));
+  const edgeAlpha = 0.025 + selectReveal * 0.06;
+  const midAlpha = 0.04 + selectReveal * 0.08;
+  return `linear-gradient(90deg, rgba(${SELECT_BRAND_RGB}, ${edgeAlpha}) 0%, rgba(${SELECT_BRAND_RGB}, ${midAlpha}) ${SWIPE_GRADIENT_INNER}%, transparent ${fadeStop}%)`;
+}
+
 export interface ExpenseSwipeRowProps {
   expense: Expense;
+  listIndex: number;
+  multiSelectEpoch: number;
+  isHighlighted?: boolean;
+  isMultiSelect: boolean;
+  isSelected: boolean;
   isRowOpen: boolean;
   onRowOpen: (id: string) => void;
   onRowClose: () => void;
+  onSelect: (id: string) => void;
+  onSwipeSelect: (id: string) => void;
   onDeleteGestureStart?: () => void;
   onEdit: (expense: Expense) => void;
   onRequestDelete: (expense: Expense) => void;
@@ -62,135 +127,194 @@ export interface ExpenseSwipeRowProps {
 
 export function ExpenseSwipeRow({
   expense,
+  listIndex,
+  multiSelectEpoch,
+  isHighlighted = false,
+  isMultiSelect,
+  isSelected,
   isRowOpen,
   onRowOpen,
   onRowClose,
+  onSelect,
+  onSwipeSelect,
   onDeleteGestureStart,
   onEdit,
   onRequestDelete,
   formatCurrency,
 }: ExpenseSwipeRowProps) {
   const c = useAppColors();
+  const { isDark } = useAppearance();
   const reduceMotion = useReducedMotion();
+  const x = useMotionValue(0);
   const [offset, setOffset] = useState(0);
   const offsetRef = useRef(0);
   const draggingRef = useRef(false);
   const horizontalRef = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const exitHandledRef = useRef(false);
   const pointerStart = useRef({ x: 0, y: 0, offset: 0 });
-  const [pressed, setPressed] = useState(false);
+  const suppressClickRef = useRef(false);
+  const settlingRef = useRef(false);
+  const panelRafRef = useRef<number | null>(null);
 
-  const setOffsetSafe = useCallback((value: number) => {
-    const clamped = clampDragOffset(value);
-    offsetRef.current = clamped;
-    setOffset(clamped);
+  const syncPanelOffset = useCallback((value: number) => {
+    offsetRef.current = value;
+    if (panelRafRef.current !== null) return;
+    panelRafRef.current = requestAnimationFrame(() => {
+      panelRafRef.current = null;
+      setOffset(offsetRef.current);
+    });
   }, []);
 
+  useMotionValueEvent(x, 'change', latest => {
+    syncPanelOffset(latest);
+  });
+
+  const animateX = useCallback(
+    async (target: number) => {
+      offsetRef.current = target;
+      await animate(x, target, settleTransition(reduceMotion));
+      setOffset(target);
+    },
+    [reduceMotion, x],
+  );
+
   useEffect(() => {
-    if (!isRowOpen && offsetRef.current !== 0 && !isExiting) {
-      setOffsetSafe(0);
+    if (settlingRef.current || draggingRef.current || isExiting) return;
+    if (!isRowOpen && offsetRef.current !== 0) {
+      void animateX(0);
     }
-  }, [isRowOpen, isExiting, setOffsetSafe]);
+  }, [animateX, isExiting, isRowOpen, x]);
+
+  useEffect(() => {
+    if (isMultiSelect && offsetRef.current > 0) {
+      x.set(0);
+      setOffset(0);
+      offsetRef.current = 0;
+    }
+  }, [isMultiSelect, x]);
 
   const closeSwipe = useCallback(() => {
-    setOffsetSafe(0);
+    void animateX(0);
     onRowClose();
-  }, [onRowClose, setOffsetSafe]);
+  }, [animateX, onRowClose]);
 
   const runExitDelete = useCallback(() => {
     exitHandledRef.current = false;
     onDeleteGestureStart?.();
-    setIsExiting(true);
     onRowClose();
-  }, [onDeleteGestureStart, onRowClose]);
+    setIsExiting(true);
+    void animate(
+      x,
+      '-108%',
+      reduceMotion
+        ? { duration: 0.12, ease: EXPENSE_SWIPE_DELETE_EXIT.ease }
+        : EXPENSE_SWIPE_DELETE_EXIT,
+    ).then(() => {
+      if (!exitHandledRef.current) {
+        exitHandledRef.current = true;
+        onRequestDelete(expense);
+      }
+    });
+  }, [expense, onDeleteGestureStart, onRequestDelete, onRowClose, reduceMotion, x]);
 
-  const handleExitComplete = useCallback(() => {
-    if (!isExiting || exitHandledRef.current) return;
-    exitHandledRef.current = true;
-    onRequestDelete(expense);
-  }, [isExiting, expense, onRequestDelete]);
+  const commitSelectFromSwipe = useCallback(() => {
+    void animateX(0).then(() => {
+      onRowClose();
+      onSwipeSelect(expense.id);
+    });
+  }, [animateX, expense.id, onRowClose, onSwipeSelect]);
 
   const settleOffset = useCallback(() => {
     if (isExiting) return;
+
+    settlingRef.current = true;
     const current = offsetRef.current;
 
     if (current <= -FULL_DELETE_THRESHOLD) {
+      settlingRef.current = false;
       runExitDelete();
       return;
     }
-    if (current <= DELETE_SNAP * SNAP_RATIO) {
-      setOffsetSafe(DELETE_SNAP);
-      onRowOpen(expense.id);
+
+    if (current >= SELECT_WIDTH * SNAP_RATIO) {
+      settlingRef.current = false;
+      commitSelectFromSwipe();
       return;
     }
-    setOffsetSafe(0);
-    onRowClose();
-  }, [expense.id, isExiting, onRowClose, onRowOpen, runExitDelete, setOffsetSafe]);
 
-  // ── pointer handlers ──────────────────────────────────────────────────────
-  // Mirror the proven original pattern: draggingRef=true immediately on down,
-  // direction detected on first significant move, vertical → cancel drag.
-  // This ensures the browser can take over for vertical scroll without us
-  // intercepting touch gestures.
+    if (current > 0) {
+      void animateX(0).then(() => {
+        onRowClose();
+        settlingRef.current = false;
+      });
+      return;
+    }
+
+    if (current <= DELETE_SNAP * SNAP_RATIO) {
+      void animateX(DELETE_SNAP).then(() => {
+        onRowOpen(expense.id);
+        settlingRef.current = false;
+      });
+      return;
+    }
+
+    void animateX(0).then(() => {
+      onRowClose();
+      settlingRef.current = false;
+    });
+  }, [
+    animateX,
+    commitSelectFromSwipe,
+    expense.id,
+    isExiting,
+    onRowClose,
+    onRowOpen,
+    runExitDelete,
+  ]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isExiting) return;
+    if (isMultiSelect) return;
     if ((e.target as HTMLElement).closest('button[data-swipe-action]')) return;
 
+    suppressClickRef.current = false;
     horizontalRef.current = false;
     draggingRef.current = true;
-    setPressed(true);
     pointerStart.current = { x: e.clientX, y: e.clientY, offset: offsetRef.current };
 
     if (offsetRef.current !== 0) onRowOpen(expense.id);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingRef.current || isExiting) return;
+    if (!draggingRef.current || isMultiSelect || isExiting) return;
 
     const dx = e.clientX - pointerStart.current.x;
     const dy = e.clientY - pointerStart.current.y;
 
     if (!horizontalRef.current) {
-      // Stay undecided while movement is tiny
       if (Math.abs(dx) < HORIZONTAL_LOCK_PX && Math.abs(dy) < HORIZONTAL_LOCK_PX) return;
 
-      // Vertical scroll: cancel drag, let browser handle it
       if (Math.abs(dy) > Math.abs(dx)) {
         draggingRef.current = false;
-        setPressed(false);
         return;
       }
 
-      // Right swipe from rest: nothing to do, cancel
-      if (dx > 0 && pointerStart.current.offset === 0) {
-        draggingRef.current = false;
-        setPressed(false);
-        return;
-      }
-
-      // Confirmed horizontal left-swipe
       horizontalRef.current = true;
-      setIsDragging(true);
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }
 
     e.preventDefault();
-    setOffsetSafe(pointerStart.current.offset + dx);
+    x.set(clampDragOffset(pointerStart.current.offset + dx));
   };
 
   const handlePointerEnd = (e: React.PointerEvent) => {
-    if (!draggingRef.current && !horizontalRef.current) {
-      setPressed(false);
-      return;
-    }
+    const wasHorizontal = horizontalRef.current;
+
+    if (!draggingRef.current && !wasHorizontal) return;
 
     draggingRef.current = false;
     horizontalRef.current = false;
-    setIsDragging(false);
-    setPressed(false);
 
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -198,10 +322,22 @@ export function ExpenseSwipeRow({
       /* not captured */
     }
 
-    if (!isExiting) settleOffset();
+    if (wasHorizontal) {
+      suppressClickRef.current = true;
+      if (!isExiting) settleOffset();
+    }
   };
 
   const handleRowClick = () => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
+    if (isMultiSelect) {
+      onSelect(expense.id);
+      return;
+    }
     if (offsetRef.current !== 0) {
       closeSwipe();
       return;
@@ -210,69 +346,110 @@ export function ExpenseSwipeRow({
   };
 
   const pullProgress = deletePullProgress(offset);
-  const displayX = isExiting ? '-108%' : offset;
-  const rowOpacity = isExiting ? 0 : 1 - pullProgress * 0.35;
-  const isDeleteRevealed = offset < -28;
-  const isDeleteActive = isRowOpen && isDeleteRevealed;
-  const deleteBg = pullProgress > 0.82 || isDeleteActive ? DELETE_DEEP : DELETE_RED;
+  const deleteReveal = deleteRevealProgress(offset);
+  const selectReveal = selectRevealProgress(offset);
+  const isDeleteActive = isRowOpen && offset <= DELETE_SNAP * 0.55;
+  const deleteLabelOpacity = Math.min(1, deleteReveal * 1.15);
+  const deleteTint =
+    isDeleteActive || pullProgress > 0.82 ? DELETE_LABEL_ACTIVE : DELETE_LABEL;
+  const selectAffordanceMotion = {
+    opacity: selectReveal,
+    transform: `scale(${0.88 + selectReveal * 0.12}) translateX(${(1 - selectReveal) * -8}px)`,
+  };
+  const rowDim = offset < 0 ? 1 - deleteReveal * 0.22 - pullProgress * 0.12 : 1;
+  const rowBottomBorder =
+    isMultiSelect && isSelected ? EXPENSE_SELECT_BRAND : c.border;
+  const rowBackground =
+    (isMultiSelect && isSelected) || isHighlighted
+      ? expenseRowSelectedBackground(c.surface, isDark)
+      : c.surface;
+  const rowEdgeMask =
+    offset < -4
+      ? `linear-gradient(90deg, #000 0%, #000 ${Math.max(55, 100 + (offset / MAX_LEFT_DRAG) * 28)}%, transparent 100%)`
+      : offset > 4
+        ? `linear-gradient(90deg, transparent 0%, #000 ${Math.min(16, 6 + selectReveal * 10)}%, #000 100%)`
+        : undefined;
 
   return (
     <div
       data-expense-swipe-row
+      data-expense-id={expense.id}
       style={{
         position: 'relative',
         width: '100%',
         overflow: 'hidden',
         backgroundColor: c.surface,
-        borderBottom: `1px solid ${c.border}`,
+        borderBottom: `1px solid ${rowBottomBorder}`,
         touchAction: 'pan-y',
       }}
     >
-      {/* Delete action background */}
+      {/* Select — full-row wash mirrored from delete, softer purple */}
       <div
         aria-hidden
         style={{
           position: 'absolute',
           inset: 0,
-          display: 'flex',
-          alignItems: 'stretch',
-          justifyContent: 'flex-end',
           pointerEvents: 'none',
+          background: selectRevealGradient(offset, selectReveal),
+          opacity: selectReveal > 0.02 ? 1 : 0,
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: 16,
+          top: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          pointerEvents: 'none',
+          width: EXPENSE_SELECT_CHECKBOX_SIZE,
+          ...selectAffordanceMotion,
         }}
       >
-        <div
-          style={{
-            width: DELETE_WIDTH,
-            flexShrink: 0,
-            backgroundColor: deleteBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: isDeleteRevealed ? 1 : 0,
-            boxShadow: isDeleteActive ? 'inset 0 0 0 1px rgba(255,255,255,0.35)' : 'none',
-            transition: isDragging ? 'none' : 'opacity 0.15s ease, background-color 0.12s ease, box-shadow 0.12s ease',
-          }}
-        >
-          <Trash
-            size={22}
-            weight={isDeleteActive || pullProgress > 0.82 ? 'fill' : 'bold'}
-            color="#FFFFFF"
-          />
-        </div>
+        <ExpenseRowSelectCheckbox checked />
       </div>
 
-      {pullProgress > 0.12 && offset < 0 && (
-        <div
-          aria-hidden
+      {/* Delete — lighter red wash + trash + label */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: deleteRevealGradient(offset, deleteReveal, pullProgress),
+          opacity: deleteReveal > 0.02 ? 1 : 0,
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          right: 16,
+          top: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          pointerEvents: 'none',
+          gap: 5,
+          opacity: deleteLabelOpacity,
+          transform: `translateX(${(1 - deleteLabelOpacity) * 10}px)`,
+        }}
+      >
+        <Trash size={16} weight="bold" color={deleteTint} />
+        <span
           style={{
-            position: 'absolute',
-            inset: 0,
-            background: `linear-gradient(90deg, transparent 40%, rgba(239, 68, 68, ${0.06 + pullProgress * 0.14}) 100%)`,
-            pointerEvents: 'none',
-            zIndex: 0,
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            color: deleteTint,
           }}
-        />
-      )}
+        >
+          Delete
+        </span>
+      </div>
 
       <motion.div
         role="button"
@@ -288,34 +465,45 @@ export function ExpenseSwipeRow({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
-        initial={false}
-        animate={{
-          x: displayX,
-          opacity: rowOpacity,
-          backgroundColor: pressed ? c.surfaceMuted : c.surface,
-        }}
-        transition={
-          isExiting
-            ? { duration: reduceMotion ? 0.15 : 0.34, ease: EXIT_EASE }
-            : isDragging || reduceMotion
-              ? { duration: 0 }
-              : SNAP_SPRING
-        }
-        onAnimationComplete={() => {
-          if (isExiting) handleExitComplete();
-        }}
         style={{
+          x,
           position: 'relative',
           zIndex: 1,
           display: 'flex',
           alignItems: 'center',
           gap: 12,
           padding: '14px 16px',
-          cursor: 'default',
+          background: rowBackground,
+          cursor: isMultiSelect ? 'pointer' : 'default',
           touchAction: 'pan-y',
           userSelect: 'none',
+          willChange: 'transform',
+          opacity: isExiting ? 0 : rowDim,
+          transition: isExiting ? 'opacity 0.2s ease-out' : undefined,
+          WebkitMaskImage: rowEdgeMask,
+          maskImage: rowEdgeMask,
         }}
       >
+        {isMultiSelect && (
+          <motion.div
+            key={`ms-${multiSelectEpoch}`}
+            initial={
+              reduceMotion
+                ? false
+                : { opacity: 0, scale: 0.88, x: -8 }
+            }
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{
+              duration: EXPENSE_MULTISELECT_STAGGER.duration,
+              ease: EXPENSE_MULTISELECT_STAGGER.ease,
+              delay: listIndex * EXPENSE_MULTISELECT_STAGGER.step,
+            }}
+            style={{ flexShrink: 0 }}
+          >
+            <ExpenseRowSelectCheckbox checked={isSelected} />
+          </motion.div>
+        )}
+
         <CategoryIcon categoryId={expense.categoryId} size="sm" />
 
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -343,28 +531,31 @@ export function ExpenseSwipeRow({
         </div>
       </motion.div>
 
-      {offset <= DELETE_SNAP * 0.55 && offset > -FULL_DELETE_THRESHOLD && !isExiting && (
-        <button
-          type="button"
-          data-swipe-action="delete"
-          onClick={e => {
-            e.stopPropagation();
-            runExitDelete();
-          }}
-          aria-label="Delete expense"
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: DELETE_WIDTH,
-            zIndex: 2,
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-          }}
-        />
-      )}
+      {offset <= DELETE_SNAP * 0.55 &&
+        offset > -FULL_DELETE_THRESHOLD &&
+        !isMultiSelect &&
+        !isExiting && (
+          <button
+            type="button"
+            data-swipe-action="delete"
+            onClick={e => {
+              e.stopPropagation();
+              runExitDelete();
+            }}
+            aria-label="Delete expense"
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: DELETE_WIDTH + 24,
+              zIndex: 2,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          />
+        )}
     </div>
   );
 }

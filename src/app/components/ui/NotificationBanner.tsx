@@ -37,6 +37,7 @@ export interface NotificationBannerProps {
   message: string;
   variant?: NotificationBannerVariant;
   onDismiss: () => void;
+  onPress?: () => void;
   durationMs?: number;
 }
 
@@ -45,6 +46,7 @@ export function NotificationBanner({
   message,
   variant = 'info',
   onDismiss,
+  onPress,
   durationMs = NOTIFICATION_BANNER_DURATION_MS,
 }: NotificationBannerProps) {
   const c = useAppColors();
@@ -98,33 +100,87 @@ export function NotificationBanner({
           boxShadow: 'none',
         }}
       >
-        <span
-          aria-hidden
-          style={{
-            width: 3,
-            alignSelf: 'stretch',
-            borderRadius: 0,
-            backgroundColor: palette.accent,
-            flexShrink: 0,
-          }}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
+        {onPress ? (
+          <button
+            type="button"
+            onClick={onPress}
+            aria-label={`${title}. ${message}. Tap to view.`}
             style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: c.text,
-              marginBottom: 2,
-              lineHeight: 1.3,
+              flex: 1,
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              padding: 0,
+              margin: 0,
+              border: 'none',
+              background: 'transparent',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
-            {title}
-          </div>
-          <div style={{ fontSize: 12, color: c.textSecondary, lineHeight: 1.45 }}>{message}</div>
-        </div>
+            <span
+              aria-hidden
+              style={{
+                width: 3,
+                alignSelf: 'stretch',
+                borderRadius: 0,
+                backgroundColor: palette.accent,
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: c.text,
+                  marginBottom: 2,
+                  lineHeight: 1.3,
+                }}
+              >
+                {title}
+              </div>
+              <div style={{ fontSize: 12, color: c.textSecondary, lineHeight: 1.45 }}>
+                {message}
+              </div>
+            </div>
+          </button>
+        ) : (
+          <>
+            <span
+              aria-hidden
+              style={{
+                width: 3,
+                alignSelf: 'stretch',
+                borderRadius: 0,
+                backgroundColor: palette.accent,
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: c.text,
+                  marginBottom: 2,
+                  lineHeight: 1.3,
+                }}
+              >
+                {title}
+              </div>
+              <div style={{ fontSize: 12, color: c.textSecondary, lineHeight: 1.45 }}>{message}</div>
+            </div>
+          </>
+        )}
         <button
           type="button"
-          onClick={dismiss}
+          onClick={e => {
+            e.stopPropagation();
+            dismiss();
+          }}
           aria-label="Dismiss notification"
           style={{
             width: 28,

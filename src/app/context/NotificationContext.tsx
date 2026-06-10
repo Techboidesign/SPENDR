@@ -8,10 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import { NotificationBanner } from '../components/ui/NotificationBanner';
+import { useNavigate } from 'react-router';
 import {
   markNotificationSeen,
   type NotificationAlertPayload,
 } from '../services/notificationAlerts';
+import { useApp } from './AppContext';
 
 type QueuedNotification = NotificationAlertPayload;
 
@@ -87,8 +89,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 /** Renders inside DeviceShell so banners stay within the phone mockup. */
 export function NotificationBannerHost() {
   const { active, dismissNotification } = useNotifications();
+  const navigate = useNavigate();
+  const { requestExpenseFocus } = useApp();
 
   if (!active) return null;
+
+  const onPress =
+    active.action?.type === 'view-expense'
+      ? () => {
+          requestExpenseFocus(active.action!.expenseId, active.action!.monthKey);
+          navigate('/expenses');
+          dismissNotification();
+        }
+      : undefined;
 
   return (
     <div
@@ -112,6 +125,7 @@ export function NotificationBannerHost() {
         message={active.message}
         variant={active.variant}
         onDismiss={dismissNotification}
+        onPress={onPress}
       />
     </div>
   );

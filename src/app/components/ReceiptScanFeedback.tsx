@@ -16,6 +16,11 @@ export function ReceiptScanFeedback() {
       title: receiptScanToast.title,
       message: receiptScanToast.message,
       variant: 'success',
+      action: {
+        type: 'view-expense',
+        expenseId: receiptScanToast.expenseId,
+        monthKey: receiptScanToast.monthKey,
+      },
     });
     clearReceiptScanToast();
   }, [receiptScanToast, showNotification, clearReceiptScanToast]);

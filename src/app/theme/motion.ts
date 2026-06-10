@@ -68,6 +68,29 @@ export const TAB_LAYOUT_SPRING = {
   damping: 34,
 };
 
+/** Expense row swipe — snappy settle (no bounce; high-frequency gesture). */
+export const EXPENSE_SWIPE_SETTLE = {
+  duration: 0.18,
+  ease: EASE_OUT_QUINT,
+} as const;
+
+export const EXPENSE_SWIPE_SETTLE_REDUCED = {
+  duration: 0.08,
+  ease: EASE_OUT_QUINT,
+} as const;
+
+export const EXPENSE_SWIPE_DELETE_EXIT = {
+  duration: 0.22,
+  ease: EASE_OUT_QUINT,
+} as const;
+
+/** Multi-select checkbox column — quick cascade from first visible row. */
+export const EXPENSE_MULTISELECT_STAGGER = {
+  step: 0.028,
+  duration: 0.22,
+  ease: EASE_OUT_QUINT,
+} as const;
+
 export const TAB_LAYOUT_INSTANT = { duration: 0 } as const;
 
 export const TAB_PRESS_TRANSITION = {

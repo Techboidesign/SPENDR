@@ -6,11 +6,13 @@ export function ExpensesMonthPill({
   onMonthChange,
   disabled = false,
   trailingSlot,
+  variant = 'full',
 }: {
   monthKey: string;
   onMonthChange: (key: string) => void;
   disabled?: boolean;
   trailingSlot?: React.ReactNode;
+  variant?: 'full' | 'inline';
 }) {
   return (
     <MonthYearPill
@@ -18,6 +20,7 @@ export function ExpensesMonthPill({
       onMonthChange={onMonthChange}
       disabled={disabled}
       trailingSlot={trailingSlot}
+      variant={variant}
       minMonthKey={MONTH_PICKER_MIN_KEY}
       maxMonthKey={MONTH_PICKER_MAX_KEY}
     />

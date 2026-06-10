@@ -210,6 +210,17 @@ interface ResolvedCategory extends Category {
   iconKey: CategoryIconKey;
 }
 
+export type ExpenseFocusRequest = {
+  expenseId: string;
+  monthKey: string;
+  /** Bumps when the same expense is focused again. */
+  requestId: number;
+};
+
+export function expenseDateToMonthKey(date: string): string {
+  return date.slice(0, 7);
+}
+
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
@@ -231,8 +242,17 @@ interface AppContextType {
   parseStatusMessage: string;
   scanReceiptFromCamera: (file: File) => Promise<void>;
   uploadReceiptDocuments: (files: File[]) => Promise<void>;
-  receiptScanToast: { id: string; title: string; message: string } | null;
+  receiptScanToast: {
+    id: string;
+    title: string;
+    message: string;
+    expenseId: string;
+    monthKey: string;
+  } | null;
   clearReceiptScanToast: () => void;
+  expenseFocus: ExpenseFocusRequest | null;
+  requestExpenseFocus: (expenseId: string, monthKey: string) => void;
+  clearExpenseFocus: () => void;
   completeOnboardingAndSync: () => Promise<void>;
   eraseAllData: () => Promise<void>;
   importAppData: (payload: SpendrDataExport, mode: ImportMode) => Promise<void>;
@@ -293,7 +313,10 @@ export function AppProvider({
     id: string;
     title: string;
     message: string;
+    expenseId: string;
+    monthKey: string;
   } | null>(null);
+  const [expenseFocus, setExpenseFocus] = useState<ExpenseFocusRequest | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const authRef = useRef(auth);
@@ -534,6 +557,14 @@ export function AppProvider({
     setReceiptScanToast(null);
   }, []);
 
+  const requestExpenseFocus = useCallback((expenseId: string, monthKey: string) => {
+    setExpenseFocus({ expenseId, monthKey, requestId: Date.now() });
+  }, []);
+
+  const clearExpenseFocus = useCallback(() => {
+    setExpenseFocus(null);
+  }, []);
+
   const formatCurrency = (amount: number) => {
     const symbol =
       state.currency === 'EUR'
@@ -655,13 +686,19 @@ export function AppProvider({
         const labels = autoSaved.map(
           r => `${formatCurrencyFromState(r.item.amount)} · ${r.item.name}`,
         );
+        const primaryExpense = expenses.reduce((latest, exp) =>
+          exp.date.localeCompare(latest.date) >= 0 ? exp : latest,
+        );
+        const monthKey = expenseDateToMonthKey(primaryExpense.date);
         setReceiptScanToast({
           id: `receipt-scan-${Date.now()}`,
           title: autoSaved.length === 1 ? 'Expense added' : `${autoSaved.length} expenses added`,
           message:
             autoSaved.length === 1
-              ? labels[0]
-              : `${labels.slice(0, 2).join(' · ')}${labels.length > 2 ? '…' : ''}`,
+              ? `${labels[0]} · Tap to view`
+              : `${labels.slice(0, 2).join(' · ')}${labels.length > 2 ? '…' : ''} · Tap to view`,
+          expenseId: primaryExpense.id,
+          monthKey,
         });
       }
 
@@ -734,6 +771,9 @@ export function AppProvider({
         uploadReceiptDocuments,
         receiptScanToast,
         clearReceiptScanToast,
+        expenseFocus,
+        requestExpenseFocus,
+        clearExpenseFocus,
         completeOnboardingAndSync,
         eraseAllData,
         importAppData,
