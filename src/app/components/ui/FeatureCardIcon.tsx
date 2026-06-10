@@ -6,7 +6,7 @@ import {
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import type { CategoryIconKey } from '../../data/categoryConfig';
-import type { InsightPhosphorIcon } from '../../hooks/useHomeInsightCards';
+import type { InsightPhosphorIcon } from '../../hooks/useInsightsHighlightCards';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { CategoryIcon, CategoryIconPreview } from '../CategoryIcon';
 import { getFeatureCardTokens } from './featureCard';

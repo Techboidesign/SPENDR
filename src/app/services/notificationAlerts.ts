@@ -5,11 +5,7 @@ import {
   recurringAppliesToMonth,
   recurringSeriesKey,
 } from '../utils/recurringExpense';
-import {
-  getCategoryTotals,
-  getMonthSpendingTotal,
-  getMonthlyAmount,
-} from '../context/AppContext';
+import { getMonthSpendingTotal, getMonthlyAmount } from '../context/AppContext';
 import { isSpendingExpense } from '../data/focusCategory';
 
 export type NotificationBannerVariant = 'info' | 'warning' | 'success';
@@ -135,7 +131,6 @@ export interface EvaluateNotificationAlertsInput {
   state: AppState;
   prefs: NotificationPreferences;
   formatCurrency: (amount: number) => string;
-  getCategoryName: (categoryId: string) => string;
 }
 
 /**
@@ -145,13 +140,11 @@ export function evaluateNotificationAlerts({
   state,
   prefs,
   formatCurrency,
-  getCategoryName,
 }: EvaluateNotificationAlertsInput): NotificationAlertPayload | null {
   const resolvedPrefs = mergeNotificationPreferences(prefs);
   const candidates: ScoredAlert[] = [];
   const monthKey = currentYearMonth();
   const monthTotal = monthSpendTotal(state, monthKey);
-  const categoryTotals = getCategoryTotals(state.expenses, monthKey);
 
   if (resolvedPrefs.budgetAlerts && state.monthlyBudget > 0) {
     const pct = (monthTotal / state.monthlyBudget) * 100;
@@ -171,33 +164,6 @@ export function evaluateNotificationAlerts({
         variant: 'warning',
         priority: 800,
       });
-    }
-  }
-
-  if (resolvedPrefs.budgetAlerts) {
-    for (const goal of state.budgetGoals) {
-      if (goal.amount <= 0) continue;
-      const spent = categoryTotals[goal.categoryId] ?? 0;
-      const pct = (spent / goal.amount) * 100;
-      const name = getCategoryName(goal.categoryId);
-      if (pct >= 100) {
-        markSupersededMilestonesSeen(monthKey, goal.categoryId, pct);
-        candidates.push({
-          id: `${monthKey}-cat-${goal.categoryId}-over`,
-          title: `${name} over limit`,
-          message: `${formatCurrency(spent)} spent vs ${formatCurrency(goal.amount)} category budget.`,
-          variant: 'warning',
-          priority: 900 + Math.min(pct, 200) / 100,
-        });
-      } else if (pct >= 80) {
-        candidates.push({
-          id: `${monthKey}-cat-${goal.categoryId}-warn`,
-          title: `${name} nearing limit`,
-          message: `${Math.round(pct)}% of your ${formatCurrency(goal.amount)} ${name} budget.`,
-          variant: 'info',
-          priority: 700 + pct / 100,
-        });
-      }
     }
   }
 
@@ -227,14 +193,25 @@ export function evaluateNotificationAlerts({
   }
 
   if (resolvedPrefs.goalMilestones) {
-    for (const goal of state.budgetGoals) {
-      if (goal.amount <= 0) continue;
-      const spent = categoryTotals[goal.categoryId] ?? 0;
-      const pct = (spent / goal.amount) * 100;
-      const name = getCategoryName(goal.categoryId);
+    for (const goal of state.savingsGoals) {
+      if (goal.targetAmount <= 0) continue;
+      const pct = (goal.currentAmount / goal.targetAmount) * 100;
+      const goalKey = goal.id;
+
+      if (pct >= 100) {
+        markSupersededMilestonesSeen(monthKey, goalKey, pct);
+        candidates.push({
+          id: `${monthKey}-savings-${goalKey}-complete`,
+          title: 'Savings goal reached',
+          message: `You've hit your ${goal.name} target of ${formatCurrency(goal.targetAmount)}.`,
+          variant: 'success',
+          priority: 850,
+        });
+        continue;
+      }
 
       if (pct >= 80) {
-        markSupersededMilestonesSeen(monthKey, goal.categoryId, pct);
+        markSupersededMilestonesSeen(monthKey, goalKey, pct);
         continue;
       }
 
@@ -242,9 +219,9 @@ export function evaluateNotificationAlerts({
       if (!milestone) continue;
 
       candidates.push({
-        id: `${monthKey}-milestone-${goal.categoryId}-${milestone}`,
-        title: 'Goal milestone',
-        message: `You're at ${milestone}% of your ${name} monthly goal.`,
+        id: `${monthKey}-milestone-${goalKey}-${milestone}`,
+        title: 'Savings milestone',
+        message: `You're ${milestone}% of the way to ${goal.name}.`,
         variant: 'info',
         priority: 300 + milestone,
       });

@@ -1,42 +1,13 @@
 import type { OnboardingData } from '../context/OnboardingContext';
-import type { AppState, BudgetGoal } from '../data/types';
+import type { AppState } from '../data/types';
 import { CATEGORIES } from '../data/categories';
 import { mergeNotificationPreferences } from '../data/notificationPreferences';
-import {
-  buildBudgetGoalsForMonthlyBudget,
-  DEFAULT_CATEGORY_BUDGET_WEIGHTS,
-} from '../utils/budgetAllocation';
-import { parsePrimaryGoal, resolveOnboardingGoalChoice } from '../data/primaryGoalConfig';
-import { goalRequiresTargetSetup, targetToProfileFields } from '../data/primaryGoalTarget';
+import { targetToProfileFields } from '../data/primaryGoalTarget';
 import { createCustomCategoryAppId, toCustomCategoryAppId, toCustomCategoryDbId } from '../utils/customCategoryId';
 import { replaceAppStateOnServer } from './appDataService';
 import { updateProfileSafe } from './profileUpdates';
 import { saveOnboarding } from './onboardingService';
 import type { OnboardingState } from '../context/OnboardingContext';
-
-/** Map onboarding budget allocation keys → app category ids */
-export const ALLOCATION_TO_CATEGORY: Record<string, string> = {
-  housing: 'rent',
-  food: 'groceries',
-  transportation: 'transport',
-  utilities: 'utilities',
-  shopping: 'shopping',
-  entertainment: 'entertainment',
-  savings: 'other',
-};
-
-export function budgetAllocationsToGoals(
-  allocations: Record<string, number>,
-): BudgetGoal[] {
-  const goals: BudgetGoal[] = [];
-  for (const [key, amount] of Object.entries(allocations)) {
-    const categoryId = ALLOCATION_TO_CATEGORY[key];
-    if (categoryId && amount > 0) {
-      goals.push({ categoryId, amount: Math.round(amount) });
-    }
-  }
-  return goals;
-}
 
 export function mergeOnboardingIntoAppState(
   current: AppState,
@@ -48,13 +19,10 @@ export function mergeOnboardingIntoAppState(
     next.userName = data.firstName;
     next.userFullName = data.firstName;
   }
-  if (data.primaryGoal) {
-    next.primaryGoal = parsePrimaryGoal(resolveOnboardingGoalChoice(data.primaryGoal));
-  }
-  if (data.primaryGoalTarget && next.primaryGoal && goalRequiresTargetSetup(next.primaryGoal)) {
-    next.primaryGoalTarget = data.primaryGoalTarget;
-  } else {
-    next.primaryGoalTarget = null;
+  next.primaryGoal = null;
+  next.primaryGoalTarget = null;
+  if (data.savingsGoals?.length) {
+    next.savingsGoals = data.savingsGoals;
   }
   if (data.currency) next.currency = data.currency;
   if (data.monthlyBudget != null) next.monthlyBudget = data.monthlyBudget;
@@ -62,16 +30,7 @@ export function mergeOnboardingIntoAppState(
     next.income = data.monthlyAmount.value;
   }
 
-  if (data.budgetAllocations && Object.keys(data.budgetAllocations).length > 0) {
-    const goals = budgetAllocationsToGoals(data.budgetAllocations);
-    if (goals.length > 0) next.budgetGoals = goals;
-  } else if (data.monthlyBudget != null && data.monthlyBudget > 0) {
-    next.budgetGoals = buildBudgetGoalsForMonthlyBudget(
-      data.monthlyBudget,
-      CATEGORIES.map(c => c.id),
-      DEFAULT_CATEGORY_BUDGET_WEIGHTS,
-    );
-  }
+  next.budgetGoals = [];
 
   if (data.notifications) {
     next.notificationPreferences = mergeNotificationPreferences({

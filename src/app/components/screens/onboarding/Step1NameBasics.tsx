@@ -58,7 +58,7 @@ export default function Step1NameBasics() {
 
   return (
     <OnboardingLayout
-      currentStep={7}
+      currentStep={5}
       totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}

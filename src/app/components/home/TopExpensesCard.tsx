@@ -4,6 +4,7 @@ import { TrendDown, TrendUp } from '@phosphor-icons/react';
 import { useApp } from '../../context/AppContext';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { FeatureCardIcon } from '../ui/FeatureCardIcon';
+import { RankIconChip } from '../ui/RankIconChip';
 import type { AppColorPalette } from '../../theme/appColors';
 import { changeBadgeColors } from '../../theme/darkModeUi';
 import { featureCardGradient } from '../ui/featureCard';
@@ -74,11 +75,23 @@ function EdgeFade({
 export function TopExpensesCard({
   items,
   formatCurrency,
+  pageBg,
+  gutter = PAGE_GUTTER,
+  layout = 'carousel',
+  ranked = false,
 }: {
   items: TopExpenseItem[];
   formatCurrency: (n: number) => string;
+  /** Scroll edge fade matches page background (home vs insights). */
+  pageBg?: string;
+  gutter?: number;
+  /** `grid` — two-column rows, no horizontal scroll. */
+  layout?: 'carousel' | 'grid';
+  /** Show rank chips (1, 2, 3…) instead of category icons. */
+  ranked?: boolean;
 }) {
   const c = useAppColors();
+  const fadeBg = pageBg ?? c.canvasHome;
   const { getCategory } = useApp();
   const { isDark } = useAppearance();
   const navigate = useNavigate();
@@ -111,56 +124,24 @@ export function TopExpensesCard({
     );
   }
 
-  return (
-    <div
-      style={{
-        position: 'relative',
-        marginLeft: -PAGE_GUTTER,
-        marginRight: -PAGE_GUTTER,
-        width: `calc(100% + ${PAGE_GUTTER * 2}px)`,
-        overflow: 'visible',
-        paddingBottom: 14,
-      }}
-    >
-      <EdgeFade side="left" visible={showLeftFade} pageBg={c.canvasHome} />
-      <EdgeFade side="right" visible={showRightFade} pageBg={c.canvasHome} />
+  const renderItem = (item: TopExpenseItem, index: number) => {
+    const cat = getCategory(item.cat);
+    const { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown } = getChangeMeta(item, c, isDark);
 
-      <div
-        ref={scrollRef}
-        onScroll={updateFades}
-        className="top-expenses-scroll"
-        style={{
-          display: 'flex',
-          gap: 10,
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          scrollSnapType: 'x mandatory',
-          scrollPaddingLeft: PAGE_GUTTER,
-          scrollPaddingRight: PAGE_GUTTER,
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehaviorX: 'contain',
-          touchAction: 'pan-x',
-          paddingTop: 4,
-          paddingBottom: 8,
-          paddingLeft: PAGE_GUTTER,
-          paddingRight: PAGE_GUTTER,
-          scrollbarWidth: 'none',
-        }}
-      >
-        {items.map(item => {
-          const cat = getCategory(item.cat);
-          const { badgeBg, badgeColor, monthBadge, isNew, isUp, isDown } = getChangeMeta(item, c, isDark);
-
-          return (
+    return (
             <button
               key={item.cat}
               type="button"
               onClick={() => navigate('/expenses')}
               style={{
-                flex: `0 0 ${CAROUSEL_CARD_W}px`,
-                scrollSnapAlign: 'start',
-                width: CAROUSEL_CARD_W,
-                padding: '14px 14px',
+                ...(layout === 'carousel'
+                  ? {
+                      flex: `0 0 ${CAROUSEL_CARD_W}px`,
+                      scrollSnapAlign: 'start' as const,
+                      width: CAROUSEL_CARD_W,
+                    }
+                  : { width: '100%', minWidth: 0 }),
+                padding: layout === 'grid' ? '12px 12px' : '14px 14px',
                 borderRadius: 16,
                 border: 'none',
                 background: featureCardGradient(cat.bg, c.featureCardEnd, isDark),
@@ -170,16 +151,20 @@ export function TopExpensesCard({
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 10,
+                gap: layout === 'grid' ? 8 : 10,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <FeatureCardIcon
-                  accentColor={cat.color}
-                  accentBg={cat.bg}
-                  categoryId={item.cat}
-                  categoryIconSize="md"
-                />
+                {ranked ? (
+                  <RankIconChip rank={index + 1} size={40} radius={12} />
+                ) : (
+                  <FeatureCardIcon
+                    accentColor={cat.color}
+                    accentBg={cat.bg}
+                    categoryId={item.cat}
+                    categoryIconSize="md"
+                  />
+                )}
                 <span
                   style={{
                     display: 'inline-flex',
@@ -206,19 +191,86 @@ export function TopExpensesCard({
                 </span>
               </div>
               <div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: c.text, margin: '0 0 3px' }}>
+                <p
+                  style={{
+                    fontSize: layout === 'grid' ? 13 : 15,
+                    fontWeight: 700,
+                    color: c.text,
+                    margin: '0 0 3px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {shortCategoryName(cat.name)}
                 </p>
                 <p
                   className="font-figure"
-                  style={{ fontSize: 18, color: isDark ? c.textSecondary : cat.color, margin: 0, letterSpacing: -0.5 }}
+                  style={{
+                    fontSize: layout === 'grid' ? 15 : 18,
+                    color: isDark ? c.textSecondary : cat.color,
+                    margin: 0,
+                    letterSpacing: -0.5,
+                  }}
                 >
                   {formatCurrency(item.curAmt)}
                 </p>
               </div>
             </button>
-          );
-        })}
+    );
+  };
+
+  if (layout === 'grid') {
+    return (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 10,
+        }}
+      >
+        {items.map((item, index) => renderItem(item, index))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        marginLeft: -gutter,
+        marginRight: -gutter,
+        width: `calc(100% + ${gutter * 2}px)`,
+        overflow: 'visible',
+        paddingBottom: 14,
+      }}
+    >
+      <EdgeFade side="left" visible={showLeftFade} pageBg={fadeBg} />
+      <EdgeFade side="right" visible={showRightFade} pageBg={fadeBg} />
+
+      <div
+        ref={scrollRef}
+        onScroll={updateFades}
+        className="top-expenses-scroll"
+        style={{
+          display: 'flex',
+          gap: 10,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          scrollSnapType: 'x mandatory',
+          scrollPaddingLeft: gutter,
+          scrollPaddingRight: gutter,
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehaviorX: 'contain',
+          touchAction: 'pan-x',
+          paddingTop: 4,
+          paddingBottom: 8,
+          paddingLeft: gutter,
+          paddingRight: gutter,
+          scrollbarWidth: 'none',
+        }}
+      >
+        {items.map((item, index) => renderItem(item, index))}
       </div>
 
       <style>{`

@@ -10,7 +10,7 @@ import { evaluateNotificationAlerts } from '../services/notificationAlerts';
  * Mount only under the main app shell (after onboarding).
  */
 export function NotificationAlertRunner() {
-  const { state, formatCurrency, getCategory } = useApp();
+  const { state, formatCurrency } = useApp();
   const { showNotification, clearNotificationQueue } = useNotifications();
   const { onboarding } = useOnboarding();
   const lastSignatureRef = useRef('');
@@ -23,7 +23,7 @@ export function NotificationAlertRunner() {
     const signature = JSON.stringify({
       expenses: state.expenses.length,
       budget: state.monthlyBudget,
-      goals: state.budgetGoals,
+      savingsGoals: state.savingsGoals,
       prefs,
       month: new Date().toISOString().slice(0, 7),
     });
@@ -37,7 +37,6 @@ export function NotificationAlertRunner() {
       state,
       prefs,
       formatCurrency,
-      getCategoryName: id => getCategory(id).name,
     });
 
     if (alert) {
@@ -47,10 +46,9 @@ export function NotificationAlertRunner() {
     state,
     state.expenses,
     state.monthlyBudget,
-    state.budgetGoals,
+    state.savingsGoals,
     state.notificationPreferences,
     formatCurrency,
-    getCategory,
     onboarding.status,
     showNotification,
     clearNotificationQueue,

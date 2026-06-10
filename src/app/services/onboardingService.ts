@@ -1,6 +1,15 @@
 import type { OnboardingState } from '../context/OnboardingContext';
-import type { DbOnboardingProgress } from '../data/database.types';
+import type { DbOnboardingProgress, DbProfile } from '../data/database.types';
 import { getSupabase } from '../../lib/supabase';
+
+const COMPLETED_ONBOARDING_FALLBACK: OnboardingState = {
+  status: 'completed',
+  completedSteps: [],
+  lastStepId: null,
+  data: {},
+  completedAt: null,
+  version: 1,
+};
 
 export function dbRowToOnboarding(row: DbOnboardingProgress): OnboardingState {
   return {
@@ -23,6 +32,49 @@ export async function fetchOnboarding(userId: string): Promise<OnboardingState |
   if (error && error.code !== 'PGRST116') throw error;
   if (!data) return null;
   return dbRowToOnboarding(data as DbOnboardingProgress);
+}
+
+/**
+ * Prefer onboarding_progress; if profile is marked complete but progress row lags,
+ * treat onboarding as done (avoids sending returning users back into the flow).
+ */
+export async function resolveOnboardingForUser(userId: string): Promise<OnboardingState | null> {
+  const supabase = getSupabase();
+  const [progressRes, profileRes] = await Promise.all([
+    supabase.from('onboarding_progress').select('*').eq('user_id', userId).maybeSingle(),
+    supabase.from('profiles').select('onboarding_completed_at').eq('id', userId).maybeSingle(),
+  ]);
+
+  if (progressRes.error && progressRes.error.code !== 'PGRST116') throw progressRes.error;
+  if (profileRes.error && profileRes.error.code !== 'PGRST116') throw profileRes.error;
+
+  const profile = profileRes.data as Pick<DbProfile, 'onboarding_completed_at'> | null;
+  const progress = progressRes.data as DbOnboardingProgress | null;
+
+  if (progress) {
+    const resolved = dbRowToOnboarding(progress);
+    if (resolved.status === 'completed' || resolved.status === 'skipped') {
+      return resolved;
+    }
+    if (profile?.onboarding_completed_at) {
+      return {
+        ...resolved,
+        status: 'completed',
+        lastStepId: null,
+        completedAt: profile.onboarding_completed_at,
+      };
+    }
+    return resolved;
+  }
+
+  if (profile?.onboarding_completed_at) {
+    return {
+      ...COMPLETED_ONBOARDING_FALLBACK,
+      completedAt: profile.onboarding_completed_at,
+    };
+  }
+
+  return null;
 }
 
 export async function saveOnboarding(userId: string, state: OnboardingState): Promise<void> {

@@ -78,7 +78,7 @@ export default function Step6Notifications() {
 
   return (
     <OnboardingLayout
-      currentStep={6}
+      currentStep={4}
       totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}

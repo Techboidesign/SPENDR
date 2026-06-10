@@ -23,6 +23,8 @@ export function PrimaryGoalSetupModal({
   scrollLockRef,
   onSave,
   onClose,
+  excludedGoalTypes = [],
+  title = 'Edit goal',
 }: {
   open: boolean;
   goalId: PrimaryGoalId;
@@ -31,6 +33,8 @@ export function PrimaryGoalSetupModal({
   scrollLockRef?: RefObject<HTMLElement | null>;
   onSave: (goalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => void;
   onClose: () => void;
+  excludedGoalTypes?: PrimaryGoalId[];
+  title?: string;
 }) {
   const { state } = useApp();
   const { isDark } = useAppearance();
@@ -81,7 +85,7 @@ export function PrimaryGoalSetupModal({
     <AppBottomSheetLayout
       open={open}
       onClose={onClose}
-      title={draftDef.label}
+      title={title === 'Edit goal' ? draftDef.label : title}
       headerLeading={headerLeading}
       scrollLockRef={scrollLockRef}
       bodyScroll
@@ -101,6 +105,7 @@ export function PrimaryGoalSetupModal({
         onGoalIdChange={setDraftGoalId}
         onTargetChange={setDraftTarget}
         showGoalPicker
+        excludedGoalTypes={excludedGoalTypes}
         compact
         currencySymbol={currencySymbol}
         variant="app"

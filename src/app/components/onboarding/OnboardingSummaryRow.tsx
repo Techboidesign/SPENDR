@@ -7,6 +7,7 @@ import { onboardingIconChip, onboardingRowCard } from '../../theme/onboardingUi'
 export function OnboardingSummaryRow({
   icon: IconComp,
   accent,
+  iconLightBg,
   label,
   value,
   detail,
@@ -15,6 +16,8 @@ export function OnboardingSummaryRow({
 }: {
   icon: Icon;
   accent: string;
+  /** Solid pastel tile in light mode (improves contrast on white cards). */
+  iconLightBg?: string;
   label: string;
   value: ReactNode;
   detail?: string;
@@ -23,7 +26,9 @@ export function OnboardingSummaryRow({
   compact?: boolean;
 }) {
   const { theme, isLight } = useOnboardingChrome();
-  const chip = onboardingIconChip(accent, isLight);
+  const chip = isLight && iconLightBg
+    ? { iconBg: iconLightBg, iconColor: accent }
+    : onboardingIconChip(accent, isLight);
   const iconSize = compact ? 32 : 40;
   const glyphSize = compact ? 16 : 20;
 

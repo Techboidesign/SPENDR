@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Bell, Sparkle, Wallet } from '@phosphor-icons/react';
+import { Sparkle, Wallet } from '@phosphor-icons/react';
 import { useOnboarding } from '../../../context/OnboardingContext';
 import { useApp } from '../../../context/AppContext';
 import { CATEGORIES } from '../../../data/categories';
@@ -10,11 +10,13 @@ import {
   type CategoryStripItem,
 } from '../../onboarding/OnboardingCategoryPreviewStrip';
 import { getCurrencyIcon } from '../../../data/currencyConfig';
-import { getPrimaryGoalDefinition, parsePrimaryGoal, resolveOnboardingGoalChoice } from '../../../data/primaryGoalConfig';
-import { formatTargetDateShort } from '../../../data/primaryGoalTarget';
 import { APP_PRIMARY } from '../../../theme/authTheme';
 import { useOnboardingChrome } from '../../../context/OnboardingThemeContext';
-import { onboardingHeroGradient, onboardingRowCard } from '../../../theme/onboardingUi';
+import {
+  onboardingHeroGradient,
+  onboardingRowCard,
+  onboardingSuccessColor,
+} from '../../../theme/onboardingUi';
 import { hexToRgba } from '../../../theme/onboardingDarkUi';
 import {
   OnboardingSummaryRow,
@@ -31,13 +33,6 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   JPY: '¥',
   CAD: 'C$',
   AUD: 'A$',
-};
-
-const FREQUENCY_LABELS: Record<string, string> = {
-  monthly: 'Monthly',
-  'bi-weekly': 'Every two weeks',
-  weekly: 'Weekly',
-  irregular: 'Varies',
 };
 
 function formatMoney(amount: number, currency: string): string {
@@ -58,16 +53,10 @@ export default function Step7Complete() {
   const data = onboarding.data;
   const firstName = data.firstName || 'there';
   const currency = data.currency || 'USD';
-  const goal = getPrimaryGoalDefinition(
-    parsePrimaryGoal(resolveOnboardingGoalChoice(data.primaryGoal ?? undefined)),
-  );
-  const goalTarget = data.primaryGoalTarget;
-  const GoalIcon = goal.Icon;
   const CurrencyIcon = getCurrencyIcon(currency);
 
   const monthlyBudget = data.monthlyBudget;
   const monthlyAmount = data.monthlyAmount;
-  const incomeFrequency = data.incomeFrequency;
 
   const selectedIds =
     data.selectedCategoryIds ??
@@ -79,17 +68,6 @@ export default function Step7Complete() {
 
   const customCats = data.customCategories ?? [];
   const categoryCount = selectedIds.length + customCats.length;
-
-  const notificationCount = useMemo(() => {
-    const n = data.notifications;
-    if (!n) return 0;
-    return [
-      n.budgetAlerts,
-      n.weeklySummary,
-      n.billReminders,
-      n.goalMilestones,
-    ].filter(Boolean).length;
-  }, [data.notifications]);
 
   const categoryStripItems = useMemo((): CategoryStripItem[] => {
     const builtIn: CategoryStripItem[] = selectedIds
@@ -135,28 +113,30 @@ export default function Step7Complete() {
 
   const setupGridItems: ReactNode[] = [
     <OnboardingSummaryRow
-      key="goal"
-      compact
-      icon={GoalIcon}
-      accent={goal.accentColor}
-      label="Primary goal"
-      value={goal.label}
-      detail={
-        goalTarget && goalTarget.targetAmount > 0
-          ? `${goalTarget.name ? `${goalTarget.name} · ` : ''}${formatMoney(goalTarget.targetAmount, currency)} by ${formatTargetDateShort(goalTarget.targetDate)}`
-          : undefined
-      }
-    />,
-    <OnboardingSummaryRow
       key="currency"
       compact
       icon={CurrencyIcon}
-      accent="#707BFF"
+      accent="#3E37FF"
+      iconLightBg="#EDEDFF"
       label="Currency"
       value={currency}
       detail={data.country ?? undefined}
     />,
   ];
+
+  if (monthlyAmount && monthlyAmount.value > 0) {
+    setupGridItems.push(
+      <OnboardingSummaryRow
+        key="income"
+        compact
+        icon={Wallet}
+        accent="#10B981"
+        iconLightBg="#D1FAE5"
+        label="Monthly income"
+        value={formatMoney(monthlyAmount.value, currency)}
+      />,
+    );
+  }
 
   if (monthlyBudget != null && monthlyBudget > 0) {
     setupGridItems.push(
@@ -164,45 +144,24 @@ export default function Step7Complete() {
         key="budget"
         compact
         icon={Wallet}
-        accent="#5EEAD4"
+        accent="#0D9488"
+        iconLightBg="#CCFBF1"
         label="Monthly budget"
         value={formatMoney(monthlyBudget, currency)}
-        detail={
-          data.budgetAllocationMode === 'custom' ? 'Custom amounts' : 'Auto-balanced'
-        }
-      />,
-    );
-  } else if (monthlyAmount && monthlyAmount.value > 0) {
-    setupGridItems.push(
-      <OnboardingSummaryRow
-        key="income"
-        compact
-        icon={Wallet}
-        accent="#5EEAD4"
-        label={monthlyAmount.type === 'income' ? 'Monthly income' : 'Available'}
-        value={formatMoney(monthlyAmount.value, currency)}
-        detail={incomeFrequency ? FREQUENCY_LABELS[incomeFrequency] : undefined}
       />,
     );
   }
 
-  if (notificationCount > 0) {
-    setupGridItems.push(
-      <OnboardingSummaryRow
-        key="notifications"
-        compact
-        icon={Bell}
-        accent="#F7A54D"
-        label="Notifications"
-        value={`${notificationCount} on`}
-        detail="Alerts enabled"
-      />,
-    );
-  }
+  const readyBadgeBg = isLight
+    ? hexToRgba(onboardingSuccessColor, 0.14)
+    : hexToRgba(onboardingSuccessColor, 0.22);
+  const readyBadgeBorder = isLight
+    ? hexToRgba(onboardingSuccessColor, 0.38)
+    : hexToRgba(onboardingSuccessColor, 0.5);
 
   return (
     <OnboardingLayout
-      currentStep={8}
+      currentStep={6}
       totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleLaunch}
       onBack={handleBack}
@@ -252,17 +211,17 @@ export default function Step7Complete() {
               gap: 5,
               padding: '4px 9px',
               borderRadius: 20,
-              backgroundColor: hexToRgba(APP_PRIMARY, isLight ? 0.1 : 0.28),
-              border: `1px solid ${hexToRgba(APP_PRIMARY, isLight ? 0.22 : 0.4)}`,
+              backgroundColor: readyBadgeBg,
+              border: `1px solid ${readyBadgeBorder}`,
               flexShrink: 0,
             }}
           >
-            <Sparkle size={11} color={theme.accentMint} weight="fill" />
+            <Sparkle size={11} color={onboardingSuccessColor} weight="fill" />
             <span
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                color: theme.accentMint,
+                color: onboardingSuccessColor,
                 letterSpacing: 0.03,
                 whiteSpace: 'nowrap',
               }}
@@ -279,7 +238,7 @@ export default function Step7Complete() {
             lineHeight: 1.4,
           }}
         >
-          {goal.label} — we&apos;ll tailor Spendr around this.
+          Add saving goals anytime under Budget when you&apos;re ready.
         </p>
       </div>
 
@@ -340,7 +299,16 @@ export default function Step7Complete() {
               </div>
             </div>
 
-            <OnboardingCategoryPreviewStrip items={categoryStripItems} />
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                backgroundColor: isLight ? '#F4F4F8' : hexToRgba(APP_PRIMARY, 0.08),
+                border: `1px solid ${isLight ? '#EBEBF0' : theme.surfaceBorder}`,
+              }}
+            >
+              <OnboardingCategoryPreviewStrip items={categoryStripItems} />
+            </div>
           </div>
         ) : null}
       </div>

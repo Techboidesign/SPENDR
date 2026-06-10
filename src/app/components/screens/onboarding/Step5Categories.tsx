@@ -85,7 +85,7 @@ export default function Step5Categories() {
 
   return (
     <OnboardingLayout
-      currentStep={5}
+      currentStep={3}
       totalSteps={ONBOARDING_STEP_COUNT}
       onNext={handleNext}
       onBack={handleBack}

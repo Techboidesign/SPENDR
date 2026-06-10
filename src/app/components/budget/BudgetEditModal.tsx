@@ -117,7 +117,6 @@ export function BudgetEditModal({
           {currencySymbol}
         </span>
         <input
-          autoFocus
           type="number"
           inputMode="decimal"
           value={draft}

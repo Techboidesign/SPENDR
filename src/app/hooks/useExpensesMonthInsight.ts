@@ -8,7 +8,8 @@ import {
 } from '../context/AppContext';
 import type { CategoryIconKey } from '../data/categoryConfig';
 import { getCategoryById } from '../data/categories';
-import { getPreviousMonthKey, monthPickerLabel } from '../utils/periods';
+import type { HomeRange } from '../utils/periods';
+import { getPreviousMonthKey, monthPickerLabel, YEAR_MONTH_BARS } from '../utils/periods';
 import type { FeatureCardPhosphorIcon } from '../components/ui/FeatureCardIcon';
 
 export const PCT_OF_MONTHLY_LABEL = '% of monthly expenses';
@@ -24,6 +25,98 @@ export type ExpensesMonthInsight = {
   iconKey?: CategoryIconKey;
   phosphorIcon?: FeatureCardPhosphorIcon;
 };
+
+function buildYearCandidates({
+  periodTotal,
+  formatCurrency,
+  income,
+  monthlyBudget,
+  expenses,
+}: {
+  periodTotal: number;
+  formatCurrency: (n: number) => string;
+  income: number;
+  monthlyBudget: number;
+  expenses: ReturnType<typeof useApp>['state']['expenses'];
+}): ExpensesMonthInsight[] {
+  const cards: ExpensesMonthInsight[] = [];
+  const yearIncome = income * 12;
+  const yearBudget = monthlyBudget * 12;
+
+  const monthsWithSpend = YEAR_MONTH_BARS.filter(
+    m => getMonthSpendingTotal(expenses, m.key) > 0,
+  );
+  const avg =
+    monthsWithSpend.length > 0
+      ? monthsWithSpend.reduce((s, m) => s + getMonthSpendingTotal(expenses, m.key), 0) /
+        monthsWithSpend.length
+      : 0;
+
+  if (avg > 0) {
+    cards.push({
+      id: 'year-avg',
+      eyebrow: 'Average month',
+      headline: formatCurrency(avg),
+      detail: `${monthsWithSpend.length} active months this year`,
+      accentColor: '#059669',
+      accentBg: '#D1FAE5',
+      iconKey: 'wallet',
+    });
+  }
+
+  const peak = [...YEAR_MONTH_BARS]
+    .map(m => ({ ...m, total: getMonthSpendingTotal(expenses, m.key) }))
+    .sort((a, b) => b.total - a.total)[0];
+  if (peak && peak.total > 0) {
+    cards.push({
+      id: 'year-peak',
+      eyebrow: 'Highest month',
+      headline: peak.label,
+      detail: `${formatCurrency(peak.total)} peak spend`,
+      accentColor: '#D97706',
+      accentBg: '#FEF3C7',
+      phosphorIcon: 'chart-line-up',
+    });
+  }
+
+  if (periodTotal > 0 && yearIncome > 0) {
+    const saved = yearIncome - periodTotal;
+    const onTrack = saved >= 0;
+    cards.push({
+      id: 'year-savings',
+      eyebrow: 'Year savings',
+      headline: onTrack
+        ? `Saving ${formatCurrency(saved)}`
+        : `Over income by ${formatCurrency(Math.abs(saved))}`,
+      detail: onTrack
+        ? `${Math.round((saved / yearIncome) * 100)}% of annual income kept`
+        : 'Yearly expenses exceeded income',
+      accentColor: onTrack ? '#059669' : '#D97706',
+      accentBg: onTrack ? '#D1FAE5' : '#FEF3C7',
+      iconKey: 'piggy',
+    });
+  }
+
+  if (yearBudget > 0 && periodTotal >= 0) {
+    const budgetPct = Math.min((periodTotal / yearBudget) * 100, 100);
+    const over = periodTotal > yearBudget;
+    cards.push({
+      id: 'year-budget',
+      eyebrow: 'Annual budget',
+      headline: over
+        ? `${formatCurrency(periodTotal - yearBudget)} over budget`
+        : `${budgetPct.toFixed(0)}% of budget used`,
+      detail: over
+        ? `Year spend passed your ${formatCurrency(yearBudget)} limit`
+        : `${formatCurrency(Math.max(yearBudget - periodTotal, 0))} left this year`,
+      accentColor: over ? '#DC2626' : budgetPct < 85 ? '#059669' : '#D97706',
+      accentBg: over ? '#FEE2E2' : budgetPct < 85 ? '#D1FAE5' : '#FEF3C7',
+      phosphorIcon: 'target',
+    });
+  }
+
+  return cards;
+}
 
 function buildCandidates({
   monthKey,
@@ -164,20 +257,29 @@ export function useExpensesMonthInsight(
   monthKey: string,
   monthTotal: number,
   shuffleKey: string,
+  range: HomeRange = 'month',
 ) {
   const { state, formatCurrency } = useApp();
 
   const candidates = useMemo(
     () =>
-      buildCandidates({
-        monthKey,
-        monthTotal,
-        formatCurrency,
-        income: state.income,
-        monthlyBudget: state.monthlyBudget,
-        expenses: state.expenses,
-      }),
-    [monthKey, monthTotal, formatCurrency, state.income, state.monthlyBudget, state.expenses],
+      range === 'year'
+        ? buildYearCandidates({
+            periodTotal: monthTotal,
+            formatCurrency,
+            income: state.income,
+            monthlyBudget: state.monthlyBudget,
+            expenses: state.expenses,
+          })
+        : buildCandidates({
+            monthKey,
+            monthTotal,
+            formatCurrency,
+            income: state.income,
+            monthlyBudget: state.monthlyBudget,
+            expenses: state.expenses,
+          }),
+    [range, monthKey, monthTotal, formatCurrency, state.income, state.monthlyBudget, state.expenses],
   );
 
   const pickedId = useMemo(() => {

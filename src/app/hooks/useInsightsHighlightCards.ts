@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp, getCategoryTotals, getMonthExpenses, getMonthlyAmount } from '../context/AppContext';
 import type { CategoryIconKey } from '../data/categoryConfig';
-import { YEAR_MONTH_BARS } from '../utils/periods';
 
 export type InsightPhosphorIcon = 'trend-up' | 'arrows-clockwise' | 'chart-line-up';
 
@@ -20,51 +19,71 @@ export type InsightCardData = {
   onClick: () => void;
 };
 
-export function useHomeInsightCards(
+type MonthlyBar = { month: string; total: number; isLast: boolean };
+
+export function useInsightsHighlightCards(
   formatCurrency: (n: number) => string,
-  monthlyBarData: { month: string; total: number; isLast: boolean }[],
+  monthlyBarData: MonthlyBar[],
+  monthKeys: string[],
+  options?: { skipCategoryAndRecurring?: boolean },
 ): InsightCardData[] {
   const navigate = useNavigate();
   const { state, categories } = useApp();
 
   return useMemo(
     () =>
-      buildYearCards({
+      buildHighlightCards({
         expenses: state.expenses,
         categories,
         formatCurrency,
         monthlyBarData,
+        monthKeys,
         navigate,
+        skipCategoryAndRecurring: options?.skipCategoryAndRecurring ?? false,
       }),
-    [state.expenses, categories, formatCurrency, monthlyBarData, navigate],
+    [
+      state.expenses,
+      categories,
+      formatCurrency,
+      monthlyBarData,
+      monthKeys,
+      navigate,
+      options?.skipCategoryAndRecurring,
+    ],
   );
 }
 
-function buildYearCards({
+function buildHighlightCards({
   expenses,
   categories,
   formatCurrency,
   monthlyBarData,
+  monthKeys,
   navigate,
+  skipCategoryAndRecurring,
 }: {
   expenses: ReturnType<typeof useApp>['state']['expenses'];
   categories: ReturnType<typeof useApp>['categories'];
   formatCurrency: (n: number) => string;
-  monthlyBarData: { month: string; total: number; isLast: boolean }[];
+  monthlyBarData: MonthlyBar[];
+  monthKeys: string[];
   navigate: ReturnType<typeof useNavigate>;
+  skipCategoryAndRecurring: boolean;
 }): InsightCardData[] {
+  if (monthKeys.length < 2) return [];
+
   const cards: InsightCardData[] = [];
   const totals: Record<string, number> = {};
 
   let recurring = 0;
   let oneTime = 0;
 
-  for (const m of YEAR_MONTH_BARS) {
-    const monthTotals = getCategoryTotals(expenses, m.key);
+  for (const key of monthKeys) {
+    const monthTotals = getCategoryTotals(expenses, key);
     for (const [id, amt] of Object.entries(monthTotals)) {
       totals[id] = (totals[id] ?? 0) + amt;
     }
-    const monthExpenses = getMonthExpenses(expenses, m.key);
+    const monthExpenses = getMonthExpenses(expenses, key);
     for (const exp of monthExpenses) {
       const amount = getMonthlyAmount(exp);
       if (exp.type === 'one-time') oneTime += amount;
@@ -76,24 +95,26 @@ function buildYearCards({
   const recurringPct =
     grandTotal > 0 ? ((recurring / grandTotal) * 100).toFixed(0) : '0';
 
-  const ranked = categories
-    .map(cat => ({ cat, amount: totals[cat.id] ?? 0 }))
-    .filter(c => c.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
+  if (!skipCategoryAndRecurring) {
+    const ranked = categories
+      .map(cat => ({ cat, amount: totals[cat.id] ?? 0 }))
+      .filter(c => c.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
 
-  const top = ranked[0];
-  if (top) {
-    const pct = grandTotal > 0 ? (top.amount / grandTotal) * 100 : 0;
-    cards.push({
-      id: 'year-top-category',
-      eyebrow: 'Top category',
-      headline: top.cat.name.split('/')[0].split(' & ')[0],
-      detail: `${pct.toFixed(0)}% of spend`,
-      accentColor: top.cat.color,
-      accentBg: top.cat.bg,
-      categoryId: top.cat.id,
-      onClick: () => navigate('/expenses'),
-    });
+    const top = ranked[0];
+    if (top) {
+      const pct = grandTotal > 0 ? (top.amount / grandTotal) * 100 : 0;
+      cards.push({
+        id: 'top-category',
+        eyebrow: 'Top category',
+        headline: top.cat.name.split('/')[0].split(' & ')[0],
+        detail: `${pct.toFixed(0)}% of spend`,
+        accentColor: top.cat.color,
+        accentBg: top.cat.bg,
+        categoryId: top.cat.id,
+        onClick: () => navigate('/expenses'),
+      });
+    }
   }
 
   const monthsWithSpend = monthlyBarData.filter(m => m.total > 0);
@@ -103,7 +124,7 @@ function buildYearCards({
       : 0;
   if (avg > 0) {
     cards.push({
-      id: 'year-avg',
+      id: 'avg-month',
       eyebrow: 'Average month',
       headline: formatCurrency(avg),
       detail: `${monthsWithSpend.length} active months`,
@@ -117,10 +138,10 @@ function buildYearCards({
   const peak = [...monthlyBarData].sort((a, b) => b.total - a.total)[0];
   if (peak && peak.total > 0) {
     cards.push({
-      id: 'year-peak',
+      id: 'peak-month',
       eyebrow: 'Highest month',
       headline: peak.month,
-      detail: 'Peak spend',
+      detail: formatCurrency(peak.total),
       accentColor: '#D97706',
       accentBg: '#FEF3C7',
       phosphorIcon: 'chart-line-up',
@@ -128,9 +149,9 @@ function buildYearCards({
     });
   }
 
-  if (grandTotal > 0) {
+  if (!skipCategoryAndRecurring && grandTotal > 0) {
     cards.push({
-      id: 'year-recurring',
+      id: 'recurring',
       eyebrow: 'Recurring',
       headline: `${recurringPct}%`,
       detail: 'Recurring spend',

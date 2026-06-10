@@ -5,6 +5,7 @@ import type {
   CategoryCustomization,
   CustomCategory,
   PrimaryGoalId,
+  SavingsGoal,
 } from '../data/types';
 import { parsePrimaryGoal } from '../data/primaryGoalConfig';
 import { isFocusCategoryId, syncPrimaryGoalTargetFromExpenses } from '../data/focusCategory';
@@ -14,7 +15,7 @@ import { fetchOnboarding } from './onboardingService';
 import type {
   DbProfile,
   DbExpense,
-  DbBudgetGoal,
+  DbSavingsGoal,
   DbCategoryCustomization,
   DbCustomCategory,
   DbUserPreferences,
@@ -32,6 +33,30 @@ function isMissingPrefsColumnError(error: { code?: string; message?: string }, c
     msg.includes(column.toLowerCase()) ||
     msg.includes('schema cache')
   );
+}
+
+function isMissingTableError(error: { code?: string; message?: string }, table: string): boolean {
+  const msg = error.message?.toLowerCase() ?? '';
+  const tableLower = table.toLowerCase();
+  return (
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    msg.includes(tableLower) ||
+    (msg.includes('does not exist') && msg.includes('relation'))
+  );
+}
+
+async function replaceSavingsGoalsOnServer(userId: string, goals: SavingsGoal[]): Promise<void> {
+  const supabase = getSupabase();
+  const { error: deleteError } = await supabase.from('savings_goals').delete().eq('user_id', userId);
+  if (deleteError && !isMissingTableError(deleteError, 'savings_goals')) throw deleteError;
+  if (deleteError) return;
+
+  if (goals.length === 0) return;
+  const { error: insertError } = await supabase.from('savings_goals').insert(
+    goals.map((g, index) => savingsGoalToRow(userId, g, index)),
+  );
+  if (insertError && !isMissingTableError(insertError, 'savings_goals')) throw insertError;
 }
 
 /** Upsert notification prefs; omits disabled_category_ids if the column is not migrated yet. */
@@ -68,6 +93,34 @@ function rowToCustomCategory(row: DbCustomCategory): CustomCategory {
     bg: row.bg,
     iconKey: row.icon_key,
     iconColor: row.icon_color ?? undefined,
+  };
+}
+
+function rowToSavingsGoal(row: DbSavingsGoal): SavingsGoal {
+  return {
+    id: row.id,
+    name: row.name,
+    targetAmount: Number(row.target_amount),
+    currentAmount: Number(row.current_amount),
+    targetDate: row.target_date ?? '',
+    iconKey: row.icon_key as SavingsGoal['iconKey'],
+    accentColor: row.accent_color,
+    accentBg: row.accent_bg,
+  };
+}
+
+function savingsGoalToRow(userId: string, goal: SavingsGoal, sortOrder: number) {
+  return {
+    id: goal.id,
+    user_id: userId,
+    name: goal.name,
+    target_amount: goal.targetAmount,
+    current_amount: goal.currentAmount,
+    target_date: goal.targetDate || null,
+    icon_key: goal.iconKey,
+    accent_color: goal.accentColor,
+    accent_bg: goal.accentBg,
+    sort_order: sortOrder,
   };
 }
 
@@ -125,6 +178,7 @@ export function createEmptyAppState(overrides?: Partial<AppState>): AppState {
     appearance: 'light',
     primaryGoal: null,
     primaryGoalTarget: null,
+    savingsGoals: [],
     ...overrides,
   };
 }
@@ -217,10 +271,10 @@ export function profileToAppFields(profile: DbProfile): Pick<
 export async function fetchAppState(userId: string): Promise<AppState> {
   const supabase = getSupabase();
 
-  const [profileRes, expensesRes, goalsRes, customRes, customCatRes, prefsRes] = await Promise.all([
+  const [profileRes, expensesRes, savingsRes, customRes, customCatRes, prefsRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
     supabase.from('expenses').select('*').eq('user_id', userId).order('date', { ascending: false }),
-    supabase.from('budget_goals').select('*').eq('user_id', userId),
+    supabase.from('savings_goals').select('*').eq('user_id', userId).order('sort_order', { ascending: true }),
     supabase.from('category_customizations').select('*').eq('user_id', userId),
     supabase.from('custom_categories').select('*').eq('user_id', userId),
     supabase.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
@@ -228,7 +282,9 @@ export async function fetchAppState(userId: string): Promise<AppState> {
 
   if (profileRes.error) throw profileRes.error;
   if (expensesRes.error) throw expensesRes.error;
-  if (goalsRes.error) throw goalsRes.error;
+  if (savingsRes.error && !isMissingTableError(savingsRes.error, 'savings_goals')) {
+    throw savingsRes.error;
+  }
   if (customRes.error) throw customRes.error;
   if (customCatRes.error) throw customCatRes.error;
   if (prefsRes.error && prefsRes.error.code !== 'PGRST116') throw prefsRes.error;
@@ -253,10 +309,10 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     ...EMPTY_APP_STATE,
     ...profileToAppFields(profile),
     expenses: ((expensesRes.data ?? []) as DbExpense[]).map(rowToExpense),
-    budgetGoals: ((goalsRes.data ?? []) as DbBudgetGoal[]).map(g => ({
-      categoryId: g.category_id,
-      amount: Number(g.amount),
-    })),
+    budgetGoals: [],
+    savingsGoals: savingsRes.error
+      ? []
+      : ((savingsRes.data ?? []) as DbSavingsGoal[]).map(rowToSavingsGoal),
     categoryCustomizations,
     disabledCategoryIds: (prefsRes.data as DbUserPreferences | null)?.disabled_category_ids ?? [],
     customCategories,
@@ -265,15 +321,13 @@ export async function fetchAppState(userId: string): Promise<AppState> {
     ),
   };
 
-  if (!base.primaryGoalTarget) {
-    try {
-      const onboarding = await fetchOnboarding(userId);
-      if (onboarding?.data?.primaryGoalTarget) {
-        base.primaryGoalTarget = onboarding.data.primaryGoalTarget;
-      }
-    } catch {
-      // onboarding_progress may be unavailable; ignore
+  try {
+    const onboarding = await fetchOnboarding(userId);
+    if (base.savingsGoals.length === 0 && onboarding?.data?.savingsGoals?.length) {
+      base.savingsGoals = onboarding.data.savingsGoals;
     }
+  } catch {
+    // onboarding_progress may be unavailable; ignore
   }
 
   return syncPrimaryGoalTargetFromExpenses(base);
@@ -351,43 +405,10 @@ export async function syncActionToSupabase(
         .update({ monthly_budget: action.amount })
         .eq('id', userId);
       if (profileErr) throw profileErr;
-      const { error: deleteErr } = await supabase.from('budget_goals').delete().eq('user_id', userId);
-      if (deleteErr) throw deleteErr;
-      if (state.budgetGoals.length > 0) {
-        const { error: insertErr } = await supabase.from('budget_goals').insert(
-          state.budgetGoals.map(g => ({
-            user_id: userId,
-            category_id: g.categoryId,
-            amount: g.amount,
-          })),
-        );
-        if (insertErr) throw insertErr;
-      }
       break;
     }
-    case 'SET_CATEGORY_BUDGET': {
-      if (action.amount <= 0) {
-        const { error } = await supabase
-          .from('budget_goals')
-          .delete()
-          .eq('user_id', userId)
-          .eq('category_id', action.categoryId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('budget_goals').upsert({
-          user_id: userId,
-          category_id: action.categoryId,
-          amount: action.amount,
-        });
-        if (error) throw error;
-      }
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .update({ monthly_budget: state.monthlyBudget })
-        .eq('id', userId);
-      if (profileErr) throw profileErr;
+    case 'SET_CATEGORY_BUDGET':
       break;
-    }
     case 'SET_CURRENCY': {
       const { error } = await supabase.from('profiles').update({ currency: action.currency }).eq('id', userId);
       if (error) throw error;
@@ -496,6 +517,31 @@ export async function syncActionToSupabase(
       }
       break;
     }
+    case 'ADD_SAVINGS_GOAL': {
+      const sortOrder = state.savingsGoals.findIndex(g => g.id === action.goal.id);
+      const { error } = await supabase
+        .from('savings_goals')
+        .insert(savingsGoalToRow(userId, action.goal, sortOrder >= 0 ? sortOrder : state.savingsGoals.length - 1));
+      if (error && !isMissingTableError(error, 'savings_goals')) throw error;
+      break;
+    }
+    case 'UPDATE_SAVINGS_GOAL': {
+      const sortOrder = state.savingsGoals.findIndex(g => g.id === action.goal.id);
+      const { error } = await supabase.from('savings_goals').upsert(
+        savingsGoalToRow(userId, action.goal, sortOrder >= 0 ? sortOrder : 0),
+      );
+      if (error && !isMissingTableError(error, 'savings_goals')) throw error;
+      break;
+    }
+    case 'DELETE_SAVINGS_GOAL': {
+      const { error } = await supabase
+        .from('savings_goals')
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', action.id);
+      if (error && !isMissingTableError(error, 'savings_goals')) throw error;
+      break;
+    }
     case 'HYDRATE_STATE':
     case 'RESET_STATE':
       break;
@@ -530,13 +576,7 @@ export async function replaceAppStateOnServer(userId: string, state: AppState): 
     if (error) throw error;
   }
 
-  await supabase.from('budget_goals').delete().eq('user_id', userId);
-  if (state.budgetGoals.length > 0) {
-    const { error } = await supabase.from('budget_goals').insert(
-      state.budgetGoals.map(g => ({ user_id: userId, category_id: g.categoryId, amount: g.amount })),
-    );
-    if (error) throw error;
-  }
+  await replaceSavingsGoalsOnServer(userId, state.savingsGoals);
 
   await supabase.from('category_customizations').delete().eq('user_id', userId);
   const customEntries = Object.entries(state.categoryCustomizations);

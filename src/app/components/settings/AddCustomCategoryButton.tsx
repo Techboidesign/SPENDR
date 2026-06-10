@@ -10,9 +10,14 @@ export function AddCustomCategoryButton({
   onClick,
   /** Use on auth/onboarding dark gradients (not tied to app appearance). */
   onDarkSurface = false,
+  label = 'Add custom category',
+  /** `chip` — compact pill under category chips; `row` — full-width block (e.g. Add goal). */
+  variant = 'chip',
 }: {
   onClick: () => void;
   onDarkSurface?: boolean;
+  label?: string;
+  variant?: 'chip' | 'row';
 }) {
   const c = useAppColors();
   const { isDark } = useAppearance();
@@ -20,6 +25,7 @@ export function AddCustomCategoryButton({
   const onDark = onDarkSurface || isDark;
   const labelColor = onDark ? ACCENT_ON_DARK_SURFACE : c.accent;
   const strokeColor = onDark ? ACCENT_ON_DARK_SURFACE : c.borderSubtle;
+  const isRow = variant === 'row';
 
   return (
     <button
@@ -28,10 +34,12 @@ export function AddCustomCategoryButton({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        marginTop: 10,
-        padding: '6px 12px 6px 8px',
-        borderRadius: 20,
+        justifyContent: isRow ? 'center' : undefined,
+        gap: isRow ? 8 : 6,
+        width: isRow ? '100%' : undefined,
+        marginTop: isRow ? 0 : 10,
+        padding: isRow ? '13px 16px' : '6px 12px 6px 8px',
+        borderRadius: isRow ? 14 : 20,
         border: `1px dashed ${strokeColor}`,
         backgroundColor: 'transparent',
         color: labelColor,
@@ -40,7 +48,7 @@ export function AddCustomCategoryButton({
         transition: BADGE_TRANSITION,
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-1px) scale(1.04)';
+        e.currentTarget.style.transform = isRow ? 'translateY(-1px)' : 'translateY(-1px) scale(1.04)';
         e.currentTarget.style.borderColor = onDark ? '#C4C2FF' : c.accentBorder;
         e.currentTarget.style.backgroundColor = onDark ? c.accentSoft : '#EDEDFF';
       }}
@@ -50,8 +58,16 @@ export function AddCustomCategoryButton({
         e.currentTarget.style.backgroundColor = 'transparent';
       }}
     >
-      <Plus size={14} weight="bold" color={labelColor} />
-      <span style={{ fontSize: 12, fontWeight: 600, color: labelColor }}>Add custom category</span>
+      <Plus size={isRow ? 16 : 14} weight="bold" color={labelColor} />
+      <span
+        style={{
+          fontSize: isRow ? 13 : 12,
+          fontWeight: 600,
+          color: labelColor,
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }

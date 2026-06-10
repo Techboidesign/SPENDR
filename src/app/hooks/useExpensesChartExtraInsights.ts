@@ -6,6 +6,7 @@ import {
   useApp,
 } from '../context/AppContext';
 import { getCategoryById } from '../data/categories';
+import type { HomeRange } from '../utils/periods';
 import { getPreviousMonthKey, monthPickerLabel, MONTH_OPTIONS } from '../utils/periods';
 import type { ExpensesMonthInsight } from './useExpensesMonthInsight';
 
@@ -16,11 +17,16 @@ function monthsOfCalendarYear(year: number): string[] {
 /**
  * Four fixed insight cards for Expenses chart view (below category breakdown).
  */
-export function useExpensesChartExtraInsights(monthKey: string, monthTotal: number): ExpensesMonthInsight[] {
+export function useExpensesChartExtraInsights(
+  monthKey: string,
+  monthTotal: number,
+  range: HomeRange = 'month',
+): ExpensesMonthInsight[] {
   const { state, formatCurrency } = useApp();
 
   return useMemo(() => {
-    const { expenses, budgetGoals } = state;
+    if (range === 'year') return [];
+    const { expenses, savingsGoals } = state;
     const cards: ExpensesMonthInsight[] = [];
 
     // 1) This month vs previous month
@@ -70,34 +76,38 @@ export function useExpensesChartExtraInsights(monthKey: string, monthTotal: numb
       });
     }
 
-    // 2) Saving goals achievement (category budget goals vs spend this month)
-    const monthCategorySpend = getCategoryTotals(expenses, monthKey);
-    const goalsWithAmount = budgetGoals.filter(g => g.amount > 0);
-    if (goalsWithAmount.length > 0) {
-      let onTrack = 0;
-      for (const g of goalsWithAmount) {
-        const spent = monthCategorySpend[g.categoryId] ?? 0;
-        if (spent <= g.amount) onTrack++;
+    // 2) Named savings goals progress
+    const goalsWithTarget = savingsGoals.filter(g => g.targetAmount > 0);
+    if (goalsWithTarget.length > 0) {
+      let reached = 0;
+      let totalPct = 0;
+      for (const g of goalsWithTarget) {
+        const pct = Math.min((g.currentAmount / g.targetAmount) * 100, 100);
+        totalPct += pct;
+        if (g.currentAmount >= g.targetAmount) reached++;
       }
-      const pct = Math.round((onTrack / goalsWithAmount.length) * 100);
+      const avgPct = Math.round(totalPct / goalsWithTarget.length);
       cards.push({
         id: 'chart-goals',
         eyebrow: 'Savings goals',
-        headline: `${pct}% of budget goals on track`,
+        headline:
+          reached === goalsWithTarget.length
+            ? 'All savings goals on track'
+            : `${avgPct}% average progress`,
         detail:
-          onTrack === goalsWithAmount.length
-            ? 'Every capped category is at or under budget this month'
-            : `${goalsWithAmount.length - onTrack} category overspend — adjust in Budget`,
-        accentColor: pct >= 80 ? '#059669' : pct >= 50 ? '#D97706' : '#DC2626',
-        accentBg: pct >= 80 ? '#D1FAE5' : pct >= 50 ? '#FEF3C7' : '#FEE2E2',
+          reached > 0
+            ? `${reached} of ${goalsWithTarget.length} goal${goalsWithTarget.length === 1 ? '' : 's'} reached — open Budget to update`
+            : 'Track named goals like vacation or a big purchase in Budget',
+        accentColor: avgPct >= 80 ? '#059669' : avgPct >= 50 ? '#D97706' : '#7C3AED',
+        accentBg: avgPct >= 80 ? '#D1FAE5' : avgPct >= 50 ? '#FEF3C7' : '#EDE9FE',
         phosphorIcon: 'target',
       });
     } else {
       cards.push({
         id: 'chart-goals',
         eyebrow: 'Savings goals',
-        headline: 'Set per-category budgets',
-        detail: 'Open Budget and tap a category to define limits and track achievement',
+        headline: 'Add a savings goal',
+        detail: 'Open Budget & Goals to name what you are saving for',
         accentColor: '#7C3AED',
         accentBg: '#EDE9FE',
         phosphorIcon: 'target',
@@ -210,5 +220,5 @@ export function useExpensesChartExtraInsights(monthKey: string, monthTotal: numb
     }
 
     return cards;
-  }, [state.expenses, state.budgetGoals, monthKey, monthTotal, formatCurrency]);
+  }, [state.expenses, state.savingsGoals, monthKey, monthTotal, formatCurrency, range]);
 }

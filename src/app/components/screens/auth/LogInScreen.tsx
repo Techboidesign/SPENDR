@@ -26,7 +26,7 @@ export default function LogInScreen() {
     } else if (o.status === 'in_progress' && o.lastStepId) {
       navigate(`/onboarding/${o.lastStepId}`);
     } else {
-      navigate('/onboarding/goal');
+      navigate('/onboarding/monthly-income');
     }
   };
 

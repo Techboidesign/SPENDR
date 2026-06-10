@@ -1,17 +1,16 @@
 import type { OnboardingState } from '../context/OnboardingContext';
 import { CATEGORIES } from '../data/categories';
-import { focusCategoryId } from '../data/focusCategory';
-import { GOAL_ONBOARDING_ALLOCATION_WEIGHTS } from '../data/primaryGoalConfig';
+import {
+  SAVINGS_GOAL_TEMPLATES,
+  savingsGoalFromTemplate,
+} from '../data/savingsGoals';
 import {
   INITIAL_APP_STATE,
   shiftSampleExpensesToPresent,
 } from '../data/sampleData';
-import type { AppState, Expense } from '../data/types';
-import { CURRENT_MONTH_KEY } from '../utils/periods';
-import { buildAllocationsFromWeights } from '../utils/budgetAllocation';
+import type { AppState } from '../data/types';
 import { ONBOARDING_STEPS } from '../theme/onboardingSteps';
 import { mergeOnboardingIntoAppState } from './completeOnboarding';
-import { syncPrimaryGoalTargetFromExpenses } from '../data/focusCategory';
 
 /** Stable id — never synced to Supabase (local showcase session only). */
 export const SHOWCASE_USER_ID = 'spendr_showcase_test_user';
@@ -27,48 +26,13 @@ export const SHOWCASE_PROFILE = {
 
 const SHOWCASE_MONTHLY_BUDGET = 2800;
 
-function showcaseGoalTargetDateEnd(): string {
-  const year = Number(CURRENT_MONTH_KEY.slice(0, 4));
-  return `${year}-12-31`;
-}
-
-function buildShowcaseGoalTarget() {
-  return {
-    name: 'Test savings goal',
-    targetAmount: 5000,
-    targetDate: showcaseGoalTargetDateEnd(),
-    currentAmount: 840,
-  };
-}
-
-const ONBOARDING_BUDGET_BUCKETS = [
-  { id: 'housing', suggested: 28 },
-  { id: 'food', suggested: 12 },
-  { id: 'transportation', suggested: 10 },
-  { id: 'utilities', suggested: 10 },
-  { id: 'shopping', suggested: 8 },
-  { id: 'entertainment', suggested: 5 },
-  { id: 'savings', suggested: 27 },
-] as const;
-
-function buildShowcaseBudgetAllocations(): Record<string, number> {
-  const weights = GOAL_ONBOARDING_ALLOCATION_WEIGHTS.save;
-  const categories = ONBOARDING_BUDGET_BUCKETS.map((cat) => ({
-    id: cat.id,
-    suggested: weights[cat.id] ?? cat.suggested,
-  }));
-  return buildAllocationsFromWeights(SHOWCASE_MONTHLY_BUDGET, categories);
-}
-
-function createShowcaseFocusExpense(): Expense {
-  return {
-    id: 'showcase-focus-save',
-    name: 'Saved toward goal',
-    categoryId: focusCategoryId('save')!,
-    amount: buildShowcaseGoalTarget().currentAmount,
-    date: `${CURRENT_MONTH_KEY}-10`,
-    type: 'one-time',
-  };
+function buildShowcaseSavingsGoals() {
+  const [ps5, bahamas, motorcycle] = SAVINGS_GOAL_TEMPLATES;
+  return [
+    { ...savingsGoalFromTemplate(ps5), currentAmount: 180 },
+    { ...savingsGoalFromTemplate(bahamas), currentAmount: 920 },
+    { ...savingsGoalFromTemplate(motorcycle), currentAmount: 2400 },
+  ];
 }
 
 export function isShowcaseUser(userId: string | null | undefined): boolean {
@@ -86,13 +50,10 @@ export function createShowcaseOnboarding(): OnboardingState {
       firstName: SHOWCASE_PROFILE.userName,
       currency: 'EUR',
       country: 'Germany',
-      primaryGoal: 'save',
-      primaryGoalTarget: buildShowcaseGoalTarget(),
+      savingsGoals: buildShowcaseSavingsGoals(),
       monthlyAmount: { value: 3200, type: 'income' },
       incomeFrequency: 'monthly',
       monthlyBudget: SHOWCASE_MONTHLY_BUDGET,
-      budgetAllocationMode: 'automatic',
-      budgetAllocations: buildShowcaseBudgetAllocations(),
       selectedCategoryIds: CATEGORIES.map((c) => c.id),
       notifications: {
         budgetAlerts: true,
@@ -117,10 +78,8 @@ export function createShowcaseAppState(): AppState {
     onboarding.data,
   );
 
-  return syncPrimaryGoalTargetFromExpenses({
+  return {
     ...merged,
-    primaryGoal: 'save',
-    primaryGoalTarget: buildShowcaseGoalTarget(),
-    expenses: [...merged.expenses, createShowcaseFocusExpense()],
-  });
+    savingsGoals: buildShowcaseSavingsGoals(),
+  };
 }

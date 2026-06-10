@@ -258,7 +258,7 @@ export function EraseAllDataModal({
                   }}
                 >
                   <DownloadSimple size={18} weight="light" color={c.accent} />
-                  {exportAcknowledged ? 'CSV exported — you’re set' : 'Export CSV first'}
+                  {exportAcknowledged ? 'Backup exported — you’re set' : 'Export backup first'}
                 </button>
                 <button
                   type="button"

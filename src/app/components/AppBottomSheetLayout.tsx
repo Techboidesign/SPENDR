@@ -125,12 +125,12 @@ export function AppBottomSheetLayout({
                 minHeight: 0,
                 overflowY: 'auto',
                 overflowX: 'hidden',
-                padding: '0 20px 12px',
+                padding: '0 20px 24px',
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
                 overscrollBehavior: 'contain',
               }
-            : { flexShrink: 0, padding: '0 20px 4px', overflow: 'hidden' }
+            : { flexShrink: 0, padding: '0 20px 20px', overflow: 'hidden' }
         }
       >
         {children}

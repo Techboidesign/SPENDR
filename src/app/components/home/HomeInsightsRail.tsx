@@ -1,10 +1,9 @@
-import type { InsightCardData } from '../../hooks/useHomeInsightCards';
+import type { InsightCardData } from '../../hooks/useInsightsHighlightCards';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { FeatureCardIcon } from '../ui/FeatureCardIcon';
 import { getFeatureCardTokens, featureCardGradient } from '../ui/featureCard';
-import { SectionTitle } from '../ui/SectionTitle';
 
-const HOME_GUTTER = 14;
+const GRID_GUTTER = 0;
 
 function InsightCard({ card }: { card: InsightCardData }) {
   const c = useAppColors();
@@ -73,36 +72,22 @@ function InsightCard({ card }: { card: InsightCardData }) {
   );
 }
 
-export function HomeInsightsRail({ cards }: { cards: InsightCardData[] }) {
-  const c = useAppColors();
+export function InsightsHighlightsGrid({ cards }: { cards: InsightCardData[] }) {
   const visible = cards.slice(0, 4);
   if (visible.length === 0) return null;
 
   return (
-    <section
+    <div
       style={{
-        width: '100%',
-        paddingTop: 4,
-        paddingBottom: 4,
-        backgroundColor: c.canvasHome,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 8,
+        padding: `0 ${GRID_GUTTER}px`,
       }}
     >
-      <div style={{ padding: `0 ${HOME_GUTTER}px` }}>
-        <SectionTitle>Insights</SectionTitle>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 8,
-          padding: `0 ${HOME_GUTTER}px`,
-        }}
-      >
-        {visible.map(card => (
-          <InsightCard key={card.id} card={card} />
-        ))}
-      </div>
-    </section>
+      {visible.map(card => (
+        <InsightCard key={card.id} card={card} />
+      ))}
+    </div>
   );
 }

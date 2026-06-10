@@ -8,7 +8,6 @@ import {
 import type { HomeRange } from '../utils/periods';
 import {
   CURRENT_YEAR,
-  getPreviousMonthKey,
   YEAR_MONTH_BARS,
 } from '../utils/periods';
 
@@ -64,43 +63,6 @@ export function usePeriodInsights(
       ? ((recurringData[0].value / grandTotal) * 100).toFixed(0)
       : '0';
 
-  const topExpenses = useMemo(() => {
-    if (range !== 'month') return [];
-
-    const prev = getPreviousMonthKey(monthKey);
-    const curExpenses = getMonthExpenses(expenses, monthKey);
-    const prevExpenses = getMonthExpenses(expenses, prev);
-
-    const monthTotal = curExpenses.reduce((s, e) => s + getMonthlyAmount(e), 0);
-
-    const items: Array<{
-      cat: string;
-      curAmt: number;
-      prevAmt: number;
-      pctChange: number;
-      pctOfTotal: number;
-    }> = [];
-
-    for (const cat of categories) {
-      const curAmt = curExpenses
-        .filter(e => e.categoryId === cat.id)
-        .reduce((s, e) => s + getMonthlyAmount(e), 0);
-      if (curAmt <= 0) continue;
-
-      const prevAmt = prevExpenses
-        .filter(e => e.categoryId === cat.id)
-        .reduce((s, e) => s + getMonthlyAmount(e), 0);
-
-      const pctChange =
-        prevAmt > 0 ? ((curAmt - prevAmt) / prevAmt) * 100 : 100;
-      const pctOfTotal = monthTotal > 0 ? (curAmt / monthTotal) * 100 : 0;
-
-      items.push({ cat: cat.id, curAmt, prevAmt, pctChange, pctOfTotal });
-    }
-
-    return items.sort((a, b) => b.curAmt - a.curAmt).slice(0, 5);
-  }, [expenses, range, monthKey, categories]);
-
   const categorySegments = useMemo(() => {
     const totals: Record<string, number> = {};
     const monthExpenses = getMonthExpenses(expenses, monthKey);
@@ -124,7 +86,6 @@ export function usePeriodInsights(
     recurringData,
     grandTotal,
     recurringPct,
-    topExpenses,
     categorySegments,
     yearLabel: String(CURRENT_YEAR),
   };

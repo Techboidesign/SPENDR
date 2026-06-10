@@ -1,3 +1,4 @@
+import type { CategoryIconKey } from './categoryConfig';
 import type { PrimaryGoalTarget } from './primaryGoalTarget';
 
 export type ExpenseType = 'one-time' | 'monthly' | 'yearly';
@@ -55,6 +56,18 @@ export interface NotificationPreferences {
   recurringReminders: boolean;
 }
 
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  /** Target month end — ISO date YYYY-MM-DD */
+  targetDate: string;
+  iconKey: CategoryIconKey;
+  accentColor: string;
+  accentBg: string;
+}
+
 export interface AppState {
   expenses: Expense[];
   income: number;
@@ -72,8 +85,17 @@ export interface AppState {
   customCategories: CustomCategory[];
   notificationPreferences: NotificationPreferences;
   appearance: AppearanceMode;
+  /** @deprecated Legacy profile field; app uses `savingsGoals` instead. */
   primaryGoal: PrimaryGoalId | null;
+  /** @deprecated Legacy profile field; app uses `savingsGoals` instead. */
   primaryGoalTarget: PrimaryGoalTarget | null;
+  /** @deprecated Migrated into `savingsGoals`. */
+  userGoals?: Array<{
+    id: string;
+    goalType: PrimaryGoalId;
+    target: PrimaryGoalTarget | null;
+  }>;
+  savingsGoals: SavingsGoal[];
 }
 
 export type Action =
@@ -104,4 +126,7 @@ export type Action =
       goal: PrimaryGoalId | null;
       target?: PrimaryGoalTarget | null;
     }
-  | { type: 'SET_FOCUS_GOAL_PROGRESS'; totalAmount: number };
+  | { type: 'ADD_SAVINGS_GOAL'; goal: SavingsGoal }
+  | { type: 'UPDATE_SAVINGS_GOAL'; goal: SavingsGoal }
+  | { type: 'DELETE_SAVINGS_GOAL'; id: string }
+  | { type: 'SET_FOCUS_GOAL_PROGRESS'; goalType: PrimaryGoalId; totalAmount: number };

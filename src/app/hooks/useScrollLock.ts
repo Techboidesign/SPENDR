@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useLayoutEffect, type RefObject } from 'react';
 import { APP_SCROLL_ATTR } from '../theme/screenScroll';
 
 const SCROLL_SELECTOR = `[${APP_SCROLL_ATTR}]`;
@@ -46,7 +46,8 @@ export function releaseAppScrollElement(el: HTMLElement) {
   }
 }
 
-function lockAppScrollElement(el: HTMLElement) {
+/** Call before opening a modal if it auto-focuses an input (avoids saving a jumped scroll position). */
+export function lockAppScrollElement(el: HTMLElement) {
   clearStaleScrollStyles(el);
 
   if (el.dataset.scrollLockTop === undefined) {
@@ -86,7 +87,7 @@ export function useScrollLock(
   locked: boolean,
   scrollRootRef?: RefObject<HTMLElement | null>,
 ) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!locked) return;
 
     const elements = getLockTargets(scrollRootRef);

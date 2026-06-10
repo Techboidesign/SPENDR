@@ -17,12 +17,6 @@ import {
   mergeNotificationPreferences,
   normalizeAppState,
 } from '../data/notificationPreferences';
-import {
-  buildBudgetGoalsForMonthlyBudget,
-  DEFAULT_CATEGORY_BUDGET_WEIGHTS,
-  getDefaultCategoryIds,
-  sumBudgetGoals,
-} from '../utils/budgetAllocation';
 import { INITIAL_APP_STATE } from '../data/sampleData';
 import { getItem, setItem } from '../utils/storage';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -33,7 +27,13 @@ import {
   createEmptyAppState,
   buildErasedAppState,
   eraseAllAppDataOnServer,
+  replaceAppStateOnServer,
 } from '../services/appDataService';
+import {
+  applyImport,
+  type ImportMode,
+  type SpendrDataExport,
+} from '../services/dataExportImport';
 import { migrateLocalStorageIfNeeded } from '../services/migrateLocalStorage';
 import { isShowcaseUser } from '../services/showcaseTestUser';
 import {
@@ -113,41 +113,10 @@ function reducer(state: AppState, action: Action): AppState {
       });
     case 'SET_INCOME':
       return { ...state, income: action.amount };
-    case 'SET_BUDGET': {
-      const monthlyBudget = action.amount;
-      const categoryIds = (action.categoryIds ?? getDefaultCategoryIds()).filter(
-        id => !isFocusCategoryId(id),
-      );
-      const budgetGoals =
-        monthlyBudget > 0
-          ? buildBudgetGoalsForMonthlyBudget(
-              monthlyBudget,
-              categoryIds,
-              DEFAULT_CATEGORY_BUDGET_WEIGHTS,
-              state.budgetGoals,
-            )
-          : state.budgetGoals;
-      return { ...state, monthlyBudget, budgetGoals };
-    }
-    case 'SET_CATEGORY_BUDGET': {
-      if (isFocusCategoryId(action.categoryId)) return state;
-      const budgetGoals =
-        action.amount <= 0
-          ? state.budgetGoals.filter(g => g.categoryId !== action.categoryId)
-          : state.budgetGoals.some(g => g.categoryId === action.categoryId)
-            ? state.budgetGoals.map(g =>
-                g.categoryId === action.categoryId ? { ...g, amount: action.amount } : g,
-              )
-            : [
-                ...state.budgetGoals,
-                { categoryId: action.categoryId, amount: action.amount },
-              ];
-      return {
-        ...state,
-        budgetGoals,
-        monthlyBudget: sumBudgetGoals(budgetGoals),
-      };
-    }
+    case 'SET_BUDGET':
+      return { ...state, monthlyBudget: action.amount, budgetGoals: [] };
+    case 'SET_CATEGORY_BUDGET':
+      return state;
     case 'SET_CURRENCY':
       return { ...state, currency: action.currency };
     case 'SET_USER_NAME':
@@ -198,9 +167,24 @@ function reducer(state: AppState, action: Action): AppState {
       };
       return withSyncedFocusContributions(nextState);
     }
+    case 'ADD_SAVINGS_GOAL':
+      return { ...state, savingsGoals: [...state.savingsGoals, action.goal] };
+    case 'UPDATE_SAVINGS_GOAL':
+      return {
+        ...state,
+        savingsGoals: state.savingsGoals.map(g =>
+          g.id === action.goal.id ? action.goal : g,
+        ),
+      };
+    case 'DELETE_SAVINGS_GOAL':
+      return {
+        ...state,
+        savingsGoals: state.savingsGoals.filter(g => g.id !== action.id),
+      };
     case 'SET_FOCUS_GOAL_PROGRESS': {
-      const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
-      if (!goalRequiresTargetSetup(goalId) || !state.primaryGoalTarget) return state;
+      const goalId = action.goalType;
+      if (!goalRequiresTargetSetup(goalId)) return state;
+      if (!state.primaryGoalTarget) return state;
       const focusId = focusCategoryId(goalId);
       if (!focusId) return state;
       const current = sumFocusCategoryContributions(state.expenses, focusId);
@@ -235,7 +219,7 @@ interface AppContextType {
   /** Categories in the add-expense picker (active focus category last when applicable). */
   expensePickerCategories: ResolvedCategory[];
   getCategory: (id: string) => ResolvedCategory;
-  getFocusContributions: () => number;
+  getFocusContributions: (goalType?: import('../data/types').PrimaryGoalId) => number;
   showAddModal: boolean;
   editingExpense: Expense | null;
   addModalDraft: ExpenseFormDraft | null;
@@ -251,6 +235,7 @@ interface AppContextType {
   clearReceiptScanToast: () => void;
   completeOnboardingAndSync: () => Promise<void>;
   eraseAllData: () => Promise<void>;
+  importAppData: (payload: SpendrDataExport, mode: ImportMode) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -397,6 +382,10 @@ export function AppProvider({
         }
       } catch (err) {
         console.error('Failed to load app data:', err);
+        const local = getItem<AppState>('appState');
+        if (!cancelled && local?.expenses?.length) {
+          baseDispatch({ type: 'HYDRATE_STATE', state: local });
+        }
       } finally {
         if (!cancelled) setIsDataLoading(false);
       }
@@ -486,6 +475,27 @@ export function AppProvider({
       }
     }
   }, [useCloud, userId]);
+
+  const importAppData = useCallback(
+    async (payload: SpendrDataExport, mode: ImportMode) => {
+      const current = stateRef.current;
+      const next = normalizeAppState(applyImport(current, payload, mode));
+      stateRef.current = next;
+
+      if (useCloud && userId) {
+        await replaceAppStateOnServer(userId, next);
+      }
+
+      baseDispatch({ type: 'HYDRATE_STATE', state: next });
+
+      if (shouldPersistShowcase()) {
+        saveShowcaseAppState(next);
+      } else if (!useCloud && !isSupabaseConfigured) {
+        setItem('appState', next);
+      }
+    },
+    [useCloud, userId, shouldPersistShowcase],
+  );
 
   const openAddModal = (expense?: Expense, draft?: ExpenseFormDraft) => {
     setEditingExpense(expense ?? null);
@@ -583,11 +593,16 @@ export function AppProvider({
     [categories, state.categoryCustomizations, state.customCategories],
   );
 
-  const getFocusContributions = useCallback(() => {
-    const id = activeFocusCategoryId;
-    if (!id) return 0;
-    return sumFocusCategoryContributions(state.expenses, id);
-  }, [activeFocusCategoryId, state.expenses]);
+  const getFocusContributions = useCallback(
+    (goalType?: import('../data/types').PrimaryGoalId) => {
+      const resolved =
+        goalType ?? parsePrimaryGoal(state.primaryGoal ?? undefined);
+      const id = focusCategoryId(resolved);
+      if (!id) return 0;
+      return sumFocusCategoryContributions(state.expenses, id);
+    },
+    [state.expenses, state.primaryGoal],
+  );
 
   const formatCurrencyFromState = useCallback((amount: number) => {
     const currency = stateRef.current.currency;
@@ -721,6 +736,7 @@ export function AppProvider({
         clearReceiptScanToast,
         completeOnboardingAndSync,
         eraseAllData,
+        importAppData,
       }}
     >
       <AppearanceProviderInner state={state} dispatch={dispatch}>

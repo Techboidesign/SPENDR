@@ -6,13 +6,12 @@ import type { HomeRange } from '../../utils/periods';
 import { CURRENT_MONTH_KEY, YEAR_MONTH_BARS } from '../../utils/periods';
 import { usePeriodInsights } from '../../hooks/usePeriodInsights';
 import { RangeToggle } from '../home/RangeToggle';
-import { SpendingTrendChart } from '../home/SpendingTrendChart';
-import { TopExpensesCard } from '../home/TopExpensesCard';
-import { HomeInsightsRail } from '../home/HomeInsightsRail';
-import { useHomeInsightCards } from '../../hooks/useHomeInsightCards';
-import { RecentTransactionsList } from '../home/RecentTransactionsCard';
+import {
+  RecentTransactionsList,
+  TransactionsEmptyHint,
+  useRecentTransactions,
+} from '../home/RecentTransactionsCard';
 import { SectionTitle } from '../ui/SectionTitle';
-import { SurfaceCard } from '../ui/SurfaceCard';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { budgetRingTrackColor, chartTooltipStyle } from '../../theme/darkModeUi';
@@ -380,10 +379,19 @@ export default function HomeScreen() {
     [heroCategoryTotals],
   );
 
-  const budgetPct   = Math.min((totalSpent / periodBudget) * 100, 100);
-  const remaining   = periodBudget - totalSpent;
-  const savingsAmt  = periodIncome - totalSpent;
-  const savingsRate = ((savingsAmt / state.income) * 100).toFixed(0);
+  const hasBudget = periodBudget > 0;
+  const budgetPct = hasBudget ? Math.min((totalSpent / periodBudget) * 100, 100) : 0;
+  const remaining = periodBudget - totalSpent;
+  const savingsAmt = periodIncome - totalSpent;
+  const savingsRate =
+    state.income > 0 ? ((savingsAmt / state.income) * 100).toFixed(0) : '0';
+
+  const recentTransactions = useRecentTransactions(
+    state.expenses,
+    range,
+    selectedMonthKey,
+    insights.yearLabel,
+  );
 
   // Animated counters
   const [animatedSpent, setAnimatedSpent] = useState(0);
@@ -412,12 +420,22 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [totalSpent, budgetPct]);
 
-  const budgetColor = budgetPct < 60 ? '#10B981' : budgetPct < 85 ? '#F59E0B' : '#EF4444';
-  const budgetBg    = budgetPct < 60 ? '#D1FAE5' : budgetPct < 85 ? '#FEF3C7' : '#FEE2E2';
+  const budgetColor = !hasBudget
+    ? c.accent
+    : budgetPct < 60
+      ? '#10B981'
+      : budgetPct < 85
+        ? '#F59E0B'
+        : '#EF4444';
+  const budgetBg = !hasBudget
+    ? c.accentSoft
+    : budgetPct < 60
+      ? '#D1FAE5'
+      : budgetPct < 85
+        ? '#FEF3C7'
+        : '#FEE2E2';
   const budgetBadgeBg = isDark ? budgetRingTrackColor(budgetBg, isDark, c) : budgetBg;
   const budgetRingKey = `${range}-${selectedMonthKey}`;
-
-  const insightCards = useHomeInsightCards(formatCurrency, insights.monthlyBarData);
 
   const topCategories = useMemo(() =>
     categories
@@ -511,31 +529,36 @@ export default function HomeScreen() {
           </div>
 
           {/* Top row — period toggle (left) + avatar (right) */}
-          <div style={{
-            position: 'relative',
-            padding: '14px 14px 16px',
-            paddingRight: 62,
-            zIndex: 20,
-            minHeight: 48,
-          }}>
-            <RangeToggle
-              compact
-              range={range}
-              onChange={setRange}
-              monthKey={selectedMonthKey}
-              onMonthChange={setSelectedMonthKey}
-            />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '14px 14px 16px',
+              zIndex: 20,
+              minHeight: 48,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <RangeToggle
+                range={range}
+                onChange={setRange}
+                monthKey={selectedMonthKey}
+                onMonthChange={setSelectedMonthKey}
+              />
+            </div>
 
             <button
               type="button"
               onClick={() => navigate('/settings')}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(-50%) scale(1)'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
               style={{
-                position: 'absolute',
-                right: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                flexShrink: 0,
                 width: 40,
                 height: 40,
                 borderRadius: 20,
@@ -676,7 +699,7 @@ export default function HomeScreen() {
                       fontWeight: 700,
                       color: budgetColor,
                     }}>
-                      {animatedBudgetPct.toFixed(0)}% of budget
+                      {hasBudget ? `${animatedBudgetPct.toFixed(0)}% of budget` : 'Set budget'}
                     </span>
                     <CaretRight size={12} weight="bold" color={budgetColor} />
                   </button>
@@ -710,62 +733,44 @@ export default function HomeScreen() {
           </div>
         </div>
 
-        <HomeInsightsRail cards={insightCards} />
-
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {range === 'year' && (
-            <section>
-              <SectionTitle>Spending trend</SectionTitle>
-              <SurfaceCard>
-                <SpendingTrendChart data={insights.monthlyBarData} />
-              </SurfaceCard>
-            </section>
-          )}
-
-          {range === 'month' && (
-            <section style={{ overflow: 'visible' }}>
-              <SectionTitle>Top expenses</SectionTitle>
-              <TopExpensesCard
-                items={insights.topExpenses}
-                formatCurrency={formatCurrency}
-              />
-            </section>
-          )}
-
           <section style={{ animation: HOME_CHOREOGRAPHY.slideUpDelayed }}>
-            <SectionTitle
-              action={
-                <button
-                  type="button"
-                  onClick={() => navigate('/expenses')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    backgroundColor: c.accentSoft,
-                    border: 'none',
-                    borderRadius: 20,
-                    padding: '5px 10px',
-                    cursor: 'pointer',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: c.accent,
-                    fontFamily: 'inherit',
-                  }}
+            {recentTransactions.length > 0 ? (
+              <>
+                <SectionTitle
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => navigate('/expenses')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        backgroundColor: c.accentSoft,
+                        border: 'none',
+                        borderRadius: 20,
+                        padding: '5px 10px',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: c.accent,
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      See all <ArrowRight size={11} weight="light" color={c.accent} />
+                    </button>
+                  }
                 >
-                  See all <ArrowRight size={11} weight="light" color={c.accent} />
-                </button>
-              }
-            >
-              Recent transactions
-            </SectionTitle>
-            <RecentTransactionsList
-              range={range}
-              monthKey={selectedMonthKey}
-              yearLabel={insights.yearLabel}
-              expenses={state.expenses}
-              formatCurrency={formatCurrency}
-            />
+                  Recent transactions
+                </SectionTitle>
+                <RecentTransactionsList
+                  transactions={recentTransactions}
+                  formatCurrency={formatCurrency}
+                />
+              </>
+            ) : (
+              <TransactionsEmptyHint />
+            )}
           </section>
         </div>
       </div>
@@ -812,6 +817,11 @@ export default function HomeScreen() {
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes nudgeDown {
+          0%, 100% { transform: translateY(0); opacity: 0.55; }
+          50% { transform: translateY(6px); opacity: 1; }
         }
 
       `}</style>

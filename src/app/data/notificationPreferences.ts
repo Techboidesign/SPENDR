@@ -1,4 +1,5 @@
 import type { AppState, NotificationPreferences } from './types';
+import { migrateSavingsGoals } from './savingsGoals';
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   budgetAlerts: true,
@@ -23,5 +24,6 @@ export function normalizeAppState(state: AppState): AppState {
     disabledCategoryIds: state.disabledCategoryIds ?? [],
     primaryGoal: state.primaryGoal ?? null,
     primaryGoalTarget: state.primaryGoalTarget ?? null,
+    savingsGoals: migrateSavingsGoals(state as AppState),
   };
 }

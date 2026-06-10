@@ -15,7 +15,7 @@ import {
   isSupabaseConfigured,
 } from '../../lib/supabase';
 import { getItem, removeItem, setItem } from '../utils/storage';
-import { fetchOnboarding, saveOnboarding } from '../services/onboardingService';
+import { resolveOnboardingForUser, saveOnboarding } from '../services/onboardingService';
 import { clearAllLocalUserData, clearLocalUserData } from '../services/migrateLocalStorage';
 import { createEmptyAppState } from '../services/appDataService';
 import type { AppState } from '../data/types';
@@ -39,9 +39,7 @@ export interface OnboardingData {
   firstName?: string;
   currency?: string;
   country?: string;
-  /** After step 2 may be `exploring`; after goal-setup stored goal id. */
-  primaryGoal?: import('../data/types').OnboardingGoalChoice | import('../data/types').PrimaryGoalId;
-  primaryGoalTarget?: import('../data/primaryGoalTarget').PrimaryGoalTarget | null;
+  savingsGoals?: import('../data/types').SavingsGoal[];
   monthlyAmount?: {
     value: number;
     type: 'income' | 'available_to_spend';
@@ -90,6 +88,8 @@ interface OnboardingContextType {
   onboarding: OnboardingState;
   auth: AuthState;
   authLoading: boolean;
+  /** True until onboarding_progress (and profile fallback) is loaded for the signed-in user. */
+  onboardingLoading: boolean;
   currentStep: string | null;
   updateData: (data: Partial<OnboardingData>) => void;
   next: (stepId: string) => void;
@@ -161,6 +161,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   });
 
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
+  const [onboardingLoading, setOnboardingLoading] = useState(isSupabaseConfigured);
+  const onboardingHydratedForUserRef = useRef<string | null>(null);
   const onboardingRef = useRef(onboarding);
   onboardingRef.current = onboarding;
 
@@ -168,20 +170,28 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const step = ONBOARDING_STEPS.find((s) => location.pathname === s.route);
     if (!step) return;
-    setOnboarding((prev) =>
-      prev.lastStepId === step.id
-        ? prev
-        : { ...prev, lastStepId: step.id, status: 'in_progress' },
-    );
+    setOnboarding((prev) => {
+      if (prev.status === 'completed' || prev.status === 'skipped') return prev;
+      if (prev.lastStepId === step.id) return prev;
+      return { ...prev, lastStepId: step.id, status: 'in_progress' };
+    });
   }, [location.pathname]);
 
   const loadOnboardingForUser = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured) return;
+    setOnboardingLoading(true);
+    onboardingHydratedForUserRef.current = null;
     try {
-      const remote = await fetchOnboarding(userId);
-      if (remote) setOnboarding(remote);
+      const remote = await resolveOnboardingForUser(userId);
+      if (remote) {
+        setOnboarding(remote);
+      }
+      onboardingHydratedForUserRef.current = userId;
     } catch (err) {
       console.error('Failed to load onboarding:', err);
+      onboardingHydratedForUserRef.current = userId;
+    } finally {
+      setOnboardingLoading(false);
     }
   }, []);
 
@@ -193,6 +203,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setAuthLoading(false);
+      setOnboardingLoading(false);
       return;
     }
 
@@ -214,13 +225,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           setAuthState(savedShowcase);
           setOnboarding(loadShowcaseOnboarding() ?? INITIAL_ONBOARDING);
         }
+        setOnboardingLoading(false);
         setAuthLoading(false);
         return;
       }
 
       const nextAuth = sessionToAuth(session);
       setAuthState(nextAuth);
-      if (nextAuth.userId) void loadOnboardingForUser(nextAuth.userId);
+      if (nextAuth.userId) {
+        void loadOnboardingForUser(nextAuth.userId);
+      } else {
+        setOnboardingLoading(false);
+      }
       setAuthLoading(false);
     });
 
@@ -239,6 +255,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           setAuthState(savedShowcase);
           setOnboarding(loadShowcaseOnboarding() ?? INITIAL_ONBOARDING);
         }
+        setOnboardingLoading(false);
         return;
       }
 
@@ -246,8 +263,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setAuthState(nextAuth);
       if (nextAuth.userId && !isShowcaseUser(nextAuth.userId)) {
         void loadOnboardingForUser(nextAuth.userId);
-      } else if (!nextAuth.isAuthenticated) {
-        setOnboarding(INITIAL_ONBOARDING);
+      } else {
+        setOnboardingLoading(false);
+        if (!nextAuth.isAuthenticated) {
+          setOnboarding(INITIAL_ONBOARDING);
+        }
       }
     });
 
@@ -271,15 +291,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (isShowcaseUser(auth.userId) && auth.isAuthenticated) saveShowcaseAuth(auth);
   }, [auth]);
 
-  // Sync onboarding to cloud when authenticated
+  // Sync onboarding to cloud when authenticated (after remote hydrate — never overwrite with defaults)
   useEffect(() => {
-    if (!isSupabaseConfigured || !auth.userId || authLoading || isShowcaseUser(auth.userId)) {
+    if (
+      !isSupabaseConfigured ||
+      !auth.userId ||
+      authLoading ||
+      onboardingLoading ||
+      isShowcaseUser(auth.userId) ||
+      onboardingHydratedForUserRef.current !== auth.userId
+    ) {
       return;
     }
     saveOnboarding(auth.userId, onboarding).catch(err => {
       console.error('Failed to save onboarding:', err);
     });
-  }, [onboarding, auth.userId, authLoading]);
+  }, [onboarding, auth.userId, authLoading, onboardingLoading]);
 
   const updateData = useCallback((data: Partial<OnboardingData>) => {
     setOnboarding(prev => ({
@@ -444,6 +471,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         onboarding,
         auth,
         authLoading,
+        onboardingLoading,
         currentStep: onboarding.lastStepId,
         updateData,
         next,
@@ -495,5 +523,5 @@ export function getOnboardingRoute(auth: AuthState, onboarding: OnboardingState)
     return `/onboarding/${onboarding.lastStepId}`;
   }
 
-  return '/onboarding/goal';
+  return '/onboarding/monthly-income';
 }

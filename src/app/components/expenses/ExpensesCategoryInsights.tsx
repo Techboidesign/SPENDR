@@ -5,9 +5,11 @@ import { CategorySpendingChart } from '../home/CategorySpendingChart';
 import { CategoryIcon } from '../CategoryIcon';
 import { SurfaceCard } from '../ui/SurfaceCard';
 import { getCategoryById } from '../../data/categories';
-import { PCT_OF_MONTHLY_LABEL, useExpensesMonthInsight } from '../../hooks/useExpensesMonthInsight';
+import { useExpensesMonthInsight } from '../../hooks/useExpensesMonthInsight';
 import { useExpensesChartExtraInsights } from '../../hooks/useExpensesChartExtraInsights';
 import { ExpensesMonthInsightCard } from './ExpensesMonthInsightCard';
+import type { HomeRange } from '../../utils/periods';
+import { PCT_OF_PERIOD_LABEL } from '../insights/insightsPeriod';
 
 export type CategorySegment = {
   id: string;
@@ -33,7 +35,7 @@ function AnimatedInsightAmount({
 
   useEffect(() => {
     if (!animate) {
-      setDisplay(0);
+      setDisplay(value);
       return;
     }
 
@@ -63,14 +65,16 @@ export function ExpensesCategoryInsights({
   segments,
   formatCurrency,
   monthKey,
-  monthTotal,
+  periodTotal,
+  range,
   barAnimationKey,
   animateBars = true,
 }: {
   segments: CategorySegment[];
   formatCurrency: (n: number) => string;
   monthKey: string;
-  monthTotal: number;
+  periodTotal: number;
+  range: HomeRange;
   /** Bumps when entering insights — retriggers bar grow-in only (insight card stays stable). */
   barAnimationKey: string;
   /** False while insights panel is sliding — bars/amounts grow after slide completes. */
@@ -79,120 +83,124 @@ export function ExpensesCategoryInsights({
   const c = useAppColors();
   const reduceMotion = useReducedMotion();
   const showBarAnimation = animateBars && !reduceMotion;
+  const pctLabel = PCT_OF_PERIOD_LABEL[range];
   const total = useMemo(
     () => segments.reduce((s, seg) => s + seg.amount, 0),
     [segments],
   );
 
-  const insight = useExpensesMonthInsight(monthKey, monthTotal, monthKey);
-  const extraInsights = useExpensesChartExtraInsights(monthKey, monthTotal);
+  const insight = useExpensesMonthInsight(monthKey, periodTotal, `${range}-${monthKey}`, range);
+  const extraInsights = useExpensesChartExtraInsights(monthKey, periodTotal, range);
 
   if (segments.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {insight && <ExpensesMonthInsightCard insight={insight} />}
         <SurfaceCard>
           <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '24px 0' }}>
-            No spending this month
+            {range === 'year' ? 'No spending this year' : 'No spending this month'}
           </p>
         </SurfaceCard>
+        {insight && <ExpensesMonthInsightCard insight={insight} />}
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {insight && <ExpensesMonthInsightCard insight={insight} />}
+      {segments.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <SurfaceCard key={`${range}-${monthKey}`}>
+            <CategorySpendingChart
+              segments={segments}
+              formatCurrency={formatCurrency}
+              animationKey={barAnimationKey}
+              animateEntry={showBarAnimation}
+            />
+          </SurfaceCard>
 
-      <SurfaceCard key={monthKey}>
-        <CategorySpendingChart
-          segments={segments}
-          formatCurrency={formatCurrency}
-          animationKey={barAnimationKey}
-          animateEntry={showBarAnimation}
-        />
-      </SurfaceCard>
+          <SurfaceCard padding={12}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {segments.map((seg, idx) => {
+              const pct = total > 0 ? (seg.amount / total) * 100 : 0;
 
-      <SurfaceCard padding={12}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {segments.map((seg, idx) => {
-            const pct = total > 0 ? (seg.amount / total) * 100 : 0;
-
-            return (
-              <div
-                key={seg.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <CategoryIcon categoryId={seg.id} size="sm" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      gap: 8,
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span
+              return (
+                <div
+                  key={seg.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <CategoryIcon categoryId={seg.id} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
                       style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: c.text,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'baseline',
+                        gap: 8,
+                        marginBottom: 4,
                       }}
                     >
-                      {getCategoryById(seg.id).name}
-                    </span>
-                    <span style={{ fontSize: 13, color: c.textSecondary, flexShrink: 0 }}>
-                      <AnimatedInsightAmount
-                        value={seg.amount}
-                        formatCurrency={formatCurrency}
-                        animate={showBarAnimation}
-                        delayMs={idx * 40}
-                      />
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: 4,
-                      borderRadius: 999,
-                      backgroundColor: c.surfaceInset,
-                      overflow: 'hidden',
-                    }}
-                  >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: c.text,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {getCategoryById(seg.id).name}
+                      </span>
+                      <span style={{ fontSize: 13, color: c.textSecondary, flexShrink: 0 }}>
+                        <AnimatedInsightAmount
+                          value={seg.amount}
+                          formatCurrency={formatCurrency}
+                          animate={showBarAnimation}
+                          delayMs={idx * 40}
+                        />
+                      </span>
+                    </div>
                     <div
-                      key={showBarAnimation ? `${barAnimationKey}-${seg.id}` : seg.id}
-                      className={showBarAnimation ? 'spendr-breakdown-bar-grow' : undefined}
                       style={{
-                        height: '100%',
+                        height: 4,
                         borderRadius: 999,
-                        backgroundColor: seg.color,
-                        width: showBarAnimation ? undefined : '0%',
-                        ['--bar-target' as string]: `${pct}%`,
-                        ['--bar-delay' as string]: `${idx * 40}ms`,
+                        backgroundColor: c.surfaceInset,
+                        overflow: 'hidden',
                       }}
-                    />
+                    >
+                      <div
+                        key={showBarAnimation ? `${barAnimationKey}-${seg.id}` : seg.id}
+                        className={showBarAnimation ? 'spendr-breakdown-bar-grow' : undefined}
+                        style={{
+                          height: '100%',
+                          borderRadius: 999,
+                          backgroundColor: seg.color,
+                          width: showBarAnimation ? undefined : `${pct}%`,
+                          ['--bar-target' as string]: `${pct}%`,
+                          ['--bar-delay' as string]: `${idx * 40}ms`,
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: 10, color: c.textFaint, marginTop: 3, display: 'block' }}>
+                      {pct.toFixed(0)}{pctLabel}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 10, color: c.textFaint, marginTop: 3, display: 'block' }}>
-                    {pct.toFixed(0)}{PCT_OF_MONTHLY_LABEL}
-                  </span>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          </SurfaceCard>
         </div>
-      </SurfaceCard>
+      )}
 
-      {extraInsights.map(card => (
-        <ExpensesMonthInsightCard key={card.id} insight={card} />
-      ))}
+      {insight && <ExpensesMonthInsightCard insight={insight} />}
+
+      {range === 'month' &&
+        extraInsights.map(card => <ExpensesMonthInsightCard key={card.id} insight={card} />)}
     </div>
   );
 }

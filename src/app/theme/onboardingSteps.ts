@@ -1,7 +1,5 @@
 /** Canonical onboarding flow order (matches routes & stepper). */
 export const ONBOARDING_STEPS = [
-  { id: 'goal', route: '/onboarding/goal' },
-  { id: 'goal-setup', route: '/onboarding/goal-setup' },
   { id: 'monthly-income', route: '/onboarding/monthly-income' },
   { id: 'budget', route: '/onboarding/budget' },
   { id: 'categories', route: '/onboarding/categories' },
@@ -19,5 +17,5 @@ export function getOnboardingStepIndex(stepId: string): number {
 }
 
 export function getOnboardingStepRoute(stepId: OnboardingStepId): string {
-  return ONBOARDING_STEPS.find((s) => s.id === stepId)?.route ?? '/onboarding/goal';
+  return ONBOARDING_STEPS.find((s) => s.id === stepId)?.route ?? '/onboarding/monthly-income';
 }

@@ -39,6 +39,7 @@ export function PrimaryGoalSetupForm({
   variant = 'app',
   compact = false,
   showGoalPicker = false,
+  excludedGoalTypes = [],
   currencySymbol = '$',
 }: {
   goalId: PrimaryGoalId;
@@ -49,6 +50,7 @@ export function PrimaryGoalSetupForm({
   /** Tighter layout for bottom sheets (no inner scroll). */
   compact?: boolean;
   showGoalPicker?: boolean;
+  excludedGoalTypes?: PrimaryGoalId[];
   currencySymbol?: string;
 }) {
   const c = useAppColors();
@@ -98,7 +100,7 @@ export function PrimaryGoalSetupForm({
                 : { display: 'flex', flexDirection: 'column', gap: 8 }
             }
           >
-          {PRIMARY_GOAL_IDS.map(id => {
+          {PRIMARY_GOAL_IDS.filter(id => !excludedGoalTypes.includes(id)).map(id => {
             const option = PRIMARY_GOAL_BY_ID[id];
             const Icon = option.Icon;
             const selected = id === goalId;

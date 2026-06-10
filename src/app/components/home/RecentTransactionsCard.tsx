@@ -1,10 +1,55 @@
 import { useMemo } from 'react';
+import { ArrowDown } from '@phosphor-icons/react';
 import { Expense } from '../../data/types';
 import { getMonthExpenses } from '../../context/AppContext';
 import { getCategoryById } from '../../data/categories';
 import { CategoryIcon } from '../CategoryIcon';
 import type { HomeRange } from '../../utils/periods';
 import { useAppColors } from '../../context/AppearanceContext';
+
+export function useRecentTransactions(
+  expenses: Expense[],
+  range: HomeRange,
+  monthKey: string,
+  yearLabel: string,
+) {
+  return useMemo(() => {
+    const filtered =
+      range === 'month'
+        ? getMonthExpenses(expenses, monthKey).sort((a, b) => b.date.localeCompare(a.date))
+        : expenses
+            .filter(e => e.date.startsWith(String(yearLabel)))
+            .sort((a, b) => b.date.localeCompare(a.date));
+    return filtered.slice(0, 5);
+  }, [expenses, range, monthKey, yearLabel]);
+}
+
+export function TransactionsEmptyHint() {
+  const c = useAppColors();
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 10,
+        padding: '28px 16px 12px',
+      }}
+    >
+      <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: 0 }}>
+        No transactions — tap + to add an expense
+      </p>
+      <ArrowDown
+        size={22}
+        weight="light"
+        color={c.textFaint}
+        aria-hidden
+        style={{ animation: 'nudgeDown 1.6s ease-in-out infinite' }}
+      />
+    </div>
+  );
+}
 
 function TransactionCard({
   expense,
@@ -71,43 +116,17 @@ function TransactionCard({
 }
 
 export function RecentTransactionsList({
-  range,
-  monthKey,
-  yearLabel,
-  expenses,
+  transactions,
   formatCurrency,
 }: {
-  range: HomeRange;
-  monthKey: string;
-  yearLabel: string;
-  expenses: Expense[];
+  transactions: Expense[];
   formatCurrency: (n: number) => string;
 }) {
-  const c = useAppColors();
-  const filtered = useMemo(() => {
-    if (range === 'month') {
-      return getMonthExpenses(expenses, monthKey).sort((a, b) =>
-        b.date.localeCompare(a.date),
-      );
-    }
-    return expenses
-      .filter(e => e.date.startsWith(String(yearLabel)))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [expenses, range, monthKey, yearLabel]);
-
-  const display = filtered.slice(0, 5);
-
-  if (display.length === 0) {
-    return (
-      <p style={{ fontSize: 13, color: c.textFaint, textAlign: 'center', margin: '12px 0 4px' }}>
-        No transactions — tap + to add an expense
-      </p>
-    );
-  }
+  if (transactions.length === 0) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {display.map(exp => (
+      {transactions.map(exp => (
         <TransactionCard key={exp.id} expense={exp} formatCurrency={formatCurrency} />
       ))}
     </div>

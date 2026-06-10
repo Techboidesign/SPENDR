@@ -4,7 +4,6 @@ import { useAppColors, useAppearance } from '../../context/AppearanceContext';
 import { getCategoryById } from '../../data/categories';
 import {
   CATEGORY_COLOR_PRESETS,
-  CATEGORY_COLOR_PRESETS_BY_HUE,
   CATEGORY_ICON_OPTIONS,
   DEFAULT_ICON_BY_CATEGORY_ID,
   firstAvailableCategoryIconKey,
@@ -14,6 +13,7 @@ import {
 import type { CategoryCustomization, CustomCategory } from '../../data/types';
 import { createCustomCategoryAppId } from '../../utils/customCategoryId';
 import { CategoryIconPreview } from '../CategoryIcon';
+import { ColorPresetPicker } from '../shared/ColorPresetPicker';
 import { AppBottomSheetLayout } from '../AppBottomSheetLayout';
 import { ModalActionBar } from '../ModalActionBar';
 
@@ -257,42 +257,7 @@ export function CategoryEditModal({
         </div>
 
         <p style={{ fontSize: 12, fontWeight: 600, color: mutedLabel, margin: '0 0 6px' }}>Color</p>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'nowrap',
-            gap: 5,
-            width: '100%',
-          }}
-        >
-          {CATEGORY_COLOR_PRESETS_BY_HUE.map(p => {
-            const selected = colorPresetId === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setColorPresetId(p.id)}
-                aria-label={p.id}
-                style={{
-                  flex: '1 1 0',
-                  minWidth: 0,
-                  aspectRatio: '1',
-                  borderRadius: '50%',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: p.color,
-                  boxShadow: selected
-                    ? `0 0 0 1px ${c.modalSheet}, 0 0 0 1px ${p.color}`
-                    : isDark
-                      ? `0 0 0 1px ${c.border}`
-                      : '0 1px 3px rgba(0,0,0,0.08)',
-                  transform: selected ? 'scale(1.08)' : 'scale(1)',
-                  transition: 'transform 0.15s ease',
-                }}
-              />
-            );
-          })}
-        </div>
+        <ColorPresetPicker selectedId={colorPresetId} onSelect={setColorPresetId} />
     </AppBottomSheetLayout>
   );
 }

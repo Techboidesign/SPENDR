@@ -58,10 +58,17 @@ export interface DbExpense {
   end_date: string | null;
 }
 
-export interface DbBudgetGoal {
+export interface DbSavingsGoal {
+  id: string;
   user_id: string;
-  category_id: string;
-  amount: number;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  icon_key: string;
+  accent_color: string;
+  accent_bg: string;
+  sort_order: number;
 }
 
 export interface DbCategoryCustomization {

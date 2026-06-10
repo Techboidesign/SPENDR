@@ -2,13 +2,14 @@ import { createBrowserRouter, Outlet, Navigate, useLocation } from 'react-router
 import { useApp } from './context/AppContext';
 import { OnboardingProvider, useOnboarding, getOnboardingRoute } from './context/OnboardingContext';
 import { OnboardingThemeProvider } from './context/OnboardingThemeContext';
-import { useAppColors } from './context/AppearanceContext';
+import { SpendrLoadingSplash } from './components/ui/SpendrLoadingSplash';
 import RootLayout from './components/RootLayout';
 import SubPageLayout from './components/SubPageLayout';
 import PhoneFrameLayout from './components/PhoneFrameLayout';
 import HomeScreen from './components/screens/HomeScreen';
 import ExpensesScreen from './components/screens/ExpensesScreen';
 import BudgetScreen from './components/screens/BudgetScreen';
+import InsightsScreen from './components/screens/InsightsScreen';
 import UserProfileScreen from './components/screens/UserProfileScreen';
 import HelpScreen from './components/screens/HelpScreen';
 import PrivacyScreen from './components/screens/PrivacyScreen';
@@ -22,8 +23,6 @@ import AuthCallbackScreen from './components/screens/auth/AuthCallbackScreen';
 
 // Onboarding screens
 import Step1NameBasics from './components/screens/onboarding/Step1NameBasics';
-import Step2Goal from './components/screens/onboarding/Step2Goal';
-import Step2GoalSetup from './components/screens/onboarding/Step2GoalSetup';
 import Step3MonthlyIncome from './components/screens/onboarding/Step3MonthlyIncome';
 import Step4Budget from './components/screens/onboarding/Step4Budget';
 import Step5Categories from './components/screens/onboarding/Step5Categories';
@@ -43,52 +42,23 @@ function ProvidersLayout() {
 
 function AuthLoadingGate({ children }: { children: React.ReactNode }) {
   const { authLoading } = useOnboarding();
-  const c = useAppColors();
   if (authLoading) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: c.canvas,
-          color: c.textMuted,
-          fontSize: 14,
-        }}
-      >
-        Loading…
-      </div>
-    );
+    return <SpendrLoadingSplash />;
   }
   return <>{children}</>;
 }
 
 /** Auth guard — redirects unauthenticated users to welcome/login */
 function AuthGuard() {
-  const { auth, onboarding } = useOnboarding();
+  const { auth, onboarding, onboardingLoading } = useOnboarding();
   const { isDataLoading } = useApp();
 
   if (!auth.isAuthenticated) {
     return <Navigate to="/welcome" replace />;
   }
 
-  if (isDataLoading) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#F7F7FA',
-          color: '#6B7280',
-          fontSize: 14,
-        }}
-      >
-        Syncing your data…
-      </div>
-    );
+  if (isDataLoading || onboardingLoading) {
+    return <SpendrLoadingSplash message="Syncing your data…" />;
   }
 
   if (onboarding.status === 'in_progress' && onboarding.lastStepId) {
@@ -96,7 +66,7 @@ function AuthGuard() {
   }
 
   if (onboarding.status === 'not_started') {
-    return <Navigate to="/onboarding/goal" replace />;
+    return <Navigate to="/onboarding/monthly-income" replace />;
   }
 
   return <Outlet />;
@@ -115,21 +85,7 @@ function OnboardingAuthGuard() {
   const { auth, authLoading } = useOnboarding();
 
   if (authLoading) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#F5F5FA',
-          color: '#6B7280',
-          fontSize: 14,
-        }}
-      >
-        Loading…
-      </div>
-    );
+    return <SpendrLoadingSplash />;
   }
 
   if (!auth.isAuthenticated) {
@@ -141,26 +97,12 @@ function OnboardingAuthGuard() {
 
 /** Redirect signed-in users away from welcome/login/signup (not /auth/callback). */
 function GuestAuthGuard() {
-  const { auth, authLoading, onboarding } = useOnboarding();
+  const { auth, authLoading, onboarding, onboardingLoading } = useOnboarding();
   const { pathname } = useLocation();
   const isAuthCallback = pathname === '/auth/callback';
 
-  if (authLoading) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#F5F5FA',
-          color: '#6B7280',
-          fontSize: 14,
-        }}
-      >
-        Loading…
-      </div>
-    );
+  if (authLoading || (auth.isAuthenticated && onboardingLoading && !isAuthCallback)) {
+    return <SpendrLoadingSplash />;
   }
 
   if (auth.isAuthenticated && !isAuthCallback) {
@@ -203,12 +145,13 @@ export const router = createBrowserRouter([
                 Component: PhoneFrameLayout,
                 children: [
           { path: 'name-basics', Component: Step1NameBasics },
-          { path: 'goal', Component: Step2Goal },
-          { path: 'goal-setup', Component: Step2GoalSetup },
+          { path: 'goal', element: <Navigate to="/onboarding/monthly-income" replace /> },
+          { path: 'goal-setup', element: <Navigate to="/onboarding/monthly-income" replace /> },
           { path: 'monthly-income', Component: Step3MonthlyIncome },
           { path: 'budget', Component: Step4Budget },
           { path: 'categories', Component: Step5Categories },
           { path: 'notifications', Component: Step6Notifications },
+          { path: 'savings-goals', element: <Navigate to="/onboarding/complete" replace /> },
           { path: 'complete', Component: Step7Complete },
                 ],
               },
@@ -227,7 +170,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, Component: HomeScreen },
               { path: 'expenses', Component: ExpensesScreen },
-              { path: 'insights', element: <Navigate to="/" replace /> },
+              { path: 'insights', Component: InsightsScreen },
               { path: 'budget', Component: BudgetScreen },
             ],
           },

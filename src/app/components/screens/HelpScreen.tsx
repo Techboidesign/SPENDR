@@ -23,7 +23,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I export my data?',
-    a: 'Go to Settings → Data and tap Export as CSV. The file will download immediately.',
+    a: 'Go to Settings → Data and tap Export data. You get a JSON backup with expenses, income, budget, saving goals, and categories.',
   },
   {
     q: 'Is my data stored securely?',

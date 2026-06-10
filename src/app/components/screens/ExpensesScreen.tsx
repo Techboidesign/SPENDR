@@ -9,13 +9,9 @@ import {
 } from '@phosphor-icons/react';
 import {
   useApp,
-  getCategoryTotals,
   getMonthExpenses,
-  getMonthSpendingTotal,
 } from '../../context/AppContext';
 import { useAppColors } from '../../context/AppearanceContext';
-import { getCategoryById } from '../../data/categories';
-import { ExpensesCategoryInsights } from '../expenses/ExpensesCategoryInsights';
 import { Expense } from '../../data/types';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { SectionTitle } from '../ui/SectionTitle';
@@ -35,25 +31,13 @@ const screenTitleStyle: CSSProperties = {
   lineHeight: 1.2,
   margin: 0,
 };
-/** Same slide feel as Settings → Profile (SubPageLayout). */
-const SLIDE_MS = Math.round(SLIDE_DURATION * 1000) + 16;
 /** Close: search bounces up — then month + filter chips fade in. Open: month/filters out — search slides down. */
 const SEARCH_DISSOLVE_DURATION = 0.12;
 const SEARCH_SLIDE_DURATION = 0.22;
 const SEARCH_EASE_OUT_BOUNCE = [0.34, 1.52, 0.64, 1] as const;
 const SEARCH_EXIT_Y = -22;
-/** Month row (16px pad + 32px pill). */
-const EXPENSES_MONTH_ROW_HEIGHT = 48;
-/** Gap between month pill and Insights content. */
-const INSIGHTS_BELOW_MONTH_GAP = 16;
-/** Insights tab — month + gap only (filters live in list chrome). */
-const EXPENSES_INSIGHTS_CHROME_HEIGHT = EXPENSES_MONTH_ROW_HEIGHT + INSIGHTS_BELOW_MONTH_GAP;
 /** Month + filter row — fixed height so list layout does not jump during search. */
 const EXPENSES_LIST_CHROME_HEIGHT = 106;
-/** Chrome min-height transition when leaving Insights (matches style below). */
-const CHROME_HEIGHT_TRANSITION_S = 0.28;
-/** Fade filter chips + search in after Insights exit so they do not overlap the month row. */
-const LIST_FILTERS_AFTER_INSIGHTS_DELAY_S = 0.22;
 
 const UNDO_DURATION_MS = 10_000;
 const TOP_ACTION_BAR_HEIGHT = 60;
@@ -74,7 +58,6 @@ const topActionBarStyle: CSSProperties = {
 };
 
 type FilterType = 'all' | 'one-time' | 'monthly' | 'yearly';
-type ExpensesViewMode = 'list' | 'chart';
 
 type PendingDeleteEntry = {
   expense: Expense;
@@ -105,12 +88,6 @@ export default function ExpensesScreen() {
   const reduceMotion = useReducedMotion();
   const { state, dispatch, openAddModal, formatCurrency } = useApp();
   const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
-  const [viewMode, setViewMode] = useState<ExpensesViewMode>('list');
-  const [insightsOpen, setInsightsOpen] = useState(false);
-  const [insightsExiting, setInsightsExiting] = useState(false);
-  const [barsReady, setBarsReady] = useState(true);
-  const [barAnimGeneration, setBarAnimGeneration] = useState(0);
-  const insightsExitTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -142,10 +119,8 @@ export default function ExpensesScreen() {
     }
   });
 
-  const currentMonth = selectedMonthKey;
-
   useEffect(() => {
-    if (!searchOpen || viewMode !== 'list') return;
+    if (!searchOpen) return;
     const delayMs = reduceMotion
       ? 0
       : Math.round((SEARCH_DISSOLVE_DURATION + SEARCH_SLIDE_DURATION * 0.45) * 1000);
@@ -153,7 +128,7 @@ export default function ExpensesScreen() {
       searchInputRef.current?.focus();
     }, delayMs);
     return () => window.clearTimeout(id);
-  }, [searchOpen, viewMode, reduceMotion]);
+  }, [searchOpen, reduceMotion]);
 
   useEffect(() => {
     skipListFiltersEnterRef.current = false;
@@ -208,26 +183,9 @@ export default function ExpensesScreen() {
   };
 
   const monthExpenses = useMemo(
-    () => getMonthExpenses(state.expenses, currentMonth),
-    [state.expenses, currentMonth],
+    () => getMonthExpenses(state.expenses, selectedMonthKey),
+    [state.expenses, selectedMonthKey],
   );
-
-  const monthTotal = useMemo(
-    () => getMonthSpendingTotal(state.expenses, currentMonth),
-    [state.expenses, currentMonth],
-  );
-
-  const categorySegments = useMemo(() => {
-    const totals = getCategoryTotals(state.expenses, currentMonth);
-    return Object.entries(totals)
-      .map(([id, amount]) => {
-        const cat = getCategoryById(id);
-        return { id, name: cat.name, color: cat.color, amount };
-      })
-      .filter(s => s.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 10);
-  }, [state.expenses, currentMonth]);
 
   const filtered = useMemo(() => {
     return monthExpenses
@@ -426,137 +384,11 @@ export default function ExpensesScreen() {
         delay: listFiltersEnterDelay,
       };
 
-  const showSearchBar = searchOpen && viewMode === 'list';
-
-  const setView = useCallback(
-    (mode: ExpensesViewMode) => {
-      setViewMode(mode);
-      if (insightsExitTimerRef.current) {
-        clearTimeout(insightsExitTimerRef.current);
-        insightsExitTimerRef.current = undefined;
-      }
-
-      if (mode === 'chart') {
-        setInsightsExiting(false);
-        setInsightsOpen(true);
-        setBarsReady(false);
-        setBarAnimGeneration(g => g + 1);
-        setSearchOpen(false);
-        setSearch('');
-        return;
-      }
-
-      setBarsReady(true);
-      setInsightsExiting(true);
-      if (reduceMotion) {
-        setInsightsOpen(false);
-        setInsightsExiting(false);
-        return;
-      }
-      insightsExitTimerRef.current = setTimeout(() => {
-        setInsightsOpen(false);
-        setInsightsExiting(false);
-        setListFiltersEnterDelay(
-          reduceMotion ? 0 : LIST_FILTERS_AFTER_INSIGHTS_DELAY_S,
-        );
-        scheduleListFiltersEnterDelayReset();
-        insightsExitTimerRef.current = undefined;
-      }, SLIDE_MS);
-    },
-    [reduceMotion, scheduleListFiltersEnterDelayReset],
-  );
-
-  const handleInsightsAnimationComplete = useCallback(() => {
-    if (!insightsExiting && insightsOpen) {
-      setBarsReady(true);
-    }
-  }, [insightsExiting, insightsOpen]);
-
-  useEffect(() => {
-    if (reduceMotion && insightsOpen && !insightsExiting) {
-      setBarsReady(true);
-    }
-  }, [reduceMotion, insightsOpen, insightsExiting]);
-
-  useEffect(
-    () => () => {
-      if (insightsExitTimerRef.current) clearTimeout(insightsExitTimerRef.current);
-    },
-    [],
-  );
-
+  const showSearchBar = searchOpen;
   const listIsEmpty = groupKeys.length === 0;
-  const insightsVisible = insightsOpen || insightsExiting;
-  const showListChromeFilters =
-    viewMode === 'list' && !searchOpen && !insightsVisible;
-  const compactInsightsChrome = insightsVisible && (viewMode === 'chart' || insightsExiting);
-  const expensesChromeHeight = compactInsightsChrome
-    ? EXPENSES_INSIGHTS_CHROME_HEIGHT
-    : EXPENSES_LIST_CHROME_HEIGHT;
-
+  const showListChromeFilters = !searchOpen;
+  const expensesChromeHeight = EXPENSES_LIST_CHROME_HEIGHT;
   const headerLocked = isMultiSelect || !!undoSnack;
-
-  const tabSwipeRef = useRef({ x: 0, y: 0, tracking: false });
-  const tabSwipeConsumedRef = useRef(false);
-  const TAB_SWIPE_THRESHOLD = 44;
-
-  const handleTabStripPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (headerLocked) return;
-      tabSwipeConsumedRef.current = false;
-      tabSwipeRef.current = { x: e.clientX, y: e.clientY, tracking: true };
-    },
-    [headerLocked],
-  );
-
-  const handleTabStripPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const start = tabSwipeRef.current;
-      if (!start.tracking) return;
-      start.tracking = false;
-      if (headerLocked) return;
-
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (Math.abs(dx) < TAB_SWIPE_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
-
-      tabSwipeConsumedRef.current = true;
-      if (dx < 0 && viewMode === 'list') setView('chart');
-      else if (dx > 0 && viewMode === 'chart') setView('list');
-    },
-    [headerLocked, setView, viewMode],
-  );
-
-  const handleTabClick = useCallback(
-    (mode: ExpensesViewMode) => {
-      if (tabSwipeConsumedRef.current) {
-        tabSwipeConsumedRef.current = false;
-        return;
-      }
-      setView(mode);
-    },
-    [setView],
-  );
-
-  const tabWheelLockRef = useRef(false);
-
-  const handleTabStripWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (headerLocked || tabWheelLockRef.current) return;
-      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
-      if (Math.abs(e.deltaX) < 12) return;
-
-      e.preventDefault();
-      tabWheelLockRef.current = true;
-      window.setTimeout(() => {
-        tabWheelLockRef.current = false;
-      }, 350);
-
-      if (e.deltaX > 0 && viewMode === 'list') setView('chart');
-      else if (e.deltaX < 0 && viewMode === 'chart') setView('list');
-    },
-    [headerLocked, setView, viewMode],
-  );
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: c.canvas, position: 'relative' }}>
@@ -706,55 +538,13 @@ export default function ExpensesScreen() {
           flexShrink: 0,
           backgroundColor: c.surface,
           borderBottom: `1px solid ${c.border}`,
+          padding: '20px 20px 0',
+          opacity: headerLocked ? 0.38 : 1,
+          pointerEvents: headerLocked ? 'none' : 'auto',
+          transition: 'opacity 0.15s ease',
         }}
       >
-        <div
-          onPointerDown={handleTabStripPointerDown}
-          onPointerUp={handleTabStripPointerUp}
-          onPointerCancel={handleTabStripPointerUp}
-          onWheel={handleTabStripWheel}
-          style={{
-            opacity: headerLocked ? 0.38 : 1,
-            pointerEvents: headerLocked ? 'none' : 'auto',
-            transition: 'opacity 0.15s ease',
-            padding: '20px 20px 0',
-            touchAction: 'none',
-          }}
-        >
-          <div role="tablist" aria-label="Expenses view" style={{ display: 'flex' }}>
-            {([
-              { mode: 'list' as const, label: 'Expenses', ariaLabel: 'Expenses list' },
-              { mode: 'chart' as const, label: 'Insights', ariaLabel: 'Category insights' },
-            ]).map(({ mode, label, ariaLabel }) => {
-              const isActive = viewMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  onClick={() => handleTabClick(mode)}
-                  disabled={headerLocked}
-                  aria-label={ariaLabel}
-                  aria-selected={isActive}
-                  style={{
-                    ...screenTitleStyle,
-                    flex: 1,
-                    padding: '0 0 14px',
-                    marginBottom: -1,
-                    border: 'none',
-                    background: 'none',
-                    borderBottom: `1px solid ${isActive ? c.text : 'transparent'}`,
-                    cursor: headerLocked ? 'default' : 'pointer',
-                    color: isActive ? c.text : c.textFaint,
-                    transition: 'color 0.15s ease, border-color 0.15s ease',
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <h1 style={{ ...screenTitleStyle, padding: '0 0 14px', marginBottom: -1 }}>Expenses</h1>
       </header>
 
       <motion.div
@@ -779,9 +569,7 @@ export default function ExpensesScreen() {
             overflow: 'hidden',
             opacity: headerLocked ? 0.38 : 1,
             pointerEvents: headerLocked ? 'none' : 'auto',
-            transition: reduceMotion
-              ? 'opacity 0.15s ease'
-              : `opacity 0.15s ease, min-height ${CHROME_HEIGHT_TRANSITION_S}s cubic-bezier(0.32, 0.72, 0, 1)`,
+            transition: 'opacity 0.15s ease',
           }}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -1020,29 +808,18 @@ export default function ExpensesScreen() {
           }}
         >
           <div
-            aria-hidden={insightsVisible}
+            ref={scrollRef}
+            data-app-scroll
             style={{
               position: 'absolute',
               inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              zIndex: 0,
-              pointerEvents: insightsVisible ? 'none' : 'auto',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              overscrollBehavior: 'none',
+              paddingBottom: TAB_BAR_CLEARANCE,
+              overflowAnchor: 'none',
             }}
           >
-            <div
-              ref={scrollRef}
-              data-app-scroll
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                overscrollBehavior: 'none',
-                paddingBottom: TAB_BAR_CLEARANCE,
-                overflowAnchor: 'none',
-              }}
-            >
             {listIsEmpty ? (
               <div
                 style={{
@@ -1093,38 +870,7 @@ export default function ExpensesScreen() {
                 ))}
               </div>
             )}
-            </div>
           </div>
-
-          {insightsOpen && (
-            <motion.div
-              key="expenses-insights-panel"
-              initial={reduceMotion ? false : { x: '100%' }}
-              animate={{ x: insightsExiting ? '100%' : 0 }}
-              transition={slideTransition}
-              onAnimationComplete={handleInsightsAnimationComplete}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 10,
-                overflowY: 'auto',
-                paddingBottom: TAB_BAR_CLEARANCE,
-                willChange: 'transform',
-                backgroundColor: c.canvas,
-              }}
-            >
-              <div style={{ padding: '0 20px 12px' }}>
-                <ExpensesCategoryInsights
-                  segments={categorySegments}
-                  formatCurrency={formatCurrency}
-                  monthKey={selectedMonthKey}
-                  monthTotal={monthTotal}
-                  barAnimationKey={`${selectedMonthKey}-${barAnimGeneration}`}
-                  animateBars={barsReady}
-                />
-              </div>
-            </motion.div>
-          )}
         </div>
       </motion.div>
 

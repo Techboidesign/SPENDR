@@ -79,5 +79,5 @@ export const AUTH_THEME_DARK = {
 /** @deprecated Use AUTH_THEME_DARK for auth screens or useOnboardingTheme() in onboarding. */
 export const AUTH_THEME = AUTH_THEME_DARK;
 
-export const ONBOARDING_FIRST_STEP = 'goal';
+export const ONBOARDING_FIRST_STEP = 'monthly-income';
 export const ONBOARDING_LAST_PROFILE_STEP = 'name-basics';

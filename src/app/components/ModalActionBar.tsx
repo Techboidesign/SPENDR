@@ -140,7 +140,7 @@ export function ModalActionBar({
     <div
       style={{
         flexShrink: 0,
-        padding: '12px 20px',
+        padding: '16px 20px 20px',
         backgroundColor: c.modalSheet,
         borderTop: `1px solid ${isDark ? c.border : '#F3F4F6'}`,
         boxShadow: isDark ? c.shadow : '0 -8px 24px rgba(0,0,0,0.08)',

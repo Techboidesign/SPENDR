@@ -160,7 +160,7 @@ export const INITIAL_APP_STATE: AppState = {
   expenses: INITIAL_EXPENSES,
   income: 3200,
   monthlyBudget: 2800,
-  budgetGoals: INITIAL_BUDGET_GOALS,
+  budgetGoals: [],
   currency: 'EUR',
   userName: 'Alex',
   userFullName: 'Alejandro Alvarez',
@@ -174,6 +174,7 @@ export const INITIAL_APP_STATE: AppState = {
   appearance: 'light',
   primaryGoal: null,
   primaryGoalTarget: null,
+  savingsGoals: [],
 };
 
 function monthKeyToIndex(ym: string): number {

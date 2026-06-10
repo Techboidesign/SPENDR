@@ -14,6 +14,15 @@ import { CategoryIcon } from '../CategoryIcon';
 import { AddCustomCategoryButton } from '../settings/AddCustomCategoryButton';
 import { CategoryEditModal, NEW_CATEGORY_ID } from '../settings/CategoryEditModal';
 import { EraseAllDataModal } from '../settings/EraseAllDataModal';
+import { ImportDataModal } from '../settings/ImportDataModal';
+import {
+  downloadDataExport,
+  getDataCounts,
+  parseImportFile,
+  shouldPromptImportMode,
+  type ImportMode,
+  type SpendrDataExport,
+} from '../../services/dataExportImport';
 import { AnimatedCurrencyIcon } from '../settings/AnimatedCurrencyIcon';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { SpendrLogo } from '../auth/SpendrLogo';
@@ -21,7 +30,6 @@ import { getFeatureCardTokens, featureCardSurface } from '../ui/featureCard';
 import { AppIconChip } from '../ui/AppIconChip';
 import { categoryPillStyle, rowHoverBg } from '../../theme/darkModeUi';
 import { listRowLabelStyle, sectionTitleStyle } from '../../theme/typography';
-import { generateId } from '../../utils/id';
 
 const PROFILE_FEATURE = { accentColor: '#3E37FF', accentBg: '#EDEDFF' };
 
@@ -235,7 +243,7 @@ export default function SettingsScreen() {
   const c = useAppColors();
   const fc = getFeatureCardTokens(c);
   const { isDark, setAppearance } = useAppearance();
-  const { state, dispatch, categories, eraseAllData } = useApp();
+  const { state, dispatch, categories, eraseAllData, importAppData } = useApp();
   const prefs = mergeNotificationPreferences(state.notificationPreferences);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -248,6 +256,7 @@ export default function SettingsScreen() {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [exportToast, setExportToast] = useState('');
   const [showEraseModal, setShowEraseModal] = useState(false);
+  const [pendingImport, setPendingImport] = useState<SpendrDataExport | null>(null);
 
   const setNotificationPref = (key: keyof NotificationPreferences, value: boolean) => {
     dispatch({
@@ -256,41 +265,19 @@ export default function SettingsScreen() {
     });
   };
 
-  const handleExportCSV = (): boolean => {
+  const handleExportData = (): boolean => {
     try {
-      // Create CSV header
-      const headers = ['Date', 'Name', 'Amount', 'Category', 'Type'];
-
-      // Create CSV rows
-      const rows = state.expenses.map(exp => {
-        const category = categories.find(c => c.id === exp.categoryId);
-        return [
-          exp.date,
-          exp.name,
-          exp.amount,
-          category?.name || exp.categoryId,
-          exp.type
-        ];
-      });
-
-      // Combine headers and rows
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-      ].join('\n');
-
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `spendr-expenses-${new Date().toISOString().slice(0, 10)}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setExportToast(`✓ Exported ${state.expenses.length} expenses as CSV`);
+      downloadDataExport(state);
+      const counts = getDataCounts(state);
+      const parts = [
+        counts.expenses > 0 ? `${counts.expenses} expenses` : null,
+        counts.savingsGoals > 0 ? `${counts.savingsGoals} goals` : null,
+        counts.income > 0 || counts.monthlyBudget > 0 ? 'budget & income' : null,
+        counts.customCategories > 0 || counts.customizations > 0 ? 'categories' : null,
+      ].filter(Boolean);
+      setExportToast(
+        parts.length > 0 ? `✓ Exported ${parts.join(', ')}` : '✓ Exported backup file',
+      );
       setTimeout(() => setExportToast(''), 2500);
       return true;
     } catch {
@@ -298,6 +285,25 @@ export default function SettingsScreen() {
       setTimeout(() => setExportToast(''), 2500);
       return false;
     }
+  };
+
+  const finishImport = async (payload: SpendrDataExport, mode: ImportMode) => {
+    try {
+      await importAppData(payload, mode);
+      const counts = getDataCounts(payload);
+      setExportToast(`✓ Imported ${counts.expenses} expense${counts.expenses === 1 ? '' : 's'}`);
+      setTimeout(() => setExportToast(''), 2500);
+    } catch {
+      setExportToast('✗ Import failed');
+      setTimeout(() => setExportToast(''), 2500);
+    }
+  };
+
+  const handleImportConfirm = async (mode: ImportMode) => {
+    if (!pendingImport) return;
+    const payload = pendingImport;
+    setPendingImport(null);
+    await finishImport(payload, mode);
   };
 
   const handleConfirmErase = async () => {
@@ -312,59 +318,30 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleImportCSV = () => {
+  const handleImportData = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = (e: any) => {
-      const file = e.target.files?.[0];
+    input.accept = '.json,.csv,application/json,text/csv';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async event => {
         try {
-          const csv = event.target?.result as string;
-          const lines = csv.split('\n').filter(line => line.trim());
+          const text = event.target?.result as string;
+          const resolveCategoryId = (name: string) =>
+            categories.find(c => c.name === name)?.id ?? null;
+          const payload = parseImportFile(text, file.name, resolveCategoryId);
 
-          // Skip header row
-          const dataLines = lines.slice(1);
+          if (shouldPromptImportMode(state, payload)) {
+            setPendingImport(payload);
+            return;
+          }
 
-          let imported = 0;
-          dataLines.forEach(line => {
-            // Parse CSV line (handle quoted fields)
-            const matches = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
-            if (!matches || matches.length < 5) return;
-
-            const [date, name, amount, category, type] = matches.map(m => m.replace(/^"|"$/g, '').trim());
-
-            // Find category by name
-            const categoryObj = categories.find(c => c.name === category);
-            if (!categoryObj) return;
-
-            // Validate data
-            const parsedAmount = parseFloat(amount);
-            if (isNaN(parsedAmount) || parsedAmount <= 0) return;
-            if (!['one-time', 'monthly', 'yearly'].includes(type)) return;
-
-            // Add expense
-            dispatch({
-              type: 'ADD_EXPENSE',
-              expense: {
-                id: generateId(),
-                name,
-                amount: parsedAmount,
-                categoryId: categoryObj.id,
-                date,
-                type: type as 'one-time' | 'monthly' | 'yearly',
-              }
-            });
-            imported++;
-          });
-
-          setExportToast(`✓ Imported ${imported} expenses`);
-          setTimeout(() => setExportToast(''), 2500);
-        } catch (error) {
-          setExportToast('✗ Import failed - check CSV format');
+          await finishImport(payload, 'overwrite');
+        } catch {
+          setExportToast('✗ Import failed — check file format');
           setTimeout(() => setExportToast(''), 2500);
         }
       };
@@ -612,8 +589,8 @@ export default function SettingsScreen() {
 
         {/* ── Data management ── */}
         <SettingsSection title="Data">
-          <SettingsRow icon={DownloadSimple} iconBg="#D1FAE5" iconColor="#10B981" label="Export as CSV" onClick={handleExportCSV} />
-          <SettingsRow icon={UploadSimple} iconBg="#FEF3C7" iconColor="#D97706" label="Import from CSV" onClick={handleImportCSV} />
+          <SettingsRow icon={DownloadSimple} iconBg="#D1FAE5" iconColor="#10B981" label="Export data" onClick={handleExportData} />
+          <SettingsRow icon={UploadSimple} iconBg="#FEF3C7" iconColor="#D97706" label="Import data" onClick={handleImportData} />
           <SettingsRow
             icon={Trash}
             iconBg="#FEE2E2"
@@ -736,11 +713,19 @@ export default function SettingsScreen() {
       <EraseAllDataModal
         open={showEraseModal}
         onClose={() => setShowEraseModal(false)}
-        onExport={handleExportCSV}
+        onExport={handleExportData}
         onConfirmErase={handleConfirmErase}
         expenseCount={state.expenses.length}
         customCategoryCount={state.customCategories.length}
         customizationCount={Object.keys(state.categoryCustomizations).length}
+      />
+
+      <ImportDataModal
+        open={pendingImport !== null}
+        onClose={() => setPendingImport(null)}
+        onConfirm={handleImportConfirm}
+        currentCounts={getDataCounts(state)}
+        importCounts={pendingImport ? getDataCounts(pendingImport) : getDataCounts({})}
       />
     </div>
   );

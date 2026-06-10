@@ -1,40 +1,93 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { releaseAppScrollElement } from '../../hooks/useScrollLock';
-import { useApp, getCategoryTotals } from '../../context/AppContext';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import { useSearchParams } from 'react-router';
+import {
+  lockAppScrollElement,
+  releaseAppScrollElement,
+} from '../../hooks/useScrollLock';
+import { useApp, getCategoryTotals, getMonthSpendingTotal } from '../../context/AppContext';
 import { useAppColors } from '../../context/AppearanceContext';
 import { TAB_BAR_CLEARANCE } from '../BottomTabBar';
 import { CURRENT_MONTH_KEY } from '../../utils/periods';
+import type { HomeRange } from '../../utils/periods';
+import { AddCustomCategoryButton } from '../settings/AddCustomCategoryButton';
+import { SavingsGoalsEmptyState } from '../budget/SavingsGoalsEmptyState';
 import { FeaturedBudgetCard } from '../budget/FeaturedBudgetCard';
-import { CategoryBudgetCard } from '../budget/CategoryBudgetCard';
-import { PrimaryGoalFocusCard } from '../budget/PrimaryGoalFocusCard';
-import { PrimaryGoalSetupModal } from '../budget/PrimaryGoalSetupModal';
+import { SavingsGoalCard } from '../budget/SavingsGoalCard';
+import { SavingsGoalEditModal } from '../budget/SavingsGoalEditModal';
 import { BudgetEditModal, type BudgetEditTarget } from '../budget/BudgetEditModal';
-import type { PrimaryGoalId } from '../../data/types';
-import { goalRequiresTargetSetup, type PrimaryGoalTarget } from '../../data/primaryGoalTarget';
+import { BudgetInsightsPanel } from '../budget/BudgetInsightsPanel';
 import { SectionTitle } from '../ui/SectionTitle';
-import { focusCategoryId, isFocusCategoryId } from '../../data/focusCategory';
-import {
-  getPrimaryGoalDefinition,
-  parsePrimaryGoal,
-  sortCategoriesForPrimaryGoal,
-} from '../../data/primaryGoalConfig';
-import { computePrimaryGoalProgress } from '../../utils/primaryGoalProgress';
+import type { SavingsGoal } from '../../data/types';
+import { isFocusCategoryId } from '../../data/focusCategory';
+import { createSavingsGoal, pickRandomSavingsGoalAppearance } from '../../data/savingsGoals';
 import { getCurrencySymbol } from '../../utils/currencySymbol';
+import { getInsightsPeriodMonthKeys } from '../insights/insightsPeriod';
+import { SLIDE_EASE } from '../../theme/motion';
+
+type BudgetViewMode = 'goals' | 'insights';
+
+const screenTitleStyle: CSSProperties = {
+  fontSize: 22,
+  fontWeight: 700,
+  fontFamily: 'inherit',
+  lineHeight: 1.2,
+  margin: 0,
+};
+
+const BUDGET_SLIDE_DURATION = 0.22;
+const SLIDE_MS = Math.round(BUDGET_SLIDE_DURATION * 1000) + 8;
 
 export default function BudgetScreen() {
   const c = useAppColors();
-  const { state, dispatch, formatCurrency, budgetCategories, getFocusContributions } = useApp();
+  const reduceMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { state, dispatch, formatCurrency } = useApp();
   const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
-  const [focusModalOpen, setFocusModalOpen] = useState(false);
+  const [savingsGoalModal, setSavingsGoalModal] = useState<
+    { mode: 'edit'; goal: SavingsGoal } | { mode: 'add'; draft: SavingsGoal } | null
+  >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const insightsExitTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
+  const [viewMode, setViewMode] = useState<BudgetViewMode>('goals');
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const [insightsExiting, setInsightsExiting] = useState(false);
+  const [insightsRange, setInsightsRange] = useState<HomeRange>('month');
+  const [selectedMonthKey, setSelectedMonthKey] = useState(CURRENT_MONTH_KEY);
+
+  const openEditTarget = useCallback((target: BudgetEditTarget) => {
     const el = scrollRef.current;
-    if (el) releaseAppScrollElement(el);
+    if (el) lockAppScrollElement(el);
+    setEditTarget(target);
   }, []);
 
-  const goalId = parsePrimaryGoal(state.primaryGoal ?? undefined);
-  const goalDef = getPrimaryGoalDefinition(goalId);
+  const closeEditTarget = useCallback(() => {
+    setEditTarget(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (editTarget !== null) return;
+    const el = scrollRef.current;
+    if (el) releaseAppScrollElement(el);
+  }, [editTarget]);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'insights') {
+      setViewMode('insights');
+      setInsightsExiting(false);
+      setInsightsOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const categoryTotals = useMemo(
     () => getCategoryTotals(state.expenses, CURRENT_MONTH_KEY),
@@ -50,100 +103,51 @@ export default function BudgetScreen() {
     [categoryTotals],
   );
 
+  const insightsPeriodKeys = useMemo(
+    () => getInsightsPeriodMonthKeys(insightsRange, selectedMonthKey),
+    [insightsRange, selectedMonthKey],
+  );
+
+  const insightsPeriodTotal = useMemo(
+    () =>
+      insightsPeriodKeys.reduce(
+        (sum, key) => sum + getMonthSpendingTotal(state.expenses, key),
+        0,
+      ),
+    [state.expenses, insightsPeriodKeys],
+  );
+
   const budgetPct = state.monthlyBudget > 0 ? (totalSpent / state.monthlyBudget) * 100 : 0;
   const incomeUsedPct = state.income > 0 ? (totalSpent / state.income) * 100 : 0;
 
   const modalAmount =
     editTarget?.kind === 'income'
       ? state.income
-      : editTarget?.kind === 'budget'
-        ? state.monthlyBudget
-        : editTarget?.kind === 'category'
-          ? (state.budgetGoals.find(g => g.categoryId === editTarget.categoryId)?.amount ?? 0)
-          : 0;
+      : state.monthlyBudget;
 
   const currencySymbol = getCurrencySymbol(state.currency);
 
-  const categoryIds = useMemo(
-    () => budgetCategories.map(cat => cat.id),
-    [budgetCategories],
-  );
-
-  const sortedCategories = useMemo(
-    () => sortCategoriesForPrimaryGoal(budgetCategories, goalId, categoryTotals),
-    [budgetCategories, goalId, categoryTotals],
-  );
-
-  const focusContributions = getFocusContributions();
-
-  const goalProgress = useMemo(
-    () =>
-      computePrimaryGoalProgress({
-        goalId,
-        primaryGoalTarget: state.primaryGoalTarget,
-        categoryTotals,
-        budgetGoals: state.budgetGoals,
-        categoryIds,
-        focusContributions:
-          goalId === 'save' || goalId === 'debt' || goalId === 'emergency'
-            ? focusContributions
-            : undefined,
-      }),
-    [
-      goalId,
-      state.primaryGoalTarget,
-      categoryTotals,
-      state.budgetGoals,
-      categoryIds,
-      focusContributions,
-    ],
-  );
-
-  const handleFocusSave = (nextGoalId: PrimaryGoalId, target: PrimaryGoalTarget | null) => {
-    if (target && goalRequiresTargetSetup(nextGoalId)) {
-      dispatch({ type: 'SET_FOCUS_GOAL_PROGRESS', totalAmount: target.currentAmount });
+  const handleSavingsGoalSave = (goal: SavingsGoal) => {
+    if (!savingsGoalModal) return;
+    if (savingsGoalModal.mode === 'add') {
+      dispatch({ type: 'ADD_SAVINGS_GOAL', goal });
+    } else {
+      dispatch({ type: 'UPDATE_SAVINGS_GOAL', goal });
     }
-    dispatch({
-      type: 'SET_PRIMARY_GOAL',
-      goal: nextGoalId,
-      target,
-    });
+    setSavingsGoalModal(null);
   };
 
-  const handleFocusCurrentAmountChange = (amount: number) => {
-    if (!state.primaryGoalTarget) return;
-    dispatch({ type: 'SET_FOCUS_GOAL_PROGRESS', totalAmount: amount });
-  };
-
-  const hasCategoriesWithoutBudget = useMemo(
-    () =>
-      state.monthlyBudget > 0 &&
-      categoryIds.some(id => {
-        const goal = state.budgetGoals.find(g => g.categoryId === id);
-        return !goal || goal.amount <= 0;
-      }),
-    [state.monthlyBudget, state.budgetGoals, categoryIds],
-  );
-
-  const didAutoFillCategories = useRef(false);
-
-  useEffect(() => {
-    if (!hasCategoriesWithoutBudget || didAutoFillCategories.current) return;
-    if (state.monthlyBudget < categoryIds.length) return;
-    didAutoFillCategories.current = true;
-    dispatch({
-      type: 'SET_BUDGET',
-      amount: state.monthlyBudget,
-      categoryIds,
+  const openAddSavingsGoal = () => {
+    setSavingsGoalModal({
+      mode: 'add',
+      draft: createSavingsGoal({ name: '', ...pickRandomSavingsGoalAppearance() }),
     });
-  }, [hasCategoriesWithoutBudget, state.monthlyBudget, categoryIds, dispatch]);
+  };
 
   const handleSave = (amount: number) => {
     if (!editTarget) return;
     if (editTarget.kind === 'income') dispatch({ type: 'SET_INCOME', amount });
-    else if (editTarget.kind === 'budget') {
-      dispatch({ type: 'SET_BUDGET', amount, categoryIds });
-    } else dispatch({ type: 'SET_CATEGORY_BUDGET', categoryId: editTarget.categoryId, amount });
+    else dispatch({ type: 'SET_BUDGET', amount });
   };
 
   const budgetStatus =
@@ -160,101 +164,302 @@ export default function BudgetScreen() {
         ? "You've used most of your income this month."
         : undefined;
 
+  const slideTransition = reduceMotion
+    ? { duration: 0 }
+    : { duration: BUDGET_SLIDE_DURATION, ease: SLIDE_EASE };
+
+  const setView = useCallback(
+    (mode: BudgetViewMode) => {
+      setViewMode(mode);
+      if (insightsExitTimerRef.current) {
+        clearTimeout(insightsExitTimerRef.current);
+        insightsExitTimerRef.current = undefined;
+      }
+
+      if (mode === 'insights') {
+        setInsightsExiting(false);
+        setInsightsOpen(true);
+        return;
+      }
+
+      setInsightsExiting(true);
+      if (reduceMotion) {
+        setInsightsOpen(false);
+        setInsightsExiting(false);
+        return;
+      }
+      insightsExitTimerRef.current = setTimeout(() => {
+        setInsightsOpen(false);
+        setInsightsExiting(false);
+        insightsExitTimerRef.current = undefined;
+      }, SLIDE_MS);
+    },
+    [reduceMotion],
+  );
+
+  useEffect(
+    () => () => {
+      if (insightsExitTimerRef.current) clearTimeout(insightsExitTimerRef.current);
+    },
+    [],
+  );
+
+  const insightsVisible = insightsOpen || insightsExiting;
+
+  const tabSwipeRef = useRef({ x: 0, y: 0, tracking: false });
+  const tabSwipeConsumedRef = useRef(false);
+  const TAB_SWIPE_THRESHOLD = 44;
+
+  const handleTabStripPointerDown = useCallback((e: React.PointerEvent) => {
+    tabSwipeConsumedRef.current = false;
+    tabSwipeRef.current = { x: e.clientX, y: e.clientY, tracking: true };
+  }, []);
+
+  const handleTabStripPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      const start = tabSwipeRef.current;
+      if (!start.tracking) return;
+      start.tracking = false;
+
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) < TAB_SWIPE_THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+
+      tabSwipeConsumedRef.current = true;
+      if (dx < 0 && viewMode === 'goals') setView('insights');
+      else if (dx > 0 && viewMode === 'insights') setView('goals');
+    },
+    [setView, viewMode],
+  );
+
+  const handleTabClick = useCallback(
+    (mode: BudgetViewMode) => {
+      if (tabSwipeConsumedRef.current) {
+        tabSwipeConsumedRef.current = false;
+        return;
+      }
+      setView(mode);
+    },
+    [setView],
+  );
+
+  const tabWheelLockRef = useRef(false);
+
+  const handleTabStripWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (tabWheelLockRef.current) return;
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      if (Math.abs(e.deltaX) < 12) return;
+
+      e.preventDefault();
+      tabWheelLockRef.current = true;
+      window.setTimeout(() => {
+        tabWheelLockRef.current = false;
+      }, 350);
+
+      if (e.deltaX > 0 && viewMode === 'goals') setView('insights');
+      else if (e.deltaX < 0 && viewMode === 'insights') setView('goals');
+    },
+    [setView, viewMode],
+  );
+
   return (
     <>
       <div
-        ref={scrollRef}
-        data-app-scroll
         style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          overscrollBehavior: 'none',
-          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-y',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: c.canvas,
-          paddingBottom: TAB_BAR_CLEARANCE,
+          position: 'relative',
         }}
       >
-        <div
+        <header
           style={{
+            flexShrink: 0,
             backgroundColor: c.surface,
-            padding: '20px 20px 16px',
             borderBottom: `1px solid ${c.border}`,
           }}
         >
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: c.text, margin: 0 }}>Budget & Goals</h1>
-        </div>
-
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <PrimaryGoalFocusCard
-            goal={goalDef}
-            target={state.primaryGoalTarget}
-            progress={goalProgress}
-            focusContributions={focusContributions}
-            animationDelay={0}
-            formatCurrency={formatCurrency}
-            onEdit={() => setFocusModalOpen(true)}
-            onCurrentAmountChange={handleFocusCurrentAmountChange}
-          />
-
-          <FeaturedBudgetCard
-            layout="compact"
-            title="Monthly income"
-            icon={{ iconKey: 'wallet' }}
-            spent={totalSpent}
-            limit={state.income}
-            accentColor="#10B981"
-            accentBg="#D1FAE5"
-            formatCurrency={formatCurrency}
-            statusMessage={incomeStatus}
-            onClick={() => setEditTarget({ kind: 'income' })}
-            animationDelay={120}
-          />
-
-          <FeaturedBudgetCard
-            layout="compact"
-            title="Monthly budget"
-            icon={{ phosphorIcon: 'target' }}
-            spent={totalSpent}
-            limit={state.monthlyBudget}
-            accentColor="#F59E0B"
-            accentBg="#FEF3C7"
-            formatCurrency={formatCurrency}
-            statusMessage={budgetStatus}
-            onClick={() => setEditTarget({ kind: 'budget' })}
-            animationDelay={240}
-          />
-
-          <div style={{ paddingTop: 4 }}>
-            <SectionTitle>{goalDef.categoriesSectionTitle}</SectionTitle>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {sortedCategories.map((cat, index) => {
-                const goal = state.budgetGoals.find(g => g.categoryId === cat.id);
-                const spent = categoryTotals[cat.id] ?? 0;
+          <div
+            onPointerDown={handleTabStripPointerDown}
+            onPointerUp={handleTabStripPointerUp}
+            onPointerCancel={handleTabStripPointerUp}
+            onWheel={handleTabStripWheel}
+            style={{
+              padding: '20px 20px 0',
+              touchAction: 'none',
+            }}
+          >
+            <div role="tablist" aria-label="Budget view" style={{ display: 'flex' }}>
+              {([
+                { mode: 'goals' as const, label: 'Goals', ariaLabel: 'Goals and budgets' },
+                { mode: 'insights' as const, label: 'Insights', ariaLabel: 'Spending insights' },
+              ]).map(({ mode, label, ariaLabel }) => {
+                const isActive = viewMode === mode;
                 return (
-                  <CategoryBudgetCard
-                    key={cat.id}
-                    categoryId={cat.id}
-                    spent={spent}
-                    budgeted={goal?.amount ?? 0}
-                    formatCurrency={formatCurrency}
-                    animationDelay={400 + index * 55}
-                    onClick={() =>
-                      setEditTarget({
-                        kind: 'category',
-                        categoryId: cat.id,
-                        categoryName: cat.name,
-                      })
-                    }
-                  />
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    onClick={() => handleTabClick(mode)}
+                    aria-label={ariaLabel}
+                    aria-selected={isActive}
+                    style={{
+                      ...screenTitleStyle,
+                      flex: 1,
+                      padding: '0 0 14px',
+                      marginBottom: -1,
+                      border: 'none',
+                      background: 'none',
+                      borderBottom: `1px solid ${isActive ? c.text : 'transparent'}`,
+                      cursor: 'pointer',
+                      color: isActive ? c.text : c.textFaint,
+                      transition: 'color 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    {label}
+                  </button>
                 );
               })}
             </div>
           </div>
-        </div>
+        </header>
+
+        <motion.div
+          initial={reduceMotion ? false : { x: '100%' }}
+          animate={{ x: 0 }}
+          transition={slideTransition}
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            position: 'relative',
+            backgroundColor: c.canvas,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              flex: 1,
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              aria-hidden={insightsVisible}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 0,
+                pointerEvents: insightsVisible ? 'none' : 'auto',
+              }}
+            >
+              <div
+                ref={scrollRef}
+                data-app-scroll
+                style={{
+                  height: '100%',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  overscrollBehavior: 'none',
+                  WebkitOverflowScrolling: 'touch',
+                  touchAction: 'pan-y',
+                  backgroundColor: c.canvas,
+                  paddingBottom: TAB_BAR_CLEARANCE,
+                }}
+              >
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <FeaturedBudgetCard
+                    layout="compact"
+                    title="Monthly income"
+                    icon={{ iconKey: 'wallet' }}
+                    spent={totalSpent}
+                    limit={state.income}
+                    accentColor="#10B981"
+                    accentBg="#D1FAE5"
+                    formatCurrency={formatCurrency}
+                    statusMessage={incomeStatus}
+                    onClick={() => openEditTarget({ kind: 'income' })}
+                    animationDelay={0}
+                  />
+
+                  <FeaturedBudgetCard
+                    layout="compact"
+                    title="Monthly budget"
+                    icon={{ phosphorIcon: 'target' }}
+                    spent={totalSpent}
+                    limit={state.monthlyBudget}
+                    accentColor="#F59E0B"
+                    accentBg="#FEF3C7"
+                    formatCurrency={formatCurrency}
+                    statusMessage={budgetStatus}
+                    onClick={() => openEditTarget({ kind: 'budget' })}
+                    animationDelay={80}
+                  />
+
+                  <div>
+                    <SectionTitle>Saving goals</SectionTitle>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {state.savingsGoals.length === 0 ? (
+                        <SavingsGoalsEmptyState onAdd={openAddSavingsGoal} />
+                      ) : (
+                        <>
+                          {state.savingsGoals.map((goal, index) => (
+                            <SavingsGoalCard
+                              key={goal.id}
+                              goal={goal}
+                              formatCurrency={formatCurrency}
+                              animationDelay={160 + index * 55}
+                              onEdit={() => setSavingsGoalModal({ mode: 'edit', goal })}
+                            />
+                          ))}
+                          <AddCustomCategoryButton
+                            variant="row"
+                            label="Add goal"
+                            onClick={openAddSavingsGoal}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {insightsOpen && (
+              <motion.div
+                key="budget-insights-panel"
+                initial={reduceMotion ? false : { x: '100%' }}
+                animate={{ x: insightsExiting ? '100%' : 0 }}
+                transition={slideTransition}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 10,
+                  overflowY: 'auto',
+                  paddingBottom: TAB_BAR_CLEARANCE,
+                  willChange: 'transform',
+                  backgroundColor: c.canvas,
+                }}
+              >
+                <div style={{ padding: '0 20px 12px' }}>
+                  <BudgetInsightsPanel
+                    range={insightsRange}
+                    selectedMonthKey={selectedMonthKey}
+                    onRangeChange={setInsightsRange}
+                    onMonthChange={setSelectedMonthKey}
+                    periodTotal={insightsPeriodTotal}
+                    income={state.income}
+                    monthlyBudget={state.monthlyBudget}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
       </div>
 
       <BudgetEditModal
@@ -265,17 +470,29 @@ export default function BudgetScreen() {
         currencySymbol={currencySymbol}
         scrollLockRef={scrollRef}
         onSave={handleSave}
-        onClose={() => setEditTarget(null)}
+        onClose={closeEditTarget}
       />
 
-      <PrimaryGoalSetupModal
-        open={focusModalOpen}
-        goalId={goalId}
-        target={state.primaryGoalTarget}
-        formatCurrency={formatCurrency}
+      <SavingsGoalEditModal
+        open={savingsGoalModal !== null}
+        goal={
+          savingsGoalModal?.mode === 'edit'
+            ? savingsGoalModal.goal
+            : savingsGoalModal?.draft ?? null
+        }
+        currencySymbol={currencySymbol}
         scrollLockRef={scrollRef}
-        onSave={handleFocusSave}
-        onClose={() => setFocusModalOpen(false)}
+        isNew={savingsGoalModal?.mode === 'add'}
+        onSave={handleSavingsGoalSave}
+        onDelete={
+          savingsGoalModal?.mode === 'edit'
+            ? () => {
+                dispatch({ type: 'DELETE_SAVINGS_GOAL', id: savingsGoalModal.goal.id });
+                setSavingsGoalModal(null);
+              }
+            : undefined
+        }
+        onClose={() => setSavingsGoalModal(null)}
       />
     </>
   );

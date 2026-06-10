@@ -75,20 +75,6 @@ export function OnboardingAmountField({
         {label}
       </label>
 
-      {helperText ? (
-        <p
-          style={{
-            margin: '0 0 10px',
-            fontSize: 12,
-            lineHeight: 1.45,
-            color: theme.textMuted,
-            fontWeight: 500,
-          }}
-        >
-          {helperText}
-        </p>
-      ) : null}
-
       <div style={{ marginBottom: 14 }}>
         <CurrencyAmountInput
           currencySymbol={currencySymbol}
@@ -225,6 +211,20 @@ export function OnboardingAmountField({
         ) : null}
         <span style={{ position: 'absolute', right: 0 }}>{maxLabel}</span>
       </div>
+
+      {helperText ? (
+        <p
+          style={{
+            margin: '10px 0 0',
+            fontSize: 12,
+            lineHeight: 1.45,
+            color: theme.textMuted,
+            fontWeight: 500,
+          }}
+        >
+          {helperText}
+        </p>
+      ) : null}
     </div>
   );
 }

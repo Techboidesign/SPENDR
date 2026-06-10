@@ -21,7 +21,7 @@ export function CategoryBudgetCard({
   spent: number;
   budgeted: number;
   formatCurrency: (n: number) => string;
-  onClick: () => void;
+  onClick?: () => void;
   animationDelay?: number;
   showFocusBadge?: boolean;
 }) {
@@ -31,10 +31,13 @@ export function CategoryBudgetCard({
   const isOver = budgeted > 0 && spent > budgeted;
   const progressColor = getBudgetProgressColor(usagePercent);
 
+  const interactive = onClick != null;
+
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!interactive}
       style={{
         width: '100%',
         display: 'flex',
@@ -44,7 +47,7 @@ export function CategoryBudgetCard({
         backgroundColor: c.surface,
         borderRadius: 16,
         border: 'none',
-        cursor: 'pointer',
+        cursor: interactive ? 'pointer' : 'default',
         fontFamily: 'inherit',
         textAlign: 'left',
         boxShadow: c.shadowCard,
@@ -86,7 +89,10 @@ export function CategoryBudgetCard({
               {formatCurrency(budgeted)}
             </>
           ) : (
-            <span>{formatCurrency(spent)} spent · tap to set budget</span>
+            <span>
+              {formatCurrency(spent)} spent
+              {interactive ? ' · tap to set budget' : ''}
+            </span>
           )}
         </p>
       </div>
@@ -95,7 +101,9 @@ export function CategoryBudgetCard({
         size={52}
         animationDelay={animationDelay}
       />
-      <CaretRight size={16} weight="light" color={c.textFaint} aria-hidden style={{ flexShrink: 0 }} />
+      {interactive ? (
+        <CaretRight size={16} weight="light" color={c.textFaint} aria-hidden style={{ flexShrink: 0 }} />
+      ) : null}
     </button>
   );
 }
